@@ -1,0 +1,8 @@
+[
+  { "id": 1, "brandId": 10, "name": "C-Class" },
+  { "id": 2, "brandId": 10, "name": "E-Class" },
+  { "id": 3, "brandId": 10, "name": "S-Class" },
+  { "id": 4, "brandId": 10, "name": "GLC" },
+  { "id": 5, "brandId": 10, "name": "GLE" }
+]
+

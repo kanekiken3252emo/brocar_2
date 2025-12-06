@@ -1,0 +1,25 @@
+# Berg.ru API Configuration
+BERG_API_URL=https://api.berg.ru
+BERG_API_KEY_1=e292fd3c0676e80a08525f9b783a6767
+BERG_API_KEY_2=f2ce16c130cf7daa8483ff7c321e4377
+BERG_API_KEY_3=76ab46aa5e5707c25e2e540e23570164a7c64f01c5cf2447224ce96396b99603
+
+# Supabase Configuration (ОБЯЗАТЕЛЬНО!)
+SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co
+SUPABASE_ANON_KEY=вставьте_ваш_anon_key_сюда
+SUPABASE_SERVICE_ROLE_KEY=вставьте_ваш_service_role_key_сюда
+
+# Public Supabase (для клиента)
+NEXT_PUBLIC_SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=вставьте_ваш_anon_key_сюда
+
+# Database
+DATABASE_URL=postgresql://postgres:пароль@db.ngfooubrlgdhaqihihci.supabase.co:5432/postgres
+
+# Site
+NEXT_PUBLIC_SITE_NAME=BroCar
+NEXT_PUBLIC_SITE_DOMAIN=localhost:3000
+
+# Node Environment
+NODE_ENV=development
+

@@ -1,0 +1,29 @@
+[
+  { 
+    "id": 1, 
+    "modelId": 1, 
+    "name": "G20 (2018-н.в.)", 
+    "generation": "G20",
+    "yearFrom": 2018, 
+    "yearTo": 2024,
+    "engines": [
+      { "id": 1, "name": "2.0 (184 л.с.)", "volume": "2.0", "power": 184, "fuel": "Бензин" },
+      { "id": 2, "name": "2.0 (258 л.с.)", "volume": "2.0", "power": 258, "fuel": "Бензин" },
+      { "id": 3, "name": "3.0 (374 л.с.)", "volume": "3.0", "power": 374, "fuel": "Бензин" }
+    ]
+  },
+  { 
+    "id": 2, 
+    "modelId": 1, 
+    "name": "F30 (2012-2019)", 
+    "generation": "F30",
+    "yearFrom": 2012, 
+    "yearTo": 2019,
+    "engines": [
+      { "id": 4, "name": "2.0 (184 л.с.)", "volume": "2.0", "power": 184, "fuel": "Бензин" },
+      { "id": 5, "name": "2.0 (245 л.с.)", "volume": "2.0", "power": 245, "fuel": "Бензин" },
+      { "id": 6, "name": "3.0 (326 л.с.)", "volume": "3.0", "power": 326, "fuel": "Бензин" }
+    ]
+  }
+]
+

@@ -1,0 +1,27 @@
+[
+  { 
+    "id": 1, 
+    "modelId": 3, 
+    "name": "QB (2020-н.в.)", 
+    "generation": "QB",
+    "yearFrom": 2020, 
+    "yearTo": 2024,
+    "engines": [
+      { "id": 1, "name": "1.6 (122 л.с.)", "volume": "1.6", "power": 122, "fuel": "Бензин" },
+      { "id": 2, "name": "1.4 Turbo (150 л.с.)", "volume": "1.4", "power": 150, "fuel": "Бензин" }
+    ]
+  },
+  { 
+    "id": 2, 
+    "modelId": 3, 
+    "name": "UB (2017-2020)", 
+    "generation": "UB",
+    "yearFrom": 2017, 
+    "yearTo": 2020,
+    "engines": [
+      { "id": 3, "name": "1.4 (100 л.с.)", "volume": "1.4", "power": 100, "fuel": "Бензин" },
+      { "id": 4, "name": "1.6 (123 л.с.)", "volume": "1.6", "power": 123, "fuel": "Бензин" }
+    ]
+  }
+]
+

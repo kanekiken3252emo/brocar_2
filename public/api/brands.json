@@ -1,0 +1,25 @@
+[
+  { "id": 1, "name": "Audi", "letter": "A" },
+  { "id": 2, "name": "BMW", "letter": "B" },
+  { "id": 3, "name": "Chevrolet", "letter": "C" },
+  { "id": 4, "name": "Ford", "letter": "F" },
+  { "id": 5, "name": "Honda", "letter": "H" },
+  { "id": 6, "name": "Hyundai", "letter": "H" },
+  { "id": 7, "name": "Kia", "letter": "K" },
+  { "id": 8, "name": "Lexus", "letter": "L" },
+  { "id": 9, "name": "Mazda", "letter": "M" },
+  { "id": 10, "name": "Mercedes-Benz", "letter": "M" },
+  { "id": 11, "name": "Nissan", "letter": "N" },
+  { "id": 12, "name": "Opel", "letter": "O" },
+  { "id": 13, "name": "Peugeot", "letter": "P" },
+  { "id": 14, "name": "Renault", "letter": "R" },
+  { "id": 15, "name": "Skoda", "letter": "S" },
+  { "id": 16, "name": "Subaru", "letter": "S" },
+  { "id": 17, "name": "Toyota", "letter": "T" },
+  { "id": 18, "name": "Volkswagen", "letter": "V" },
+  { "id": 19, "name": "Volvo", "letter": "V" },
+  { "id": 20, "name": "ВАЗ", "letter": "В" },
+  { "id": 21, "name": "ГАЗ", "letter": "Г" },
+  { "id": 22, "name": "УАЗ", "letter": "У" }
+]
+

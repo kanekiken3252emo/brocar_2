@@ -1,0 +1,8 @@
+[
+  { "id": 1, "brandId": 18, "name": "Golf" },
+  { "id": 2, "brandId": 18, "name": "Passat" },
+  { "id": 3, "brandId": 18, "name": "Polo" },
+  { "id": 4, "brandId": 18, "name": "Tiguan" },
+  { "id": 5, "brandId": 18, "name": "Jetta" }
+]
+

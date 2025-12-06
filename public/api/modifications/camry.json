@@ -1,0 +1,29 @@
+[
+  { 
+    "id": 1, 
+    "modelId": 1, 
+    "name": "XV70 (2017-2023)", 
+    "generation": "XV70",
+    "yearFrom": 2017, 
+    "yearTo": 2023,
+    "engines": [
+      { "id": 1, "name": "2.0 (150 л.с.)", "volume": "2.0", "power": 150, "fuel": "Бензин" },
+      { "id": 2, "name": "2.5 (181 л.с.)", "volume": "2.5", "power": 181, "fuel": "Бензин" },
+      { "id": 3, "name": "3.5 (249 л.с.)", "volume": "3.5", "power": 249, "fuel": "Бензин" }
+    ]
+  },
+  { 
+    "id": 2, 
+    "modelId": 1, 
+    "name": "XV50 (2011-2017)", 
+    "generation": "XV50",
+    "yearFrom": 2011, 
+    "yearTo": 2017,
+    "engines": [
+      { "id": 4, "name": "2.0 (148 л.с.)", "volume": "2.0", "power": 148, "fuel": "Бензин" },
+      { "id": 5, "name": "2.5 (181 л.с.)", "volume": "2.5", "power": 181, "fuel": "Бензин" },
+      { "id": 6, "name": "3.5 (277 л.с.)", "volume": "3.5", "power": 277, "fuel": "Бензин" }
+    ]
+  }
+]
+

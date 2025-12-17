@@ -6,7 +6,7 @@ const BERG_API_KEY = process.env.BERG_API_KEY_1;
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!BERG_API_KEY) {
@@ -16,6 +16,7 @@ export async function GET(
       );
     }
 
+    const params = await context.params;
     const resourceId = params.id;
 
     if (!resourceId) {

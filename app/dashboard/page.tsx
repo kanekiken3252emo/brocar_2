@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { LogoutButton } from "@/components/logout-button";
 
 async function getOrders(userId: string) {
   try {
@@ -114,11 +115,7 @@ export default async function DashboardPage() {
             <CardTitle>Действия</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <form action="/auth/signout" method="post">
-              <Button variant="outline" type="submit" className="w-full">
-                Выйти из системы
-              </Button>
-            </form>
+            <LogoutButton />
           </CardContent>
         </Card>
       </div>

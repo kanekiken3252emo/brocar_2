@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench } from "lucide-react";
+import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import BrandCatalogDropdown from "./BrandCatalogDropdown";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 interface HeaderProps {
   user?: any;
@@ -52,6 +54,14 @@ export function Header({ user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isBrandCatalogOpen, setIsBrandCatalogOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <header className="bg-white sticky top-0 z-50 shadow-sm">
@@ -82,9 +92,38 @@ export function Header({ user }: HeaderProps) {
                   </Link>
                 </>
               ) : (
-                <Link href="/dashboard" className="text-gray-700 hover:text-blue-600">
-                  Личный кабинет
-                </Link>
+                <div className="relative group">
+                  <button className="flex items-center gap-2 text-gray-700 hover:text-blue-600">
+                    <User className="h-4 w-4" />
+                    <span className="font-medium">{user.email?.split('@')[0]}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="py-2">
+                      <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">
+                        Профиль
+                      </Link>
+                      <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">
+                        Личный кабинет
+                      </Link>
+                      <div className="border-t border-gray-200 my-1"></div>
+                      <div className="px-4 py-2">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          JWT авторизован
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-200 my-1"></div>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Выйти
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>

@@ -12,6 +12,21 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+// Profiles table (User information)
+export const profiles = pgTable("profiles", {
+  id: uuid("id").primaryKey(), // References auth.users
+  email: text("email").notNull().unique(),
+  fullName: text("full_name"),
+  phone: text("phone"),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // Suppliers table
 export const suppliers = pgTable("suppliers", {
   id: uuid("id").primaryKey().defaultRandom(),

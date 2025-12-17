@@ -7,16 +7,26 @@ import { applyPricingSync } from "@/lib/pricing";
 import { eq } from "drizzle-orm";
 
 /**
- * Cron job endpoint to sync products from suppliers
- * In production, protect this with Vercel Cron or a secret token
- * 
- * Usage:
- * - Add to vercel.json: { "crons": [{ "path": "/api/cron/sync", "schedule": "0 */6 * * *" }] }
- * - Or call with X-CRON-TOKEN header
+ * Cron job endpoint to sync products from suppliers.
+ *
+ * IMPORTANT:
+ * - On the Vercel Hobby plan, cron can run ONLY once per day.
+ * - Remove any complex cron schedule from vercel.json or set to: "0 0 * * *"
+ *
+ * Do NOT copy any JSON config directly inside this comment,
+ * because special characters may break compilation.
+ *
+ * If you need cron:
+ * {
+ *   "crons": [
+ *     { "path": "/api/cron/sync", "schedule": "0 0 * * *" }
+ *   ]
+ * }
+ *
+ * Or protect this route with X-CRON-TOKEN.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Simple token-based protection
     const token = request.headers.get("x-cron-token");
     const expectedToken = process.env.CRON_SECRET_TOKEN;
 
@@ -43,11 +53,9 @@ async function performSync() {
   let syncedCount = 0;
   let errorCount = 0;
 
-  // Get or create suppliers
   const vendorASupplier = await getOrCreateSupplier("Vendor A", "vendorA");
   const vendorBSupplier = await getOrCreateSupplier("Vendor B", "vendorB");
 
-  // Example: sync popular parts (in production, you'd have a catalog to iterate)
   const popularArticles = [
     { article: "12345", brand: "Bosch" },
     { article: "67890", brand: "Mann" },
@@ -56,14 +64,12 @@ async function performSync() {
 
   for (const search of popularArticles) {
     try {
-      // Search vendor A
       const vendorAResults = await vendorAAdapter.search(search);
       for (const item of vendorAResults) {
         await upsertProduct(item, vendorASupplier.id);
         syncedCount++;
       }
 
-      // Search vendor B
       const vendorBResults = await vendorBAdapter.search(search);
       for (const item of vendorBResults) {
         await upsertProduct(item, vendorBSupplier.id);
@@ -91,9 +97,7 @@ async function getOrCreateSupplier(name: string, key: string) {
     where: eq(suppliers.name, name),
   });
 
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
   const [newSupplier] = await db
     .insert(suppliers)
@@ -113,17 +117,12 @@ async function upsertProduct(
 ) {
   const ourPrice = applyPricingSync(item.price, { brand: item.brand });
 
-  // Check if product exists
   const existing = await db.query.products.findFirst({
     where: (products, { and, eq }) =>
-      and(
-        eq(products.article, item.article),
-        eq(products.supplierId, supplierId)
-      ),
+      and(eq(products.article, item.article), eq(products.supplierId, supplierId)),
   });
 
   if (existing) {
-    // Update
     await db
       .update(products)
       .set({
@@ -136,7 +135,6 @@ async function upsertProduct(
       })
       .where(eq(products.id, existing.id));
   } else {
-    // Insert
     await db.insert(products).values({
       article: item.article,
       brand: item.brand || null,
@@ -148,7 +146,3 @@ async function upsertProduct(
     });
   }
 }
-
-
-
-

@@ -23,6 +23,12 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
+      
+      if (!supabase) {
+        setError("Ошибка инициализации");
+        return;
+      }
+      
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,

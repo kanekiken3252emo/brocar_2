@@ -39,6 +39,12 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
+      
+      if (!supabase) {
+        setError("Ошибка инициализации");
+        return;
+      }
+      
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,

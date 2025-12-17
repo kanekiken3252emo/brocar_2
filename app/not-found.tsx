@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function NotFound() {
   return (
     <div className="container mx-auto px-4 py-16">
@@ -9,17 +11,14 @@ export default function NotFound() {
         <p className="text-gray-600 mb-8">
           К сожалению, запрашиваемая страница не существует.
         </p>
-        <a
+
+        <Link
           href="/"
           className="inline-flex items-center justify-center rounded-md bg-blue-600 px-6 py-3 text-white hover:bg-blue-700 transition"
         >
           Вернуться на главную
-        </a>
+        </Link>
       </div>
     </div>
   );
 }
-
-
-
-

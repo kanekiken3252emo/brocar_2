@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import axios from "axios";
 
 const BERG_API_URL = process.env.BERG_API_URL || "https://api.berg.ru";
 const BERG_API_KEY = process.env.BERG_API_KEY_1;
 
 export async function GET(
-  request: NextRequest,
+  _req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -25,12 +25,11 @@ export async function GET(
       );
     }
 
-    // Get article details from get_stock endpoint
     const url = `${BERG_API_URL}/v1.0/ordering/get_stock.json?key=${BERG_API_KEY}`;
 
     const searchParams = {
       "items[0][resource_id]": resourceId,
-      analogs: 1, // Include analogs
+      analogs: 1,
     };
 
     console.log("BERG Article Request:", { resourceId });
@@ -54,7 +53,7 @@ export async function GET(
 
     return NextResponse.json({
       article,
-      analogs: response.data.resources.slice(1), // Other resources are analogs
+      analogs: response.data.resources.slice(1),
     });
   } catch (error: any) {
     console.error("BERG Article Error:", {
@@ -78,4 +77,3 @@ export async function GET(
     );
   }
 }
-

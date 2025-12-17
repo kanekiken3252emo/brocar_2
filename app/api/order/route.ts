@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
       });
     } else if (validatedData.items) {
       // Create order from provided items
+      // Fixed: using products schema import
       for (const item of validatedData.items) {
         const product = await db.query.products.findFirst({
           where: eq(products.id, item.productId),

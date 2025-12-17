@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { orders, orderItems, carts, cartItems } from "@/lib/db/schema";
+import { orders, orderItems, carts, cartItems, products } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       // Create order from provided items
       for (const item of validatedData.items) {
         const product = await db.query.products.findFirst({
-          where: eq(db.products.id, item.productId),
+          where: eq(products.id, item.productId),
         });
 
         if (!product) {

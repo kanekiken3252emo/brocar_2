@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Копируем package.json и package-lock.json
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 # Билд приложения
 FROM base AS builder

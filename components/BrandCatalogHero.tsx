@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 
-// Brands organized by columns (как на exist.ru)
+// Brands organized by columns
 const BRAND_COLUMNS = [
   {
     brands: [
-      { letter: "", name: "Audi" },
+      { letter: "A", name: "Audi" },
       { letter: "B", name: "Baic" },
       { letter: "", name: "BMW" },
       { letter: "C", name: "Cadillac" },
@@ -78,8 +78,7 @@ const BRAND_COLUMNS = [
 
 export default function BrandCatalogHero() {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      {/* Brand List Grid */}
+    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
       <div className="p-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-1">
           {BRAND_COLUMNS.map((column, colIndex) => (
@@ -88,25 +87,28 @@ export default function BrandCatalogHero() {
                 <div key={brandIndex} className="flex items-start gap-2">
                   {/* Letter indicator */}
                   {brand.letter ? (
-                    <span className="w-4 text-sm font-bold text-red-600 shrink-0">
+                    <span className="w-5 text-sm font-bold text-orange-500 shrink-0">
                       {brand.letter}
                     </span>
                   ) : (
-                    <span className="w-4 shrink-0"></span>
+                    <span className="w-5 shrink-0"></span>
                   )}
                   
                   {/* Brand name */}
                   {brand.isLink ? (
                     <Link
                       href="/catalog"
-                      className="text-sm text-blue-600 hover:underline"
+                      className="text-sm text-orange-500 hover:text-orange-400 font-medium transition-colors"
+                    >
+                      {brand.name} →
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/catalog?brand=${encodeURIComponent(brand.name)}`}
+                      className="text-sm text-neutral-400 hover:text-white transition-colors"
                     >
                       {brand.name}
                     </Link>
-                  ) : (
-                    <span className="text-sm text-gray-700 hover:text-blue-600 cursor-pointer transition-colors">
-                      {brand.name}
-                    </span>
                   )}
                 </div>
               ))}
@@ -117,4 +119,3 @@ export default function BrandCatalogHero() {
     </div>
   );
 }
-

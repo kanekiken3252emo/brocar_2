@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut } from "lucide-react";
+import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, Search, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import BrandCatalogDropdown from "./BrandCatalogDropdown";
@@ -54,6 +54,7 @@ export function Header({ user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isBrandCatalogOpen, setIsBrandCatalogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -63,60 +64,67 @@ export function Header({ user }: HeaderProps) {
     router.refresh();
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/catalog?article=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
-    <header className="bg-white sticky top-0 z-50 shadow-sm">
+    <header className="sticky top-0 z-50">
       {/* Top Bar */}
-      <div className="bg-gray-100 border-b border-gray-200">
+      <div className="bg-neutral-950 border-b border-neutral-800/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-10 text-sm">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-gray-700">
-                <MapPin className="h-4 w-4" />
-                <span>Калининград, Советский проспект, д. 182</span>
+            <div className="hidden md:flex items-center gap-6">
+              <div className="flex items-center gap-2 text-neutral-400">
+                <MapPin className="h-4 w-4 text-orange-500" />
+                <span>Екатеринбург, Заводская 16</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-700">
-                <Phone className="h-4 w-4" />
-                <span className="font-semibold">+7(401)275-8888</span>
+              <div className="flex items-center gap-2 text-neutral-400">
+                <Phone className="h-4 w-4 text-orange-500" />
+                <span className="font-semibold text-white">+7 (932) 600-60-15</span>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ml-auto">
               {!user ? (
                 <>
-                  <Link href="/auth/register" className="text-gray-700 hover:text-blue-600">
+                  <Link href="/auth/register" className="text-neutral-400 hover:text-orange-500 transition-colors">
                     Регистрация
                   </Link>
                   <Link href="/auth/login">
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7">
+                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white h-7 px-4">
                       Войти
                     </Button>
                   </Link>
                 </>
               ) : (
                 <div className="relative group">
-                  <button className="flex items-center gap-2 text-gray-700 hover:text-blue-600">
+                  <button className="flex items-center gap-2 text-neutral-400 hover:text-orange-500 transition-colors">
                     <User className="h-4 w-4" />
-                    <span className="font-medium">{user.email?.split('@')[0]}</span>
+                    <span className="font-medium text-white">{user.email?.split('@')[0]}</span>
                     <ChevronDown className="h-3 w-3" />
                   </button>
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
                     <div className="py-2">
-                      <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">
+                      <Link href="/profile" className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-orange-500 transition-colors">
                         Профиль
                       </Link>
-                      <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">
+                      <Link href="/dashboard" className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-orange-500 transition-colors">
                         Личный кабинет
                       </Link>
-                      <div className="border-t border-gray-200 my-1"></div>
+                      <div className="border-t border-neutral-800 my-1"></div>
                       <div className="px-4 py-2">
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span className="text-xs text-neutral-500 flex items-center gap-1.5">
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                           JWT авторизован
                         </span>
                       </div>
-                      <div className="border-t border-gray-200 my-1"></div>
+                      <div className="border-t border-neutral-800 my-1"></div>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
                         Выйти
@@ -131,59 +139,95 @@ export function Header({ user }: HeaderProps) {
       </div>
 
       {/* Main Header */}
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between py-4 gap-6">
-          {/* Logo */}
-          <Link href="/" className="shrink-0">
-            <Image
-              src="/logo.png"
-              alt="BroCar"
-              width={120}
-              height={48}
-              className="h-20 w-auto"
-              priority
-            />
-          </Link>
+      <div className="bg-neutral-900/95 backdrop-blur-xl border-b border-neutral-800/50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between py-3 md:py-4 gap-3 md:gap-6">
+            {/* Logo */}
+            <Link href="/" className="shrink-0 flex items-center">
+              <div className="bg-white rounded-full p-px">
+                <Image
+                  src="/logo.png"
+                  alt="BroCar"
+                  width={120}
+                  height={48}
+                  className="h-12 md:h-16 w-auto"
+                  priority
+                />
+              </div>
+            </Link>
 
-          {/* Search Bar - Large centered */}
-          <div className="flex-1 max-w-3xl">
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden md:block">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="VIN, номер кузова, артикул, наименование..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-5 py-3 pr-14 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white placeholder-neutral-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-all"
+                />
+                <button 
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white p-2.5 rounded-lg transition-colors"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+              </div>
+            </form>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+              <Link href="/parts-finder" className="hidden lg:block">
+                <Button variant="outline" className="flex items-center gap-2 border-neutral-700 text-neutral-300 hover:border-orange-500 hover:text-orange-500 bg-transparent h-12 px-4">
+                  <Wrench className="h-5 w-5" />
+                  <div className="text-left">
+                    <div className="text-xs opacity-70">ПОДОБРАТЬ</div>
+                    <div className="text-xs font-semibold">ЗАПЧАСТИ</div>
+                  </div>
+                </Button>
+              </Link>
+              <Link href="/cart">
+                <Button variant="outline" className="flex items-center gap-2 border-orange-500/50 text-orange-500 hover:bg-orange-500 hover:text-white bg-transparent h-10 md:h-12 px-3 md:px-4 transition-all">
+                  <ShoppingCart className="h-5 w-5" />
+                  <span className="hidden lg:inline font-semibold">КОРЗИНА</span>
+                </Button>
+              </Link>
+              
+              {/* Mobile menu button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden text-neutral-300 hover:text-orange-500 hover:bg-neutral-800 h-10 w-10"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Mobile Search */}
+          <form onSubmit={handleSearch} className="md:hidden pb-3">
             <div className="relative">
               <input
                 type="text"
-                placeholder="VIN, номер кузова (без тире), артикул, наименование"
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+                placeholder="Поиск по артикулу или VIN..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2.5 pr-11 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white text-sm placeholder-neutral-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-all"
               />
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+              <button 
+                type="submit"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-lg transition-colors"
+              >
+                <Search className="h-4 w-4" />
               </button>
             </div>
-          </div>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-3 shrink-0">
-            <Link href="/parts-finder">
-              <Button variant="outline" className="hidden lg:flex items-center gap-2 border-blue-600 text-blue-600 hover:bg-blue-50">
-                <Wrench className="h-4 w-4" />
-                <div className="text-left">
-                  <div className="text-xs">ПОДОБРАТЬ</div>
-                  <div className="text-xs font-semibold">ЗАПЧАСТИ</div>
-                </div>
-              </Button>
-            </Link>
-            <Link href="/cart">
-              <Button variant="outline" className="flex items-center gap-2 border-gray-300 hover:border-blue-600 hover:text-blue-600">
-                <ShoppingCart className="h-5 w-5" />
-                <span className="hidden lg:inline font-semibold">КОРЗИНА</span>
-              </Button>
-            </Link>
-          </div>
+          </form>
         </div>
       </div>
 
-      {/* Navigation Bar - Blue */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white relative">
+      {/* Navigation Bar */}
+      <div className="bg-neutral-900 border-b border-neutral-800/50 relative">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between">
             {/* Desktop Navigation */}
@@ -193,27 +237,27 @@ export function Header({ user }: HeaderProps) {
                 onMouseEnter={() => setIsCatalogOpen(true)}
                 onMouseLeave={() => setIsCatalogOpen(false)}
               >
-                <button className="flex items-center gap-1 px-4 h-full hover:bg-blue-700 font-medium">
+                <button className="flex items-center gap-2 px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors">
                   <Menu className="h-5 w-5" />
                   КАТАЛОГИ
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isCatalogOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isCatalogOpen && (
                   <div className="absolute left-0 top-full pt-0">
-                    <div className="bg-white border border-gray-200 rounded-b-lg shadow-2xl p-6 min-w-[800px] text-gray-900">
-                      <div className="grid grid-cols-4 gap-6">
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-b-2xl shadow-2xl p-6 min-w-[800px] animate-slide-down">
+                      <div className="grid grid-cols-4 gap-8">
                         {CATALOG_ITEMS.map((section) => (
                           <div key={section.title}>
-                            <h3 className="font-bold text-gray-900 mb-3 text-sm">
+                            <h3 className="font-bold text-orange-500 mb-4 text-sm uppercase tracking-wide">
                               {section.title}
                             </h3>
-                            <ul className="space-y-2">
+                            <ul className="space-y-2.5">
                               {section.items.map((item) => (
                                 <li key={item.name}>
                                   <Link
                                     href={item.href}
-                                    className="text-sm text-gray-600 hover:text-blue-600 block"
+                                    className="text-sm text-neutral-400 hover:text-white transition-colors block"
                                   >
                                     {item.name}
                                   </Link>
@@ -229,77 +273,76 @@ export function Header({ user }: HeaderProps) {
               </div>
 
               {/* Brand Catalog Dropdown */}
-              <div className="relative h-full">
-                <button
-                  onClick={() => setIsBrandCatalogOpen(!isBrandCatalogOpen)}
-                  className="flex items-center gap-1 px-4 h-full hover:bg-blue-700 font-medium"
-                >
-                  АВТОТОЧКИ
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => setIsBrandCatalogOpen(!isBrandCatalogOpen)}
+                className="flex items-center gap-2 px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors"
+              >
+                АВТОМАРКИ
+                <ChevronDown className={`h-4 w-4 transition-transform ${isBrandCatalogOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-              <Link href="/vin-search" className="px-4 h-full flex items-center hover:bg-blue-700 font-medium">
+              <Link href="/vin-search" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
                 ЗАПРОС ПО VIN
               </Link>
-              <Link href="/forum" className="px-4 h-full flex items-center hover:bg-blue-700 font-medium">
-                ФОРУМ
+              <Link href="/about" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
+                О НАС
               </Link>
-              <Link href="/club" className="px-4 h-full flex items-center hover:bg-blue-700 font-medium">
-                КЛУБ
+              <Link href="/contacts" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
+                КОНТАКТЫ
               </Link>
             </nav>
 
             {/* Garage Button */}
             <Link href="/garage" className="hidden lg:block">
-              <div className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 px-6 h-12 flex items-center gap-2 font-medium">
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-6 h-12 flex items-center gap-2 font-semibold text-white transition-all shadow-lg shadow-orange-500/25">
                 ГАРАЖ
                 <ChevronDown className="h-4 w-4" />
               </div>
             </Link>
-
-            {/* Mobile menu button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-white hover:bg-blue-700"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
           </div>
 
           {/* Mobile Menu */}
           {isMenuOpen && (
-            <div className="lg:hidden py-4 border-t border-blue-700">
-              <nav className="flex flex-col space-y-2">
-                <Link href="/catalog" className="px-4 py-2 hover:bg-blue-700 rounded" onClick={() => setIsMenuOpen(false)}>
-                  КАТАЛОГИ
+            <div className="lg:hidden py-3 border-t border-neutral-800 animate-slide-down">
+              {/* Contact info for mobile */}
+              <div className="flex flex-col gap-2 px-4 py-3 mb-2 bg-neutral-800/30 rounded-lg">
+                <a href="tel:+79326006015" className="flex items-center gap-2 text-white">
+                  <Phone className="h-4 w-4 text-orange-500" />
+                  <span className="font-semibold">+7 (932) 600-60-15</span>
+                </a>
+                <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                  <MapPin className="h-4 w-4 text-orange-500" />
+                  <span>Екатеринбург, Заводская 16а</span>
+                </div>
+              </div>
+              
+              <nav className="flex flex-col space-y-1">
+                <Link href="/catalog" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                  Каталоги
                 </Link>
                 <button
                   onClick={() => {
                     setIsBrandCatalogOpen(true);
                     setIsMenuOpen(false);
                   }}
-                  className="px-4 py-2 hover:bg-blue-700 rounded text-left"
+                  className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg text-left transition-colors font-medium"
                 >
-                  АВТОТОЧКИ
+                  Автомарки
                 </button>
-                <Link href="/vin-search" className="px-4 py-2 hover:bg-blue-700 rounded" onClick={() => setIsMenuOpen(false)}>
-                  ЗАПРОС ПО VIN
+                <Link href="/vin-search" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                  Запрос по VIN
                 </Link>
-                <Link href="/dealers" className="px-4 py-2 hover:bg-blue-700 rounded" onClick={() => setIsMenuOpen(false)}>
-                  АВТОТОЧКИ
+                <Link href="/about" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                  О нас
                 </Link>
-                <Link href="/forum" className="px-4 py-2 hover:bg-blue-700 rounded" onClick={() => setIsMenuOpen(false)}>
-                  ФОРУМ
+                <Link href="/contacts" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                  Контакты
                 </Link>
-                <Link href="/club" className="px-4 py-2 hover:bg-blue-700 rounded" onClick={() => setIsMenuOpen(false)}>
-                  КЛУБ
-                </Link>
-                <Link href="/garage" className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded" onClick={() => setIsMenuOpen(false)}>
-                  ГАРАЖ
-                </Link>
+                <div className="pt-2">
+                  <Link href="/garage" className="block px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-center" onClick={() => setIsMenuOpen(false)}>
+                    Мой гараж
+                  </Link>
+                </div>
               </nav>
             </div>
           )}

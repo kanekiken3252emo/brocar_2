@@ -1,23 +1,62 @@
+"use client";
+
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Home, Search, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-900 mb-4">404</h1>
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+      {/* Background Decoration */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-orange-600/5 rounded-full blur-3xl" />
+      </div>
+      
+      <div className="text-center relative z-10 max-w-lg">
+        {/* 404 Number */}
+        <div className="text-[150px] md:text-[200px] font-bold leading-none mb-4">
+          <span className="bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+            404
+          </span>
+        </div>
+        
+        {/* Title */}
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
           Страница не найдена
-        </h2>
-        <p className="text-gray-600 mb-8">
-          К сожалению, запрашиваемая страница не существует.
+        </h1>
+        
+        {/* Description */}
+        <p className="text-neutral-400 text-lg mb-8">
+          К сожалению, запрашиваемая страница не существует или была перемещена.
         </p>
-
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center rounded-md bg-blue-600 px-6 py-3 text-white hover:bg-blue-700 transition"
-        >
-          Вернуться на главную
-        </Link>
+        
+        {/* Actions */}
+        <div className="flex flex-wrap justify-center gap-4">
+          <Link href="/">
+            <Button size="lg" className="gap-2">
+              <Home className="h-5 w-5" />
+              На главную
+            </Button>
+          </Link>
+          <Link href="/catalog">
+            <Button size="lg" variant="outline" className="gap-2">
+              <Search className="h-5 w-5" />
+              В каталог
+            </Button>
+          </Link>
+        </div>
+        
+        {/* Back Link */}
+        <div className="mt-8">
+          <button 
+            onClick={() => window.history.back()}
+            className="inline-flex items-center gap-2 text-neutral-500 hover:text-orange-500 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Вернуться назад
+          </button>
+        </div>
       </div>
     </div>
   );

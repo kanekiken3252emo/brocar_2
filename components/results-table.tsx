@@ -77,7 +77,12 @@ export function ResultsTable({ results }: ResultsTableProps) {
               </TableCell>
               <TableCell className="text-right">
                 <AddToCartButton
-                  item={item}
+                  product={{
+                    article: item.article,
+                    brand: item.brand,
+                    name: item.name,
+                    price: item.ourPrice,
+                  }}
                   disabled={item.stock === 0}
                 />
               </TableCell>

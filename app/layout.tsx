@@ -4,7 +4,11 @@ import "./globals.css";
 import { HeaderWrapper } from "@/components/header-wrapper";
 import { Footer } from "@/components/footer";
 
-const inter = Inter({ subsets: ["latin", "cyrillic"] });
+const inter = Inter({ 
+  subsets: ["latin", "cyrillic"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-inter",
+});
 
 const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
 const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || "localhost:3000";
@@ -30,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
+    <html lang="ru" className="dark">
+      <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-neutral-950`}>
         <HeaderWrapper />
         <main className="flex-1">{children}</main>
         <Footer />

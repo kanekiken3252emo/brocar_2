@@ -1,86 +1,80 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent } from "./ui/card";
-import { Wrench, Droplet, Filter, Settings, Zap, Disc, Sparkles, Package } from "lucide-react";
 
 const CATEGORIES = [
   {
     name: "Тормозная система",
-    icon: Disc,
+    img: "/tormoznaya-systema.png",
     href: "/catalog?category=brakes",
-    color: "bg-red-50 text-red-600",
   },
   {
     name: "Масла моторные",
-    icon: Droplet,
+    img: "/oil.png",
     href: "/catalog?category=oils",
-    color: "bg-yellow-50 text-yellow-700",
   },
   {
     name: "Фильтры",
-    icon: Filter,
+    img: "/filtr.png",
     href: "/catalog?category=filters",
-    color: "bg-green-50 text-green-600",
   },
   {
     name: "Подвеска",
-    icon: Settings,
+    img: "/amortizator.png",
     href: "/catalog?category=suspension",
-    color: "bg-blue-50 text-blue-600",
   },
   {
     name: "Электрика",
-    icon: Zap,
+    img: "/avtoelektrika.png",
     href: "/catalog?category=electrical",
-    color: "bg-purple-50 text-purple-600",
   },
   {
     name: "Колёса и диски",
-    icon: Disc,
+    img: "/lotoi-disk.png",
     href: "/catalog?category=wheels",
-    color: "bg-gray-50 text-gray-700",
   },
   {
-    name: "Омыватели",
-    icon: Sparkles,
+    name: "Ремни ГРМ",
+    img: "/remen-grm.png",
     href: "/catalog?category=fluids",
-    color: "bg-cyan-50 text-cyan-600",
   },
   {
     name: "Аксессуары",
-    icon: Package,
+    img: "/avtoaksesuary.png",
     href: "/catalog?category=accessories",
-    color: "bg-orange-50 text-orange-600",
   },
 ];
 
 export function CategoryGrid() {
   return (
-    <section className="py-12 bg-white">
+    <section className="py-12">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+        <h2 className="text-3xl font-bold text-white mb-8 text-center">
           Категории запчастей
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {CATEGORIES.map((category) => {
-            const Icon = category.icon;
-            return (
-              <Link key={category.name} href={category.href}>
-                <Card className="h-full hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer border border-gray-200 hover:border-blue-400">
-                  <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-                    <div className={`p-4 rounded-lg ${category.color}`}>
-                      <Icon className="h-8 w-8" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900">
-                      {category.name}
-                    </h3>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {CATEGORIES.map((category) => (
+            <Link key={category.name} href={category.href}>
+              <Card className="h-full bg-neutral-900 border-neutral-800 hover:border-orange-500/50 transition-all hover:-translate-y-1 cursor-pointer">
+                <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+                  <div className="w-14 h-14 md:w-16 md:h-16">
+                    <Image
+                      src={category.img}
+                      alt={category.name}
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-white text-sm md:text-base">
+                    {category.name}
+                  </h3>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
       </div>
     </section>
   );
 }
-

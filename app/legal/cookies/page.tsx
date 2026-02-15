@@ -1,107 +1,80 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Metadata } from "next";
+import { Cookie, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Использование Cookie",
-  description: "Политика использования cookie-файлов на сайте BroCar",
+  title: "Политика Cookie",
+  description: "Политика использования cookie-файлов BroCar",
 };
 
 export default function CookiesPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <h1 className="text-4xl font-bold">Политика использования Cookie</h1>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Что такое cookie?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p>
-              Cookie (куки) — это небольшие текстовые файлы, которые сохраняются
-              на вашем устройстве при посещении веб-сайтов. Они помогают сайту
-              запомнить информацию о вашем визите.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Какие cookie мы используем</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold mb-2">Обязательные cookie</h3>
-              <p className="text-gray-600">
-                Необходимы для работы основных функций сайта, таких как
-                авторизация и корзина покупок.
-              </p>
+    <div className="min-h-screen bg-neutral-950">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <Link href="/" className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-4 transition-colors">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              На главную
+            </Link>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                <Cookie className="h-6 w-6 text-orange-500" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-white">
+                Политика Cookie
+              </h1>
             </div>
-            <div>
-              <h3 className="font-semibold mb-2">Аналитические cookie</h3>
-              <p className="text-gray-600">
-                Помогают нам понять, как посетители используют наш сайт, чтобы
-                улучшить его работу.
+            <p className="text-neutral-400">
+              Последнее обновление: Январь 2026
+            </p>
+          </div>
+
+          <Card className="border-neutral-800 bg-neutral-900">
+            <CardContent className="p-8 prose prose-invert max-w-none">
+              <h2 className="text-xl font-semibold text-white mb-4">Что такое Cookie?</h2>
+              <p className="text-neutral-400 mb-6">
+                Cookie — это небольшие текстовые файлы, которые сохраняются на вашем 
+                устройстве при посещении сайта. Они помогают нам улучшить работу сайта 
+                и предоставить вам лучший пользовательский опыт.
               </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Функциональные cookie</h3>
-              <p className="text-gray-600">
-                Запоминают ваши предпочтения (например, язык интерфейса) для
-                более удобного использования сайта.
+
+              <h2 className="text-xl font-semibold text-white mb-4">Какие Cookie мы используем?</h2>
+              
+              <h3 className="text-lg font-medium text-white mb-3">Необходимые Cookie</h3>
+              <p className="text-neutral-400 mb-4">
+                Эти Cookie необходимы для работы сайта. Они включают авторизацию, 
+                корзину покупок и другие базовые функции.
               </p>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Управление cookie</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p>
-              Вы можете контролировать и/или удалять cookie по своему усмотрению.
-              Подробности можно узнать на сайте{" "}
-              <a
-                href="https://www.aboutcookies.org"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                aboutcookies.org
-              </a>
-              .
-            </p>
-            <p>
-              Вы можете удалить все cookie, сохраненные на вашем компьютере, а
-              также настроить большинство браузеров на блокировку их установки.
-              Однако в этом случае вам, возможно, придется самостоятельно
-              настраивать некоторые параметры при каждом посещении сайта, и
-              некоторые функции могут не работать.
-            </p>
-          </CardContent>
-        </Card>
+              <h3 className="text-lg font-medium text-white mb-3">Аналитические Cookie</h3>
+              <p className="text-neutral-400 mb-4">
+                Помогают нам понять, как посетители используют сайт, 
+                чтобы улучшить его работу.
+              </p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Согласие на использование cookie</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>
-              Продолжая использовать наш сайт, вы соглашаетесь с использованием
-              cookie в соответствии с настоящей Политикой.
-            </p>
-          </CardContent>
-        </Card>
+              <h3 className="text-lg font-medium text-white mb-3">Функциональные Cookie</h3>
+              <p className="text-neutral-400 mb-6">
+                Запоминают ваши предпочтения (язык, регион) для удобства использования.
+              </p>
 
-        <p className="text-sm text-gray-600">
-          Последнее обновление: {new Date().toLocaleDateString("ru-RU")}
-        </p>
+              <h2 className="text-xl font-semibold text-white mb-4">Управление Cookie</h2>
+              <p className="text-neutral-400 mb-6">
+                Вы можете управлять Cookie через настройки браузера. 
+                Обратите внимание, что отключение некоторых Cookie может повлиять 
+                на функциональность сайта.
+              </p>
+
+              <h2 className="text-xl font-semibold text-white mb-4">Контакты</h2>
+              <p className="text-neutral-400">
+                По вопросам, связанным с Cookie, обращайтесь: <a href="mailto:privacy@brocar.ru" className="text-orange-500 hover:text-orange-400">privacy@brocar.ru</a>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 }
-
-
-
-

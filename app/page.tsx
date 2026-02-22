@@ -367,10 +367,6 @@ export default function HomePage() {
                 <h3 className="text-sm md:text-base font-bold text-white text-center mt-2">Аккумуляторы</h3>
               </div>
             </Link>
-          </div>
-
-          {/* Row 5 — Antifreeze standalone */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mt-4 md:mt-5">
             <Link href="/catalog?category=coolants" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-cyan-50 to-sky-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
@@ -379,20 +375,24 @@ export default function HomePage() {
                     alt="Охлаждающие жидкости"
                     width={200}
                     height={200}
-                    className="h-24 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-20 md:h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <h3 className="text-xs md:text-base font-semibold text-neutral-800 text-center mt-2">Охлаждающие жидкости</h3>
               </div>
             </Link>
+          </div>
 
-            <Link href="/catalog" className="group md:col-span-3">
-              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-r from-orange-500 to-orange-700 flex items-center px-6 md:px-12">
+          {/* Row 5 — CTA banner */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-5 mt-4 md:mt-5">
+
+            <Link href="/catalog" className="group md:col-span-4">
+              <div className="relative overflow-hidden rounded-2xl h-[140px] md:h-[220px] bg-gradient-to-r from-orange-500 to-orange-700 flex items-center px-5 md:px-12">
                 <div className="relative z-10 flex-1">
-                  <h3 className="text-xl md:text-3xl font-bold text-white mb-1 md:mb-2">
+                  <h3 className="text-lg md:text-3xl font-bold text-white mb-1 md:mb-2">
                     Не нашли нужную запчасть?
                   </h3>
-                  <p className="text-white/80 text-sm md:text-base mb-3">
+                  <p className="text-white/80 text-sm md:text-base mb-2 md:mb-3">
                     Поиск по VIN-коду или артикулу
                   </p>
                   <span className="inline-flex items-center gap-2 text-white font-semibold text-sm md:text-base bg-white/20 px-4 py-2 rounded-lg group-hover:bg-white/30 transition-colors">

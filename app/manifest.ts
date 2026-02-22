@@ -8,14 +8,13 @@ export default function manifest(): MetadataRoute.Manifest {
       "Профессиональный поставщик автозапчастей. Широкий ассортимент, конкурентные цены, быстрая доставка.",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#2563eb",
+    background_color: "#0a0a0a",
+    theme_color: "#f97316",
     icons: [
-      {
-        src: "/favicon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-      },
+      { src: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { src: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { src: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { src: "/favicon.png",       sizes: "any",   type: "image/png" },
     ],
   };
 }

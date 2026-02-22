@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import NextImage from "next/image";
 import {
   ArrowLeft,
   Package,
@@ -117,8 +118,14 @@ export default function ProductPage() {
           <div className="grid md:grid-cols-2 gap-8 p-8">
             {/* Image Section */}
             <div className="space-y-4">
-              <div className="aspect-square bg-neutral-800 rounded-2xl flex items-center justify-center">
-                <Package className="w-32 h-32 text-neutral-600" />
+              <div className="aspect-square bg-neutral-800 rounded-2xl flex items-center justify-center p-8">
+                <NextImage
+                  src="/photo-soon.png"
+                  alt="Фото товара"
+                  width={300}
+                  height={300}
+                  className="w-full h-full object-contain"
+                />
               </div>
               
               {/* Stock Status */}

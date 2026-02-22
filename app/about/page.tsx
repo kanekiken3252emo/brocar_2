@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Metadata } from "next";
-import { Shield, Truck, Clock, Award, CheckCircle, Zap, Users, Target } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AboutGallery } from "@/components/about-gallery";
 
 export const metadata: Metadata = {
   title: "О нас",
@@ -11,33 +12,33 @@ export const metadata: Metadata = {
 
 const ADVANTAGES = [
   {
-    icon: Shield,
+    img: "/garantiya-kachestva.png",
     title: "Гарантия качества",
     description: "Все запчасти сертифицированы и имеют гарантию производителя",
   },
   {
-    icon: Truck,
+    img: "/bistraya-dostavka.png",
     title: "Быстрая доставка",
     description: "Отправляем заказы в день оформления по всей России",
   },
   {
-    icon: Clock,
+    img: "/bistroe-oformlenit.png",
     title: "Оперативная поддержка",
     description: "Консультации по подбору запчастей от специалистов",
   },
   {
-    icon: Zap,
-    title: "Лучшие цены",
+    img: "/fast-poisk.png",
+    title: "Моментальный поиск",
     description: "Работаем напрямую с поставщиками без посредников",
   },
   {
-    icon: Users,
-    title: "10 000+ клиентов",
+    img: "/ekspertnaya-podderjka.png",
+    title: "Экспертная помощь",
     description: "Доверяют нам и возвращаются снова",
   },
   {
-    icon: Target,
-    title: "1 000 000+ запчастей",
+    img: "/proverennoe-kachestvo.png",
+    title: "Проверенное качество",
     description: "Широкий ассортимент для любых автомобилей",
   },
 ];
@@ -106,8 +107,14 @@ export default function AboutPage() {
             {ADVANTAGES.map((item) => (
               <Card key={item.title} className="border-neutral-800 bg-neutral-900 hover:border-orange-500/50 transition-colors">
                 <CardContent className="p-6">
-                  <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center mb-4">
-                    <item.icon className="h-6 w-6 text-orange-500" />
+                  <div className="w-12 h-12 mb-4">
+                    <Image
+                      src={item.img}
+                      alt={item.title}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
                   <p className="text-neutral-400">{item.description}</p>
@@ -115,6 +122,20 @@ export default function AboutPage() {
               </Card>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Shop Gallery Section */}
+      <section className="py-20 border-t border-neutral-800/50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-white mb-4">Наш магазин</h2>
+            <p className="text-neutral-400 max-w-2xl mx-auto">
+              Екатеринбург, ул. Заводская, 16 — приходите, мы всегда рады помочь
+            </p>
+          </div>
+
+          <AboutGallery />
         </div>
       </section>
 

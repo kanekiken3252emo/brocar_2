@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { translateAuthError } from "@/lib/auth-errors";
 import { LogIn, Mail, Lock, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
@@ -36,7 +37,7 @@ export default function LoginPage() {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        setError(translateAuthError(signInError.message, signInError.code));
         return;
       }
 

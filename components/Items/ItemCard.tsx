@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ShoppingCart, Package, Clock, TrendingUp } from "lucide-react";
 import type { BergResource } from "@/types/berg-api";
 
@@ -40,9 +41,13 @@ export default function ItemCard({ resource, showAddToCart = true }: ItemCardPro
       <div className="group bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all duration-300 h-full flex flex-col hover:shadow-lg hover:shadow-orange-500/10">
         {/* Image Section */}
         <div className="relative h-48 bg-neutral-800 flex items-center justify-center">
-          <div className="w-24 h-24 bg-neutral-700 rounded-xl flex items-center justify-center">
-            <Package className="w-12 h-12 text-neutral-500" />
-          </div>
+          <Image
+            src="/photo-soon.png"
+            alt={resource.name || "Товар"}
+            width={160}
+            height={160}
+            className="w-40 h-40 object-contain"
+          />
 
           {/* Stock Badge */}
           {isInStock ? (

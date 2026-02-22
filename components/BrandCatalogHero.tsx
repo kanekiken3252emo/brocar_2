@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-// Brands organized by columns
+// Brands organized by columns (full text catalog)
 const BRAND_COLUMNS = [
   {
     brands: [
@@ -79,21 +79,21 @@ const BRAND_COLUMNS = [
 export default function BrandCatalogHero() {
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-1">
           {BRAND_COLUMNS.map((column, colIndex) => (
             <div key={colIndex} className="space-y-1">
               {column.brands.map((brand, brandIndex) => (
-                <div key={brandIndex} className="flex items-start gap-2">
+                <div key={brandIndex} className="flex items-center gap-2">
                   {/* Letter indicator */}
                   {brand.letter ? (
                     <span className="w-5 text-sm font-bold text-orange-500 shrink-0">
                       {brand.letter}
                     </span>
                   ) : (
-                    <span className="w-5 shrink-0"></span>
+                    <span className="w-5 shrink-0" />
                   )}
-                  
+
                   {/* Brand name */}
                   {brand.isLink ? (
                     <Link

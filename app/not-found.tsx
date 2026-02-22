@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Home, Search, ArrowLeft } from "lucide-react";
 
@@ -14,8 +15,20 @@ export default function NotFound() {
       </div>
       
       <div className="text-center relative z-10 max-w-lg">
+        {/* Illustration */}
+        <div className="mb-6 flex justify-center">
+          <Image
+            src="/page-not-found.png"
+            alt="Страница не найдена"
+            width={320}
+            height={240}
+            className="w-64 md:w-80 h-auto drop-shadow-2xl"
+            priority
+          />
+        </div>
+
         {/* 404 Number */}
-        <div className="text-[150px] md:text-[200px] font-bold leading-none mb-4">
+        <div className="text-[100px] md:text-[140px] font-bold leading-none mb-2">
           <span className="bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
             404
           </span>

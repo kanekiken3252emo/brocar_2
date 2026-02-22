@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { translateAuthError } from "@/lib/auth-errors";
 import { UserPlus, Mail, Lock, ArrowRight, CheckCircle } from "lucide-react";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -37,6 +39,12 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!agreed) {
+      setError("Необходимо согласиться с политикой обработки персональных данных");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       
@@ -51,7 +59,7 @@ export default function RegisterPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        setError(translateAuthError(signUpError.message, signUpError.code));
         return;
       }
 
@@ -162,11 +170,52 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              {/* Согласие на обработку ПД */}
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative mt-0.5 shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => {
+                      setAgreed(e.target.checked);
+                      if (error.includes("политикой")) setError("");
+                    }}
+                    disabled={isLoading || success}
+                    className="sr-only"
+                  />
+                  <div
+                    className={[
+                      "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors",
+                      agreed
+                        ? "bg-orange-500 border-orange-500"
+                        : "bg-neutral-800 border-neutral-600 group-hover:border-orange-500/60",
+                    ].join(" ")}
+                  >
+                    {agreed && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm text-neutral-400 leading-relaxed">
+                  Соглашаюсь на обработку персональных данных в соответствии с{" "}
+                  <Link
+                    href="/legal/privacy"
+                    className="text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                    target="_blank"
+                  >
+                    политикой конфиденциальности
+                  </Link>
+                </span>
+              </label>
+
               <Button
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={isLoading || success}
+                disabled={isLoading || success || !agreed}
               >
                 {isLoading ? (
                   "Регистрация..."

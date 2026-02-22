@@ -2,76 +2,34 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Wrench, Shield, Truck, Clock, ChevronRight, Zap, Award, Package } from "lucide-react";
+import { ArrowRight, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BrandCatalogHero from "@/components/BrandCatalogHero";
-
-const CATEGORIES = [
-  {
-    title: "Моторные масла",
-    icon: "🛢️",
-    href: "/catalog?category=engine-oils",
-    gradient: "from-orange-500 to-red-600",
-  },
-  {
-    title: "Тормозные колодки",
-    icon: "🛑",
-    href: "/catalog?category=brake-pads",
-    gradient: "from-red-500 to-pink-600",
-  },
-  {
-    title: "Фильтры",
-    icon: "🔄",
-    href: "/catalog?category=filters",
-    gradient: "from-blue-500 to-cyan-600",
-  },
-  {
-    title: "Свечи зажигания",
-    icon: "⚡",
-    href: "/catalog?category=spark-plugs",
-    gradient: "from-yellow-500 to-orange-600",
-  },
-  {
-    title: "Ремни ГРМ",
-    icon: "🔗",
-    href: "/catalog?category=timing-belts",
-    gradient: "from-green-500 to-emerald-600",
-  },
-  {
-    title: "Подвеска",
-    icon: "🔧",
-    href: "/catalog?category=suspension",
-    gradient: "from-purple-500 to-violet-600",
-  },
-];
+import { NewsSection } from "@/components/news-section";
 
 const FEATURES = [
   {
-    icon: Shield,
+    img: "/garantiya-kachestva.png",
     title: "Гарантия качества",
     description: "Все запчасти сертифицированы и имеют гарантию производителя",
   },
   {
-    icon: Truck,
+    img: "/bistraya-dostavka.png",
     title: "Быстрая доставка",
     description: "Отправляем заказы в день оформления по всей России",
   },
   {
-    icon: Clock,
-    title: "Поддержка 24/7",
+    img: "/bistroe-oformlenit.png",
+    title: "Быстрое оформление",
     description: "Наши специалисты всегда готовы помочь с подбором",
   },
   {
-    icon: Zap,
-    title: "Лучшие цены",
+    img: "/fast-poisk.png",
+    title: "Моментальный поиск",
     description: "Работаем напрямую с поставщиками без посредников",
   },
 ];
 
-const POPULAR_BRANDS = [
-  "Bosch", "Mann-Filter", "NGK", "Brembo", "Sachs", "Lemforder", 
-  "SKF", "Gates", "Continental", "Mahle", "Hella", "Valeo"
-];
 
 export default function HomePage() {
   return (
@@ -159,31 +117,291 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Categories Section */}
+      {/* Visual Catalog Grid */}
       <section className="py-10 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-6 md:mb-12">
+          <div className="text-center mb-8 md:mb-14">
             <h2 className="text-2xl md:text-4xl font-bold text-white mb-2 md:mb-4">
-              Популярные категории
+              Каталог запчастей
             </h2>
             <p className="text-neutral-400 text-sm md:text-lg max-w-2xl mx-auto">
-              Запчасти для ТО и ремонта
+              Запчасти для ТО, ремонта и обслуживания автомобиля
             </p>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-            {CATEGORIES.map((category) => (
-              <Link key={category.title} href={category.href}>
-                <div className="group relative bg-neutral-900 border border-neutral-800 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-orange-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/10 h-full">
-                  <div className={`w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br ${category.gradient} rounded-lg md:rounded-xl flex items-center justify-center mb-3 md:mb-4 text-2xl md:text-3xl group-hover:scale-110 transition-transform`}>
-                    {category.icon}
-                  </div>
-                  <h3 className="font-semibold text-white group-hover:text-orange-500 transition-colors text-sm md:text-base">
-                    {category.title}
+
+          {/* Row 1 — Two large hero cards */}
+          <div className="grid md:grid-cols-2 gap-4 md:gap-5 mb-4 md:mb-5">
+            <Link href="/catalog?type=original" className="group">
+              <div className="relative overflow-hidden rounded-2xl md:rounded-3xl h-[200px] md:h-[280px] bg-gradient-to-br from-teal-600 to-teal-800 flex items-center">
+                <div className="relative z-10 p-6 md:p-10 flex-1">
+                  <h3 className="text-xl md:text-3xl font-bold text-white mb-1 md:mb-2">
+                    Оригинальные запчасти
                   </h3>
+                  <p className="text-white/70 text-sm md:text-base mb-3">
+                    Поиск по марке автомобиля
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-white font-semibold text-sm md:text-base bg-white/20 px-4 py-2 rounded-lg group-hover:bg-white/30 transition-colors">
+                    Перейти <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
                 </div>
-              </Link>
-            ))}
+                <div className="relative w-1/2 h-full flex items-center justify-center p-4">
+                  <Image
+                    src="/motor.png"
+                    alt="Двигатель"
+                    width={400}
+                    height={400}
+                    className="w-full h-full object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/catalog" className="group">
+              <div className="relative overflow-hidden rounded-2xl md:rounded-3xl h-[200px] md:h-[280px] bg-neutral-100 flex items-center">
+                <div className="relative z-10 p-6 md:p-10 flex-1">
+                  <h3 className="text-xl md:text-3xl font-bold text-neutral-900 mb-1 md:mb-2">
+                    Общий каталог
+                  </h3>
+                  <p className="text-neutral-500 text-sm md:text-base mb-3">
+                    Более 1 000 000 запчастей
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-orange-600 font-semibold text-sm md:text-base">
+                    Перейти <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </div>
+                <div className="relative w-1/2 h-full flex items-center justify-center p-6">
+                  <Image
+                    src="/masl-filtr.png"
+                    alt="Фильтры"
+                    width={300}
+                    height={300}
+                    className="w-full h-full object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
+              </div>
+            </Link>
+          </div>
+
+          {/* Row 2 — Three medium cards + sidebar links */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-4 md:mb-5">
+            <Link href="/catalog?category=brake-fluids" className="group">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/tormoz-zhidkost.png"
+                    alt="Тормозные жидкости"
+                    width={200}
+                    height={200}
+                    className="h-24 md:h-40 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-sm md:text-base font-semibold text-neutral-800 text-center mt-2">
+                  Тормозные жидкости
+                </h3>
+              </div>
+            </Link>
+
+            <Link href="/catalog?category=engine-oils" className="group md:col-span-2">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-amber-50 to-orange-50 flex items-center px-4 md:px-8">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/motornie-masla.png"
+                    alt="Моторные масла"
+                    width={400}
+                    height={300}
+                    className="h-28 md:h-44 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-lg md:text-2xl font-bold text-neutral-800 mb-1">
+                    Моторные масла
+                  </h3>
+                  <p className="text-neutral-500 text-xs md:text-sm">Castrol, Toyota, Shell, Mobil</p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Sidebar links */}
+            <div className="col-span-2 md:col-span-1 bg-neutral-900 border border-neutral-800 rounded-2xl p-4 md:p-5 flex flex-col justify-center gap-3">
+              {[
+                { name: "Трансмиссионные масла", href: "/catalog?category=transmission-oils" },
+                { name: "Автокосметика", href: "/catalog?category=cosmetics" },
+                { name: "Охлаждающие жидкости", href: "/catalog?category=coolants" },
+                { name: "Омыватель стекла", href: "/catalog?category=washer-fluid" },
+                { name: "Вся автохимия", href: "/catalog?category=chemicals" },
+              ].map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className="text-sm md:text-base text-neutral-300 hover:text-orange-500 transition-colors flex items-center justify-between group"
+                >
+                  {link.name}
+                  <ChevronRight className="h-4 w-4 text-neutral-600 group-hover:text-orange-500 transition-colors" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 3 — Accessories + sidebar + Tires & Wheels */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-4 md:mb-5">
+            <Link href="/catalog?category=accessories" className="group md:col-span-1">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-violet-600 to-purple-800 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/autobox-top.png"
+                    alt="Аксессуары"
+                    width={300}
+                    height={200}
+                    className="h-20 md:h-32 w-auto object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-white text-center mt-2">
+                  Аксессуары
+                </h3>
+              </div>
+            </Link>
+
+            {/* Sidebar links */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 md:p-5 flex flex-col justify-center gap-3">
+              {[
+                { name: "Все для ремонта", href: "/catalog?category=repair" },
+                { name: "Автолитература", href: "/catalog?category=books" },
+                { name: "Инструмент", href: "/catalog?category=tools", isNew: true },
+                { name: "Все принадлежности", href: "/catalog?category=all-accessories" },
+              ].map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className="text-sm md:text-base text-neutral-300 hover:text-orange-500 transition-colors flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    {link.name}
+                    {link.isNew && (
+                      <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">Новое</span>
+                    )}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-neutral-600 group-hover:text-orange-500 transition-colors" />
+                </Link>
+              ))}
+            </div>
+
+            <Link href="/catalog?category=tires" className="group">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/shina-png1.png"
+                    alt="Шины"
+                    width={250}
+                    height={250}
+                    className="h-24 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-neutral-800 text-center mt-2">Шины</h3>
+              </div>
+            </Link>
+
+            <Link href="/catalog?category=wheels" className="group">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/litoi-disk.png"
+                    alt="Диски"
+                    width={250}
+                    height={250}
+                    className="h-24 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-neutral-800 text-center mt-2">Диски</h3>
+              </div>
+            </Link>
+          </div>
+
+          {/* Row 4 — Brake system + Lamps + Battery + Antifreeze */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+            <Link href="/catalog?category=brake-pads" className="group md:col-span-2">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex items-center px-4 md:px-8">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/kolodki-i-disk.png"
+                    alt="Тормозная система"
+                    width={350}
+                    height={250}
+                    className="h-28 md:h-40 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-lg md:text-2xl font-bold text-neutral-800 mb-1">
+                    Тормозная система
+                  </h3>
+                  <p className="text-neutral-500 text-xs md:text-sm">Диски, колодки, суппорты</p>
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/catalog?category=lighting" className="group">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/lampa-h7.png"
+                    alt="Лампы"
+                    width={200}
+                    height={200}
+                    className="h-20 md:h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-sm md:text-base font-semibold text-neutral-800 text-center mt-2">Лампы</h3>
+              </div>
+            </Link>
+
+            <Link href="/catalog?category=batteries" className="group">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-rose-400 to-rose-500 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/akkumulyatorr1.png"
+                    alt="Аккумуляторы"
+                    width={200}
+                    height={200}
+                    className="h-20 md:h-32 w-auto object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-sm md:text-base font-bold text-white text-center mt-2">Аккумуляторы</h3>
+              </div>
+            </Link>
+          </div>
+
+          {/* Row 5 — Antifreeze standalone */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mt-4 md:mt-5">
+            <Link href="/catalog?category=coolants" className="group">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-cyan-50 to-sky-100 flex flex-col items-center justify-center p-4">
+                <div className="flex-1 flex items-center justify-center">
+                  <Image
+                    src="/antifreeze-kanistra.png"
+                    alt="Охлаждающие жидкости"
+                    width={200}
+                    height={200}
+                    className="h-24 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="text-xs md:text-base font-semibold text-neutral-800 text-center mt-2">Охлаждающие жидкости</h3>
+              </div>
+            </Link>
+
+            <Link href="/catalog" className="group md:col-span-3">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-r from-orange-500 to-orange-700 flex items-center px-6 md:px-12">
+                <div className="relative z-10 flex-1">
+                  <h3 className="text-xl md:text-3xl font-bold text-white mb-1 md:mb-2">
+                    Не нашли нужную запчасть?
+                  </h3>
+                  <p className="text-white/80 text-sm md:text-base mb-3">
+                    Поиск по VIN-коду или артикулу
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-white font-semibold text-sm md:text-base bg-white/20 px-4 py-2 rounded-lg group-hover:bg-white/30 transition-colors">
+                    Перейти в каталог <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </div>
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+              </div>
+            </Link>
           </div>
         </div>
       </section>
@@ -201,13 +419,19 @@ export default function HomePage() {
           </div>
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-            {FEATURES.map((feature, index) => (
+            {FEATURES.map((feature) => (
               <div 
                 key={feature.title}
                 className="bg-neutral-900 border border-neutral-800 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-orange-500/50 transition-all duration-300"
               >
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-orange-500/20 rounded-lg md:rounded-xl flex items-center justify-center mb-3 md:mb-4">
-                  <feature.icon className="h-5 w-5 md:h-6 md:w-6 text-orange-500" />
+                <div className="w-10 h-10 md:w-12 md:h-12 mb-3 md:mb-4">
+                  <Image
+                    src={feature.img}
+                    alt={feature.title}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <h3 className="text-sm md:text-lg font-semibold text-white mb-1 md:mb-2">
                   {feature.title}
@@ -216,110 +440,6 @@ export default function HomePage() {
                   {feature.description}
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Large CTA Cards */}
-      <section className="py-10 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-            {/* Original Catalogs */}
-            <Link href="/catalog?type=original">
-              <div className="group relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-br from-orange-500 to-orange-700 p-6 md:p-12 h-[200px] md:h-[300px] flex flex-col justify-end cursor-pointer">
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute top-4 right-4 md:top-8 md:right-8 opacity-30 group-hover:opacity-50 transition-opacity">
-                  <Wrench className="h-16 w-16 md:h-32 md:w-32" />
-                </div>
-                <div className="relative z-10">
-                  <h3 className="text-xl md:text-3xl font-bold text-white mb-1 md:mb-2">
-                    Оригинальные каталоги
-                  </h3>
-                  <p className="text-white/80 mb-2 md:mb-4 text-sm md:text-base">
-                    Подбор запчастей по каталогам производителей
-                  </p>
-                  <span className="inline-flex items-center gap-2 text-white font-semibold">
-                    Перейти <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
-                  </span>
-                </div>
-              </div>
-            </Link>
-
-            {/* General Catalog */}
-            <Link href="/catalog">
-              <div className="group relative overflow-hidden rounded-2xl md:rounded-3xl bg-neutral-800 border border-neutral-700 p-6 md:p-12 h-[200px] md:h-[300px] flex flex-col justify-end cursor-pointer hover:border-orange-500/50 transition-all">
-                <div className="absolute top-4 right-4 md:top-8 md:right-8 opacity-20 group-hover:opacity-30 transition-opacity">
-                  <Package className="h-16 w-16 md:h-32 md:w-32 text-orange-500" />
-                </div>
-                <div className="relative z-10">
-                  <h3 className="text-xl md:text-3xl font-bold text-white mb-1 md:mb-2">
-                    Общий каталог
-                  </h3>
-                  <p className="text-neutral-400 mb-2 md:mb-4 text-sm md:text-base">
-                    Поиск по артикулу или названию
-                  </p>
-                  <span className="inline-flex items-center gap-2 text-orange-500 font-semibold text-sm md:text-base">
-                    Перейти <ArrowRight className="h-4 w-4 md:h-5 md:w-5 group-hover:translate-x-2 transition-transform" />
-                  </span>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Popular Brands */}
-      <section className="py-10 md:py-20 border-t border-neutral-800/50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-6 md:mb-12">
-            <h2 className="text-2xl md:text-4xl font-bold text-white mb-2 md:mb-4">
-              Популярные бренды
-            </h2>
-            <p className="text-neutral-400 text-sm md:text-lg max-w-2xl mx-auto">
-              Работаем с проверенными производителями
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-2 md:gap-4">
-            {POPULAR_BRANDS.map((brand) => (
-              <Link
-                key={brand}
-                href={`/catalog?brand=${encodeURIComponent(brand)}`}
-                className="px-3 py-2 md:px-6 md:py-3 bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl text-neutral-300 hover:border-orange-500/50 hover:text-orange-500 transition-all text-sm md:text-base"
-              >
-                {brand}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Additional Categories */}
-      <section className="py-10 md:py-20 bg-neutral-900/50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-6 md:mb-12">
-            <h2 className="text-2xl md:text-4xl font-bold text-white mb-2 md:mb-4">
-              Дополнительные категории
-            </h2>
-          </div>
-          
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {[
-              { title: "Шины", icon: "🛞", href: "/catalog?category=tires", desc: "Летние и зимние" },
-              { title: "Диски", icon: "⚙️", href: "/catalog?category=wheels", desc: "Литые и штампованные" },
-              { title: "Аккумуляторы", icon: "🔋", href: "/catalog?category=batteries", desc: "Все ёмкости" },
-              { title: "Освещение", icon: "💡", href: "/catalog?category=lighting", desc: "Лампы и фары" },
-            ].map((item) => (
-              <Link key={item.title} href={item.href}>
-                <div className="group bg-neutral-900 border border-neutral-800 rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-orange-500/50 transition-all duration-300 h-full">
-                  <div className="text-3xl md:text-5xl mb-2 md:mb-4">{item.icon}</div>
-                  <h3 className="text-base md:text-xl font-semibold text-white mb-0.5 md:mb-1 group-hover:text-orange-500 transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="text-neutral-500 text-xs md:text-sm">{item.desc}</p>
-                </div>
-              </Link>
             ))}
           </div>
         </div>
@@ -352,7 +472,7 @@ export default function HomePage() {
           <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-r from-orange-500 to-orange-700 p-6 md:p-16">
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
             <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-orange-600/50 to-transparent" />
-            
+
             <div className="relative z-10 max-w-2xl">
               <h2 className="text-xl md:text-4xl font-bold text-white mb-2 md:mb-4">
                 Не нашли нужную запчасть?
@@ -376,6 +496,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <NewsSection />
     </div>
   );
 }

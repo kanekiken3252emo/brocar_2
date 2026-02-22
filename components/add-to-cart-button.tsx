@@ -2,64 +2,90 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Check, AlertCircle } from "lucide-react";
 
-interface AddToCartButtonProps {
-  product: {
-    article: string;
-    brand: string;
-    name: string;
-    price: number;
-  };
+interface ProductData {
+  article: string;
+  brand: string;
+  name: string;
+  price: number;
+}
+
+export interface AddToCartButtonProps {
+  /** Database ID of the product */
+  productId?: number;
+  /** Product data from search results */
+  product?: ProductData;
   disabled?: boolean;
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
 }
 
-export function AddToCartButton({ 
-  product, 
-  disabled, 
+type State = "idle" | "loading" | "success" | "error";
+
+export function AddToCartButton({
+  productId,
+  product,
+  disabled,
   size = "default",
-  className = "" 
+  className = "",
 }: AddToCartButtonProps) {
-  const [isAdding, setIsAdding] = useState(false);
+  const [state, setState] = useState<State>("idle");
 
   const handleAddToCart = async () => {
-    setIsAdding(true);
+    if (state === "loading" || state === "success") return;
+    setState("loading");
 
     try {
-      // TODO: In production, you'd need to save the product to DB first
-      // and get its ID, then add to cart via /api/cart
-      // For now, this is a placeholder
-      
-      console.log("Adding to cart:", product);
-      
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          productId
+            ? { action: "add", productId, qty: 1 }
+            : { action: "add", product, qty: 1 }
+        ),
+      });
 
-      // Show success feedback
-      alert(`✅ Добавлено в корзину:\n${product.name}\n${product.price.toLocaleString("ru-RU")} ₽`);
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      alert("❌ Ошибка при добавлении в корзину");
-    } finally {
-      setIsAdding(false);
+      if (!res.ok) throw new Error("cart error");
+
+      setState("success");
+      setTimeout(() => setState("idle"), 2000);
+    } catch {
+      setState("error");
+      setTimeout(() => setState("idle"), 2500);
     }
   };
+
+  const label = {
+    idle: "В корзину",
+    loading: "Добавляем...",
+    success: "Добавлено!",
+    error: "Ошибка",
+  }[state];
+
+  const icon = {
+    idle: <ShoppingCart className="h-4 w-4" />,
+    loading: <ShoppingCart className="h-4 w-4 animate-pulse" />,
+    success: <Check className="h-4 w-4" />,
+    error: <AlertCircle className="h-4 w-4" />,
+  }[state];
 
   return (
     <Button
       onClick={handleAddToCart}
-      disabled={disabled || isAdding}
+      disabled={disabled || state === "loading"}
       size={size}
-      className={`bg-blue-600 hover:bg-blue-700 ${className}`}
+      className={[
+        state === "success" && "bg-green-600 hover:bg-green-600",
+        state === "error" && "bg-red-600 hover:bg-red-600",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <ShoppingCart className="mr-2 h-4 w-4" />
-      {isAdding ? "Добавление..." : "В корзину"}
+      {icon}
+      <span className="ml-2">{label}</span>
     </Button>
   );
 }
-
-
-
-

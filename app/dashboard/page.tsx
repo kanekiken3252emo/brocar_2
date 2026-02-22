@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
@@ -39,6 +40,17 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
+  // Загружаем имя из profiles
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const displayName =
+    profile?.full_name?.trim() || user.email?.split("@")[0] || "Пользователь";
+
   const orders: any[] = [];
 
   return (
@@ -50,7 +62,7 @@ export default async function DashboardPage() {
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Личный кабинет</h1>
               <p className="text-neutral-400">
-                Добро пожаловать, <span className="text-orange-500">{user.email?.split('@')[0]}</span>
+                Добро пожаловать, <span className="text-orange-500">{displayName}</span>
               </p>
             </div>
             <div className="flex gap-3">

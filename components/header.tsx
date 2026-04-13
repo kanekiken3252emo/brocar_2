@@ -143,17 +143,15 @@ export function Header({ user }: HeaderProps) {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3 md:py-4 gap-3 md:gap-6">
             {/* Logo */}
-            <Link href="/" className="shrink-0 flex items-center">
-              <div className="bg-white rounded-full p-px">
-                <Image
-                  src="/logo.png"
-                  alt="BroCar"
-                  width={120}
-                  height={48}
-                  className="h-12 md:h-16 w-auto"
-                  priority
-                />
-              </div>
+            <Link href="/" className="shrink-0 flex items-center min-w-0">
+              <Image
+                src="/brocar.webp"
+                alt="BroCar"
+                width={1106}
+                height={1106}
+                className="h-12 sm:h-14 md:h-20 lg:h-[5.25rem] w-auto max-w-[min(56vw,300px)] md:max-w-none aspect-square object-contain object-left drop-shadow-md"
+                priority
+              />
             </Link>
 
             {/* Search Bar */}

@@ -36,16 +36,14 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
           {/* Company Info */}
           <div className="col-span-2 md:col-span-2 lg:col-span-1">
-            <Link href="/" className="inline-block mb-4 md:mb-6">
-              <div className="bg-white rounded-full p-px inline-block">
-                <Image
-                  src="/logo.png"
-                  alt="BroCar"
-                  width={120}
-                  height={48}
-                  className="h-10 md:h-14 w-auto"
-                />
-              </div>
+            <Link href="/" className="inline-block mb-4 md:mb-6 max-w-full">
+              <Image
+                src="/brocar.webp"
+                alt="BroCar"
+                width={1106}
+                height={1106}
+                className="h-11 sm:h-12 md:h-14 w-auto max-w-full aspect-square object-contain object-left drop-shadow-md"
+              />
             </Link>
             <p className="text-neutral-400 mb-4 md:mb-6 leading-relaxed text-sm md:text-base">
               Профессиональный поставщик автозапчастей. Широкий ассортимент качественных деталей.

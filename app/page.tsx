@@ -91,11 +91,12 @@ export default function HomePage() {
                 
                 {/* Logo */}
                 <Image
-                  src="/logo.png"
+                  src="/brocar.webp"
                   alt="BroCar"
-                  width={400}
-                  height={400}
-                  className="w-full h-full object-contain relative z-10 drop-shadow-2xl"
+                  width={1106}
+                  height={1106}
+                  sizes="(max-width: 640px) 160px, (max-width: 768px) 224px, (max-width: 1024px) 288px, 384px"
+                  className="w-full h-full object-contain object-center relative z-10 drop-shadow-2xl"
                   priority
                 />
               </div>

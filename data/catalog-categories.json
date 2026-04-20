@@ -1,0 +1,54 @@
+{
+  "categories": [
+    {
+      "slug": "brake-fluids",
+      "title": "Жидкости тормозные",
+      "description": "DOT 3 / DOT 4 / DOT 5.1 — от популярных производителей",
+      "articles": [
+        { "article": "1338295", "brand": "LUKOIL" },
+        { "article": "L04010", "brand": "BREMBO" },
+        { "article": "PFB401SE", "brand": "TRW" },
+        { "article": "15036D", "brand": "CASTROL" },
+        { "article": "03.2103-1072.2", "brand": "ATE" },
+        { "article": "8109100", "brand": "ROSDOT" }
+      ]
+    },
+    {
+      "slug": "engine-oils",
+      "title": "Масла моторные",
+      "description": "Синтетика 5W-30, 5W-40 — для легковых автомобилей",
+      "articles": [
+        { "article": "550040755", "brand": "SHELL" },
+        { "article": "154275", "brand": "MOBIL 1" },
+        { "article": "15669E", "brand": "CASTROL" },
+        { "article": "7660", "brand": "LIQUI MOLY" },
+        { "article": "3149857", "brand": "LUKOIL" },
+        { "article": "106376", "brand": "MOTUL" }
+      ]
+    },
+    {
+      "slug": "coolants",
+      "title": "Охлаждающие жидкости",
+      "description": "Антифризы G11 / G12 / G12+ — готовые к использованию",
+      "articles": [
+        { "article": "430206159", "brand": "FELIX" },
+        { "article": "227389", "brand": "LUKOIL" },
+        { "article": "102923", "brand": "MOTUL" },
+        { "article": "50668", "brand": "LIQUI MOLY" },
+        { "article": "B40R0001", "brand": "HEPU" }
+      ]
+    },
+    {
+      "slug": "lamps",
+      "title": "Лампы",
+      "description": "Галогеновые H1/H4/H7, OSRAM / PHILIPS / BOSCH",
+      "articles": [
+        { "article": "64210", "brand": "OSRAM" },
+        { "article": "12972PRB1", "brand": "PHILIPS" },
+        { "article": "1987302041", "brand": "BOSCH" },
+        { "article": "64193", "brand": "OSRAM" },
+        { "article": "12342PRC1", "brand": "PHILIPS" }
+      ]
+    }
+  ]
+}

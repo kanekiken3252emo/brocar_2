@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
 const BERG_API_URL = process.env.BERG_API_URL || "https://api.berg.ru";
-const BERG_API_KEY = process.env.BERG_API_KEY_1;
+const BERG_API_KEY = process.env.BERG_API_KEY;
 
 export async function GET(
   request: NextRequest,

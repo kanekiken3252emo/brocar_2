@@ -11,19 +11,15 @@ import type { SupplierAdapter, SearchParams, SupplierItem } from "./adapter";
  */
 export class BergAdapter implements SupplierAdapter {
   private baseUrl: string;
-  private apiKey1: string;
-  private apiKey2: string;
-  private apiKey3: string;
+  private apiKey: string;
 
   constructor() {
     this.baseUrl = process.env.BERG_API_URL || "https://api.berg.ru";
-    this.apiKey1 = process.env.BERG_API_KEY_1 || "";
-    this.apiKey2 = process.env.BERG_API_KEY_2 || "";
-    this.apiKey3 = process.env.BERG_API_KEY_3 || "";
+    this.apiKey = process.env.BERG_API_KEY || "";
   }
 
   async search(params: SearchParams): Promise<SupplierItem[]> {
-    if (!this.apiKey1) {
+    if (!this.apiKey) {
       console.warn("Berg.ru API key not configured");
       return [];
     }
@@ -40,7 +36,7 @@ export class BergAdapter implements SupplierAdapter {
       // Berg.ru requires specific URL format without encoding
       
       // Build URL manually without encoding brackets
-      let url = `${this.baseUrl}/v1.0/ordering/get_stock.json?key=${this.apiKey1}&analogs=0`;
+      let url = `${this.baseUrl}/v1.0/ordering/get_stock.json?key=${this.apiKey}&analogs=0`;
 
       if (params.article) {
         url += `&items[0][resource_article]=${encodeURIComponent(params.article)}`;
@@ -74,7 +70,12 @@ export class BergAdapter implements SupplierAdapter {
               name: resource.name || "",
               price: parseFloat(offer.price || 0),
               stock: parseInt(offer.quantity || 0, 10),
-              supplier: `Berg.ru (${offer.warehouse?.name || "склад"})`,
+              supplier: `Berg (${offer.warehouse?.name || "склад"})`,
+              supplierCode: "berg",
+              deliveryDays:
+                offer.average_period != null
+                  ? parseInt(offer.average_period, 10)
+                  : null,
               raw: {
                 resource_id: resource.id,
                 warehouse_id: offer.warehouse?.id,

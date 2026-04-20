@@ -6,7 +6,7 @@ import axios from "axios";
  * Endpoint: /references/brands
  */
 export async function GET() {
-  const apiKey = process.env.BERG_API_KEY_1;
+  const apiKey = process.env.BERG_API_KEY;
   const baseUrl = process.env.BERG_API_URL || "https://api.berg.ru";
 
   if (!apiKey) {

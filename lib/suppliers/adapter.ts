@@ -1,5 +1,5 @@
 /**
- * Generic supplier item interface
+ * Generic supplier item interface — одно предложение от одного склада одного поставщика
  */
 export interface SupplierItem {
   article: string;
@@ -8,7 +8,36 @@ export interface SupplierItem {
   price: number;
   stock: number;
   supplier: string;
+  supplierCode?: string;
+  deliveryDays?: number | null;
   raw?: unknown;
+}
+
+/**
+ * Предложение в рамках товара (используется на фронте).
+ * То же самое что SupplierItem + наценка (ourPrice).
+ */
+export interface SupplierOffer {
+  supplier: string;
+  supplierCode: string;
+  price: number;
+  ourPrice: number;
+  stock: number;
+  deliveryDays: number | null;
+}
+
+/**
+ * Товар, сгруппированный по article+brand, со списком предложений от разных поставщиков
+ */
+export interface SupplierGroup {
+  article: string;
+  brand: string;
+  name: string;
+  minPrice: number;
+  maxPrice: number;
+  totalStock: number;
+  minDeliveryDays: number | null;
+  offers: SupplierOffer[];
 }
 
 /**
@@ -57,7 +86,68 @@ export function mergeAndDeduplicate(items: SupplierItem[]): SupplierItem[] {
 }
 
 /**
- * Run multiple supplier searches in parallel with timeout
+ * Группирует предложения по article+brand в SupplierGroup[].
+ * Предложения внутри группы сортируются по цене (по возрастанию).
+ */
+export function groupOffers(
+  items: SupplierItem[],
+  applyMarkup: (basePrice: number, ctx: { brand?: string }) => number
+): SupplierGroup[] {
+  const groups = new Map<string, SupplierGroup>();
+
+  for (const item of items) {
+    const brand = (item.brand || "").trim();
+    const key = `${item.article.toLowerCase()}|${brand.toLowerCase()}`;
+
+    const offer: SupplierOffer = {
+      supplier: item.supplier,
+      supplierCode: item.supplierCode || "unknown",
+      price: item.price,
+      ourPrice: applyMarkup(item.price, { brand }),
+      stock: item.stock,
+      deliveryDays: item.deliveryDays ?? null,
+    };
+
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        article: item.article,
+        brand,
+        name: item.name,
+        minPrice: offer.ourPrice,
+        maxPrice: offer.ourPrice,
+        totalStock: offer.stock,
+        minDeliveryDays: offer.deliveryDays,
+        offers: [offer],
+      });
+      continue;
+    }
+
+    existing.offers.push(offer);
+    existing.totalStock += offer.stock;
+    if (offer.ourPrice < existing.minPrice) existing.minPrice = offer.ourPrice;
+    if (offer.ourPrice > existing.maxPrice) existing.maxPrice = offer.ourPrice;
+    if (
+      offer.deliveryDays != null &&
+      (existing.minDeliveryDays == null ||
+        offer.deliveryDays < existing.minDeliveryDays)
+    ) {
+      existing.minDeliveryDays = offer.deliveryDays;
+    }
+  }
+
+  for (const group of groups.values()) {
+    group.offers.sort((a, b) => a.ourPrice - b.ourPrice);
+  }
+
+  return Array.from(groups.values()).sort((a, b) => a.minPrice - b.minPrice);
+}
+
+/**
+ * Run multiple supplier searches in parallel with timeout.
+ * Возвращает плоский список предложений от всех поставщиков и складов
+ * (без дедупликации — группировка должна делаться вызывающей стороной
+ * через groupOffers, чтобы сохранить все оферы).
  */
 export async function searchAllSuppliers(
   adapters: SupplierAdapter[],
@@ -79,9 +169,7 @@ export async function searchAllSuppliers(
   });
 
   const results = await Promise.all(promises);
-  const allItems = results.flat();
-
-  return mergeAndDeduplicate(allItems);
+  return results.flat();
 }
 
 

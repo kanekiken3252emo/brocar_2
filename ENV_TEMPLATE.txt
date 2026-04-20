@@ -1,8 +1,21 @@
 # Berg.ru API Configuration
 BERG_API_URL=https://api.berg.ru
-BERG_API_KEY_1=e292fd3c0676e80a08525f9b783a6767
-BERG_API_KEY_2=f2ce16c130cf7daa8483ff7c321e4377
-BERG_API_KEY_3=76ab46aa5e5707c25e2e540e23570164a7c64f01c5cf2447224ce96396b99603
+BERG_API_KEY=вставьте_ваш_berg_api_key_сюда
+
+# Rossko API Configuration (SOAP)
+ROSSKO_API_URL=http://api.rossko.ru/service/v2.1
+ROSSKO_KEY1=вставьте_ваш_rossko_key1_сюда
+ROSSKO_KEY2=вставьте_ваш_rossko_key2_сюда
+# Контекст поиска: самовывоз, Екатеринбург (Заводская 16)
+ROSSKO_DELIVERY_ID=000000001
+ROSSKO_ADDRESS_ID=270997
+
+# ShATE-M API Configuration (REST, Bearer auth via /auth/loginbyapikey)
+SHATE_M_API_URL=https://api.shate-m.ru
+SHATE_M_API_KEY=вставьте_ваш_shate_m_api_key_сюда
+# Контекст для получения цен — заполнить из ЛК ShATE-M
+SHATE_M_AGREEMENT_CODE=
+SHATE_M_DELIVERY_ADDRESS_CODE=
 
 # Supabase Configuration (ОБЯЗАТЕЛЬНО!)
 SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co

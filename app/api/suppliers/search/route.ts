@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { searchAllSuppliers } from "@/lib/suppliers/adapter";
+import { searchAllSuppliers, groupOffers } from "@/lib/suppliers/adapter";
 import bergAdapter from "@/lib/suppliers/berg";
+import rosskoAdapter from "@/lib/suppliers/rossko";
+import shateMAdapter from "@/lib/suppliers/shate-m";
 import { applyPricingSync } from "@/lib/pricing";
 
 const searchSchema = z.object({
@@ -14,7 +16,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = searchSchema.parse(body);
 
-    // Require at least article or brand
     if (!validatedData.article && !validatedData.brand) {
       return NextResponse.json(
         { error: "At least one of article or brand is required" },
@@ -22,24 +23,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Search only Berg.ru (real API)
-    const adapters = [bergAdapter];
-    const supplierItems = await searchAllSuppliers(adapters, validatedData);
+    const adapters = [bergAdapter, rosskoAdapter, shateMAdapter];
+    const items = await searchAllSuppliers(adapters, validatedData);
 
-    // Apply our pricing to each item
-    const itemsWithPricing = supplierItems.map((item) => ({
-      article: item.article,
-      brand: item.brand || "",
-      name: item.name,
-      supplierPrice: item.price,
-      ourPrice: applyPricingSync(item.price, { brand: item.brand }),
-      stock: item.stock,
-      supplier: item.supplier,
-    }));
+    const groups = groupOffers(items, (base, ctx) =>
+      applyPricingSync(base, ctx)
+    );
 
     return NextResponse.json({
-      items: itemsWithPricing,
-      count: itemsWithPricing.length,
+      groups,
+      count: groups.length,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

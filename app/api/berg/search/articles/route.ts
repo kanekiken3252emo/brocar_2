@@ -3,7 +3,7 @@ import axios from "axios";
 import type { BergSearchParams, BergStockResponse } from "@/types/berg-api";
 
 const BERG_API_URL = process.env.BERG_API_URL || "https://api.berg.ru";
-const BERG_API_KEY = process.env.BERG_API_KEY_1;
+const BERG_API_KEY = process.env.BERG_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {

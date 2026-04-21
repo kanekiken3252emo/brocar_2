@@ -350,9 +350,9 @@ export default function VinSearchPage() {
                         Telegram
                       </Button>
                     </a>
-                    <a href="https://wa.me/79326006015" target="_blank" rel="noopener noreferrer">
+                    <a href="https://max.ru/+79326006015" target="_blank" rel="noopener noreferrer">
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                        WhatsApp
+                        Max
                       </Button>
                     </a>
                     <a href="tel:+79326006015">

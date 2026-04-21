@@ -27,6 +27,31 @@
       ]
     },
     {
+      "slug": "transmission-oils",
+      "title": "Масла трансмиссионные",
+      "description": "Для АКПП, МКПП, ГУР — ATF, API GL-4/5",
+      "articles": [
+        { "article": "15349A", "brand": "CASTROL" },
+        { "article": "3916", "brand": "LIQUI MOLY" },
+        { "article": "550026420", "brand": "SHELL" },
+        { "article": "3132621", "brand": "LUKOIL" },
+        { "article": "109771", "brand": "MOTUL" },
+        { "article": "1540", "brand": "LIQUI MOLY" }
+      ]
+    },
+    {
+      "slug": "washer-fluids",
+      "title": "Жидкости для омывателя",
+      "description": "Зимние / летние омыватели стекла, концентраты",
+      "articles": [
+        { "article": "7610", "brand": "LIQUI MOLY" },
+        { "article": "1512", "brand": "LIQUI MOLY" },
+        { "article": "HG5647", "brand": "HI-GEAR" },
+        { "article": "LN1211", "brand": "LAVR" },
+        { "article": "HG5688", "brand": "HI-GEAR" }
+      ]
+    },
+    {
       "slug": "coolants",
       "title": "Охлаждающие жидкости",
       "description": "Антифризы G11 / G12 / G12+ — готовые к использованию",
@@ -48,6 +73,53 @@
         { "article": "1987302041", "brand": "BOSCH" },
         { "article": "64193", "brand": "OSRAM" },
         { "article": "12342PRC1", "brand": "PHILIPS" }
+      ]
+    },
+    {
+      "slug": "batteries",
+      "title": "Аккумуляторы",
+      "description": "АКБ 55–74 Ач — VARTA / BOSCH / TUBOR",
+      "articles": [
+        { "article": "574012068", "brand": "VARTA" },
+        { "article": "0092S40080", "brand": "BOSCH" },
+        { "article": "555011042", "brand": "MUTLU" },
+        { "article": "EB740", "brand": "EXIDE" },
+        { "article": "118655", "brand": "TOPLA" },
+        { "article": "560127054", "brand": "VARTA" }
+      ]
+    },
+    {
+      "slug": "wipers",
+      "title": "Щётки стеклоочистителя",
+      "description": "Бескаркасные и гибридные — BOSCH / CHAMPION / VALEO",
+      "articles": [
+        { "article": "3397007295", "brand": "BOSCH" },
+        { "article": "3397004674", "brand": "BOSCH" },
+        { "article": "567949", "brand": "VALEO" },
+        { "article": "119551", "brand": "SWF" },
+        { "article": "AFL51/B01", "brand": "CHAMPION" }
+      ]
+    },
+    {
+      "slug": "fuses",
+      "title": "Предохранители",
+      "description": "Флажковые, цилиндрические — универсальные наборы",
+      "articles": [
+        { "article": "151503000", "brand": "NARVA" },
+        { "article": "FB1000", "brand": "LYNX" },
+        { "article": "99906181", "brand": "SWAG" },
+        { "article": "8910-9", "brand": "HI-LUX" }
+      ]
+    },
+    {
+      "slug": "accessories",
+      "title": "Автоаксессуары",
+      "description": "Полироли, шампуни, средства по уходу",
+      "articles": [
+        { "article": "T477R", "brand": "TURTLE WAX" },
+        { "article": "314200", "brand": "SONAX" },
+        { "article": "LN1410", "brand": "LAVR" },
+        { "article": "HG5685", "brand": "HI-GEAR" }
       ]
     }
   ]

@@ -4,6 +4,7 @@ import "./globals.css";
 import { HeaderWrapper } from "@/components/header-wrapper";
 import { Footer } from "@/components/footer";
 import { CookieBanner } from "@/components/cookie-banner";
+import CartToast from "@/components/CartToast";
 
 const inter = Inter({ 
   subsets: ["latin", "cyrillic"],
@@ -61,6 +62,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <CookieBanner />
+        <CartToast />
       </body>
     </html>
   );

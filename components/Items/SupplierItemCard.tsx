@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
+import { addSupplierItemToCart } from "@/lib/cart/client";
 
 interface SupplierItemCardProps {
   group: SupplierGroup;
@@ -25,9 +26,27 @@ export default function SupplierItemCard({
     group.brand
   )}`;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log("Add to cart:", group);
+    e.stopPropagation();
+    const bestOffer = group.offers[0];
+    if (!bestOffer) return;
+    try {
+      await addSupplierItemToCart({
+        article: group.article,
+        brand: group.brand,
+        name: group.name,
+        ourPrice: bestOffer.ourPrice,
+        supplierPrice: bestOffer.price,
+        stock: group.totalStock,
+      });
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("cart:error", {
+          detail: { message: err?.message || "Не удалось добавить" },
+        })
+      );
+    }
   };
 
   return (

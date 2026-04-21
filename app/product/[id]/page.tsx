@@ -17,10 +17,26 @@ import {
   Shield,
   Truck,
 } from "lucide-react";
-import ItemCard from "@/components/Items/ItemCard";
 import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
+import { addSupplierItemToCart } from "@/lib/cart/client";
+
+interface Characteristic {
+  key: string;
+  value: string;
+}
+
+interface AnalogItem {
+  article: string;
+  brand: string;
+  name: string;
+}
+
+interface OriginalItem {
+  code: string;
+  brand: string;
+}
 
 function groupToBergResource(g: SupplierGroup): BergResource {
   const offers: BergOffer[] = g.offers.map((o) => ({
@@ -51,7 +67,9 @@ export default function ProductPage() {
   const brand = searchParams?.get("brand") || "";
 
   const [product, setProduct] = useState<BergResource | null>(null);
-  const [analogs, setAnalogs] = useState<BergResource[]>([]);
+  const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
+  const [originals, setOriginals] = useState<OriginalItem[]>([]);
+  const [analogs, setAnalogs] = useState<AnalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(null);
@@ -68,31 +86,32 @@ export default function ProductPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/suppliers/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ article: productId, ...(brand ? { brand } : {}) }),
-      });
+      const url = `/api/product/${encodeURIComponent(productId)}${
+        brand ? `?brand=${encodeURIComponent(brand)}` : ""
+      }`;
+      const res = await fetch(url);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Товар не найден");
       }
-      const data: { groups: SupplierGroup[] } = await res.json();
-      const groups = data.groups || [];
 
-      const match =
-        groups.find(
-          (g) => g.brand.toLowerCase() === brand.toLowerCase()
-        ) || groups[0];
+      const data: {
+        group: SupplierGroup | null;
+        characteristics: Characteristic[];
+        originals: OriginalItem[];
+        analogs: AnalogItem[];
+      } = await res.json();
 
-      if (!match) {
+      if (!data.group) {
         setError("Товар не найден");
         return;
       }
 
-      const resource = groupToBergResource(match);
+      const resource = groupToBergResource(data.group);
       setProduct(resource);
-      setAnalogs([]);
+      setCharacteristics(data.characteristics || []);
+      setOriginals(data.originals || []);
+      setAnalogs(data.analogs || []);
 
       if (resource.offers && resource.offers.length > 0) {
         const bestOffer = resource.offers.reduce((best, current) => {
@@ -109,10 +128,24 @@ export default function ProductPage() {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product || !selectedOffer) return;
-    console.log("Add to cart:", { product, offer: selectedOffer });
-    alert("Функция добавления в корзину в разработке");
+    try {
+      await addSupplierItemToCart({
+        article: product.article,
+        brand: product.brand?.name || "",
+        name: product.name,
+        ourPrice: selectedOffer.price,
+        supplierPrice: selectedOffer.price,
+        stock: selectedOffer.quantity,
+      });
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("cart:error", {
+          detail: { message: err?.message || "Не удалось добавить" },
+        })
+      );
+    }
   };
 
   if (loading) {
@@ -346,13 +379,79 @@ export default function ProductPage() {
           </div>
         )}
 
-        {/* Analogs */}
+        {/* Характеристики */}
+        {characteristics.length > 0 && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-neutral-800">
+              <h2 className="text-xl font-bold text-white">Характеристики</h2>
+            </div>
+            <div className="divide-y divide-neutral-800">
+              {characteristics.map((c, i) => (
+                <div
+                  key={`${c.key}-${i}`}
+                  className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 px-6 py-3"
+                >
+                  <div className="sm:w-60 shrink-0 text-sm text-neutral-400">
+                    {c.key}
+                  </div>
+                  <div className="text-sm text-neutral-100 break-words">
+                    {c.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Оригинальные OEM-номера */}
+        {originals.length > 0 && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-neutral-800">
+              <h2 className="text-xl font-bold text-white">Оригинальные номера</h2>
+            </div>
+            <div className="px-6 py-4 flex flex-wrap gap-2">
+              {originals.slice(0, 40).map((o, i) => (
+                <div
+                  key={`${o.brand}-${o.code}-${i}`}
+                  className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <span className="text-orange-500 font-semibold mr-2">
+                    {o.brand}
+                  </span>
+                  <span className="font-mono text-white">{o.code}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Аналоги */}
         {analogs.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-white mb-6">Аналоги</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {analogs.slice(0, 8).map((analog) => (
-                <ItemCard key={analog.id} resource={analog} />
+            <h2 className="text-2xl font-bold text-white mb-6">
+              Аналоги искомого бренда
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {analogs.map((a, i) => (
+                <Link
+                  key={`${a.brand}-${a.article}-${i}`}
+                  href={`/product/${encodeURIComponent(a.article)}?brand=${encodeURIComponent(a.brand)}`}
+                  className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 hover:border-orange-500/50 transition-colors group"
+                >
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-orange-500 font-bold text-xs uppercase tracking-wide">
+                      {a.brand}
+                    </span>
+                    <span className="font-mono text-white text-sm font-bold bg-neutral-800 px-2 py-0.5 rounded">
+                      {a.article}
+                    </span>
+                  </div>
+                  {a.name && (
+                    <div className="text-sm text-neutral-300 group-hover:text-orange-400 transition-colors line-clamp-2">
+                      {a.name}
+                    </div>
+                  )}
+                </Link>
               ))}
             </div>
           </div>

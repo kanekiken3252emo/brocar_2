@@ -13,6 +13,59 @@ const addToCartSchema = z.object({
   qty: z.number().min(1).optional(),
 });
 
+const addFromSupplierSchema = z.object({
+  action: z.literal("addFromSupplier"),
+  article: z.string().min(1),
+  brand: z.string().optional().default(""),
+  name: z.string().min(1),
+  ourPrice: z.number().nonnegative(),
+  supplierPrice: z.number().nonnegative().optional(),
+  stock: z.number().int().nonnegative().optional().default(0),
+  qty: z.number().int().min(1).optional().default(1),
+});
+
+async function upsertProductByArticle(input: {
+  article: string;
+  brand: string;
+  name: string;
+  ourPrice: number;
+  supplierPrice: number;
+  stock: number;
+}): Promise<number> {
+  const existing = await db.query.products.findFirst({
+    where: (p, { and, eq }) =>
+      and(eq(p.article, input.article), eq(p.brand, input.brand)),
+  });
+
+  if (existing) {
+    await db
+      .update(products)
+      .set({
+        name: input.name,
+        ourPrice: input.ourPrice.toString(),
+        supplierPrice: input.supplierPrice.toString(),
+        stock: input.stock,
+        updatedAt: new Date(),
+      })
+      .where(eq(products.id, existing.id));
+    return existing.id;
+  }
+
+  const [inserted] = await db
+    .insert(products)
+    .values({
+      article: input.article,
+      brand: input.brand || null,
+      name: input.name,
+      ourPrice: input.ourPrice.toString(),
+      supplierPrice: input.supplierPrice.toString(),
+      stock: input.stock,
+    })
+    .returning();
+
+  return inserted.id;
+}
+
 async function getOrCreateCart(userId: string | null, sessionId: string) {
   // Try to find existing cart
   let cart;
@@ -136,6 +189,53 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Ветка для добавления прямо от поставщика: upsert товара → обычный "add"
+    if (body && body.action === "addFromSupplier") {
+      const data = addFromSupplierSchema.parse(body);
+      const cart = await getOrCreateCart(user?.id || null, sessionId!);
+
+      const productId = await upsertProductByArticle({
+        article: data.article,
+        brand: data.brand,
+        name: data.name,
+        ourPrice: data.ourPrice,
+        supplierPrice: data.supplierPrice ?? data.ourPrice,
+        stock: data.stock,
+      });
+
+      const existingItem = await db.query.cartItems.findFirst({
+        where: and(
+          eq(cartItems.cartId, cart.id),
+          eq(cartItems.productId, productId)
+        ),
+      });
+
+      if (existingItem) {
+        await db
+          .update(cartItems)
+          .set({ qty: existingItem.qty + data.qty })
+          .where(eq(cartItems.id, existingItem.id));
+      } else {
+        await db.insert(cartItems).values({
+          cartId: cart.id,
+          productId,
+          qty: data.qty,
+        });
+      }
+
+      const cartData = await getCartWithItems(cart.id);
+      const response = NextResponse.json(cartData);
+      if (!user) {
+        response.cookies.set("session_id", sessionId!, {
+          httpOnly: true,
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 30,
+        });
+      }
+      return response;
+    }
+
     const validatedData = addToCartSchema.parse(body);
 
     const cart = await getOrCreateCart(user?.id || null, sessionId!);

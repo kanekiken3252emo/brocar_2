@@ -59,6 +59,30 @@ interface ShatePriceResponseItem {
   prices?: ShatePriceOffer[];
 }
 
+export interface ShateCharacteristic {
+  key: string;
+  value: string;
+}
+
+export interface ShateOriginal {
+  code: string;
+  tradeMarkName?: string;
+}
+
+export interface ShateArticleDetails {
+  article: ShateArticle;
+  extendedInfo?: {
+    extendedDescription?: string;
+    originals?: ShateOriginal[];
+    characteristics?: ShateCharacteristic[];
+  };
+}
+
+export interface ShateAnalogItem {
+  article: ShateArticle;
+  tradeMark?: { name?: string; country?: string };
+}
+
 export class ShateMAdapter implements SupplierAdapter {
   private baseUrl: string;
   private apiKey: string;
@@ -73,6 +97,90 @@ export class ShateMAdapter implements SupplierAdapter {
     this.agreementCode = process.env.SHATE_M_AGREEMENT_CODE || "";
     this.deliveryAddressCode = process.env.SHATE_M_DELIVERY_ADDRESS_CODE || "";
     this.client = axios.create({ baseURL: this.baseUrl, timeout: 10000 });
+  }
+
+  /**
+   * Найти articleId по коду + бренду.
+   * Возвращает первый совпадающий articleId или null.
+   */
+  async findArticleId(code: string, brand?: string): Promise<number | null> {
+    if (!this.apiKey) return null;
+    const token = await this.getToken();
+    if (!token) return null;
+
+    try {
+      const resp = await this.client.get<
+        { article: ShateArticle }[] | { article: ShateArticle }
+      >(`/api/v1/articles/search/${encodeURIComponent(code)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: brand ? { TradeMarkNames: brand, include: "trademark" } : undefined,
+      });
+
+      const list = Array.isArray(resp.data) ? resp.data : resp.data ? [resp.data] : [];
+      if (brand) {
+        const b = brand.toLowerCase().trim();
+        const match = list.find(
+          (x) => (x.article?.tradeMarkName || "").toLowerCase().trim() === b
+        );
+        if (match) return match.article.id;
+      }
+      return list[0]?.article?.id ?? null;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("ShATE-M findArticleId error:", error.response?.status);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Получить подробности по articleId: characteristics, originals, extendedDescription.
+   */
+  async getArticleDetails(
+    articleId: number
+  ): Promise<ShateArticleDetails | null> {
+    const token = await this.getToken();
+    if (!token) return null;
+
+    try {
+      const resp = await this.client.get<ShateArticleDetails>(
+        `/api/v1/articles/${articleId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { include: "extended_info" },
+        }
+      );
+      return resp.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("ShATE-M getArticleDetails error:", error.response?.status);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Получить список аналогов по articleId (другие бренды, подходят как замена).
+   */
+  async getAnalogs(articleId: number): Promise<ShateAnalogItem[]> {
+    const token = await this.getToken();
+    if (!token) return [];
+
+    try {
+      const resp = await this.client.get<ShateAnalogItem[]>(
+        `/api/v1/articles/${articleId}/analogs`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { include: "trademark" },
+        }
+      );
+      return Array.isArray(resp.data) ? resp.data : [];
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("ShATE-M getAnalogs error:", error.response?.status);
+      }
+      return [];
+    }
   }
 
   private async getToken(): Promise<string | null> {

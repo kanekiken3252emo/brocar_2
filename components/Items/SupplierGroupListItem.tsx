@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ShoppingCart, Package, Clock, MapPin } from "lucide-react";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
+import { addSupplierItemToCart } from "@/lib/cart/client";
 
 interface Props {
   group: SupplierGroup;
@@ -19,7 +20,33 @@ function formatDelivery(days: number | null) {
   return `${days} дн.`;
 }
 
-function OfferRow({ offer }: { offer: SupplierOffer }) {
+function OfferRow({
+  offer,
+  group,
+}: {
+  offer: SupplierOffer;
+  group: SupplierGroup;
+}) {
+  const handleAdd = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await addSupplierItemToCart({
+        article: group.article,
+        brand: group.brand,
+        name: group.name,
+        ourPrice: offer.ourPrice,
+        supplierPrice: offer.price,
+        stock: offer.stock,
+      });
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("cart:error", {
+          detail: { message: err?.message || "Не удалось добавить" },
+        })
+      );
+    }
+  };
   return (
     <tr className="hover:bg-neutral-800/40 transition-colors">
       <td className="px-4 py-3 whitespace-nowrap">
@@ -53,10 +80,7 @@ function OfferRow({ offer }: { offer: SupplierOffer }) {
       </td>
       <td className="px-4 py-3 w-12 text-right">
         <button
-          onClick={(e) => {
-            e.preventDefault();
-            console.log("Add to cart:", offer);
-          }}
+          onClick={handleAdd}
           className="p-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors shadow-md shadow-orange-500/20"
           title="Добавить в корзину"
         >
@@ -126,7 +150,11 @@ export default function SupplierGroupListItem({ group }: Props) {
           </thead>
           <tbody className="divide-y divide-neutral-800">
             {group.offers.map((offer, i) => (
-              <OfferRow key={`${offer.supplierCode}-${i}`} offer={offer} />
+              <OfferRow
+                key={`${offer.supplierCode}-${i}`}
+                offer={offer}
+                group={group}
+              />
             ))}
           </tbody>
         </table>

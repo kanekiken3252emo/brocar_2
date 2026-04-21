@@ -16,6 +16,7 @@ import {
   XCircle,
   Shield,
   Truck,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
@@ -68,6 +69,7 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(null);
+  const [offersCollapsed, setOffersCollapsed] = useState(false);
 
   useEffect(() => {
     if (productId) {
@@ -281,9 +283,22 @@ export default function ProductPage() {
         {/* Offers Table */}
         {product.offers && product.offers.length > 0 && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-neutral-800">
+            <button
+              type="button"
+              onClick={() => setOffersCollapsed((v) => !v)}
+              className={`w-full px-6 py-4 flex items-center justify-between hover:bg-neutral-800/30 transition-colors ${
+                offersCollapsed ? "" : "border-b border-neutral-800"
+              }`}
+              aria-expanded={!offersCollapsed}
+            >
               <h2 className="text-xl font-bold text-white">Предложения поставщиков</h2>
-            </div>
+              <ChevronDown
+                className={`w-5 h-5 text-neutral-400 transition-transform duration-200 ${
+                  offersCollapsed ? "" : "rotate-180"
+                }`}
+              />
+            </button>
+            {!offersCollapsed && (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-neutral-800/50">
@@ -371,6 +386,7 @@ export default function ProductPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 

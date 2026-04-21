@@ -7,23 +7,68 @@
       "articles": [
         { "article": "1338295", "brand": "LUKOIL" },
         { "article": "L04010", "brand": "BREMBO" },
+        { "article": "L04005", "brand": "BREMBO" },
         { "article": "PFB401SE", "brand": "TRW" },
+        { "article": "PFB405SE", "brand": "TRW" },
+        { "article": "PFB450SE", "brand": "TRW" },
         { "article": "15036D", "brand": "CASTROL" },
+        { "article": "15037F", "brand": "CASTROL" },
         { "article": "03.2103-1072.2", "brand": "ATE" },
-        { "article": "8109100", "brand": "ROSDOT" }
+        { "article": "03.2103-1073.2", "brand": "ATE" },
+        { "article": "706202", "brand": "ATE" },
+        { "article": "8109100", "brand": "ROSDOT" },
+        { "article": "8109101", "brand": "ROSDOT" },
+        { "article": "21145", "brand": "LIQUI MOLY" },
+        { "article": "8834", "brand": "LIQUI MOLY" },
+        { "article": "103944", "brand": "MOTUL" },
+        { "article": "100951", "brand": "MOTUL" },
+        { "article": "1987479106", "brand": "BOSCH" },
+        { "article": "1987479107", "brand": "BOSCH" },
+        { "article": "FBR5070", "brand": "FEBI" },
+        { "article": "FBR26748", "brand": "FEBI" },
+        { "article": "2199871", "brand": "LUKOIL" },
+        { "article": "3086869", "brand": "LUKOIL" },
+        { "article": "15CC52", "brand": "CASTROL" },
+        { "article": "157FE5", "brand": "CASTROL" }
       ]
     },
     {
       "slug": "engine-oils",
       "title": "Масла моторные",
-      "description": "Синтетика 5W-30, 5W-40 — для легковых автомобилей",
+      "description": "Синтетика 0W-20, 5W-30, 5W-40 — для легковых автомобилей",
       "articles": [
         { "article": "550040755", "brand": "SHELL" },
+        { "article": "550040754", "brand": "SHELL" },
+        { "article": "550046267", "brand": "SHELL" },
+        { "article": "550046268", "brand": "SHELL" },
+        { "article": "550042847", "brand": "SHELL" },
         { "article": "154275", "brand": "MOBIL 1" },
+        { "article": "153750", "brand": "MOBIL 1" },
+        { "article": "152564", "brand": "MOBIL 1" },
         { "article": "15669E", "brand": "CASTROL" },
+        { "article": "15A4D3", "brand": "CASTROL" },
+        { "article": "157B1B", "brand": "CASTROL" },
+        { "article": "156EED", "brand": "CASTROL" },
         { "article": "7660", "brand": "LIQUI MOLY" },
+        { "article": "8042", "brand": "LIQUI MOLY" },
+        { "article": "9510", "brand": "LIQUI MOLY" },
+        { "article": "1948", "brand": "LIQUI MOLY" },
         { "article": "3149857", "brand": "LUKOIL" },
-        { "article": "106376", "brand": "MOTUL" }
+        { "article": "1538645", "brand": "LUKOIL" },
+        { "article": "3148621", "brand": "LUKOIL" },
+        { "article": "3149867", "brand": "LUKOIL" },
+        { "article": "106376", "brand": "MOTUL" },
+        { "article": "102898", "brand": "MOTUL" },
+        { "article": "104720", "brand": "MOTUL" },
+        { "article": "109800", "brand": "MOTUL" },
+        { "article": "201510", "brand": "TOTAL" },
+        { "article": "213830", "brand": "ELF" },
+        { "article": "194876", "brand": "ELF" },
+        { "article": "216648", "brand": "ROLF" },
+        { "article": "322217", "brand": "ZIC" },
+        { "article": "162675", "brand": "ZIC" },
+        { "article": "05100-00141", "brand": "HYUNDAI" },
+        { "article": "08880-80845", "brand": "TOYOTA" }
       ]
     },
     {
@@ -32,11 +77,28 @@
       "description": "Для АКПП, МКПП, ГУР — ATF, API GL-4/5",
       "articles": [
         { "article": "15349A", "brand": "CASTROL" },
+        { "article": "154FE2", "brand": "CASTROL" },
+        { "article": "14B1DA", "brand": "CASTROL" },
         { "article": "3916", "brand": "LIQUI MOLY" },
+        { "article": "3677", "brand": "LIQUI MOLY" },
+        { "article": "1540", "brand": "LIQUI MOLY" },
+        { "article": "2521", "brand": "LIQUI MOLY" },
         { "article": "550026420", "brand": "SHELL" },
+        { "article": "550027111", "brand": "SHELL" },
+        { "article": "550046833", "brand": "SHELL" },
         { "article": "3132621", "brand": "LUKOIL" },
+        { "article": "1518783", "brand": "LUKOIL" },
+        { "article": "3083465", "brand": "LUKOIL" },
         { "article": "109771", "brand": "MOTUL" },
-        { "article": "1540", "brand": "LIQUI MOLY" }
+        { "article": "105886", "brand": "MOTUL" },
+        { "article": "105774", "brand": "MOTUL" },
+        { "article": "108037", "brand": "MOTUL" },
+        { "article": "194754", "brand": "ELF" },
+        { "article": "213876", "brand": "ELF" },
+        { "article": "201320", "brand": "TOTAL" },
+        { "article": "152777", "brand": "MOBIL 1" },
+        { "article": "08886-02305", "brand": "TOYOTA" },
+        { "article": "00279-000ATF", "brand": "NISSAN" }
       ]
     },
     {
@@ -46,9 +108,18 @@
       "articles": [
         { "article": "7610", "brand": "LIQUI MOLY" },
         { "article": "1512", "brand": "LIQUI MOLY" },
+        { "article": "1517", "brand": "LIQUI MOLY" },
+        { "article": "21690", "brand": "LIQUI MOLY" },
         { "article": "HG5647", "brand": "HI-GEAR" },
+        { "article": "HG5688", "brand": "HI-GEAR" },
+        { "article": "HG5689", "brand": "HI-GEAR" },
         { "article": "LN1211", "brand": "LAVR" },
-        { "article": "HG5688", "brand": "HI-GEAR" }
+        { "article": "LN1215", "brand": "LAVR" },
+        { "article": "LN1221", "brand": "LAVR" },
+        { "article": "1987482108", "brand": "BOSCH" },
+        { "article": "1987482110", "brand": "BOSCH" },
+        { "article": "102924", "brand": "MOTUL" },
+        { "article": "110148", "brand": "MOTUL" }
       ]
     },
     {
@@ -57,35 +128,79 @@
       "description": "Антифризы G11 / G12 / G12+ — готовые к использованию",
       "articles": [
         { "article": "430206159", "brand": "FELIX" },
+        { "article": "430206160", "brand": "FELIX" },
+        { "article": "430206161", "brand": "FELIX" },
         { "article": "227389", "brand": "LUKOIL" },
+        { "article": "1597010", "brand": "LUKOIL" },
+        { "article": "2422211", "brand": "LUKOIL" },
         { "article": "102923", "brand": "MOTUL" },
+        { "article": "109117", "brand": "MOTUL" },
+        { "article": "111033", "brand": "MOTUL" },
         { "article": "50668", "brand": "LIQUI MOLY" },
-        { "article": "B40R0001", "brand": "HEPU" }
+        { "article": "8840", "brand": "LIQUI MOLY" },
+        { "article": "21141", "brand": "LIQUI MOLY" },
+        { "article": "B40R0001", "brand": "HEPU" },
+        { "article": "P999-G11", "brand": "HEPU" },
+        { "article": "P999-G12", "brand": "HEPU" },
+        { "article": "1987888029", "brand": "BOSCH" },
+        { "article": "1987888030", "brand": "BOSCH" },
+        { "article": "TEC-211", "brand": "TECHNOL" },
+        { "article": "0888980140", "brand": "TOYOTA" },
+        { "article": "G012A8FM4", "brand": "VAG" },
+        { "article": "G013A8JM1", "brand": "VAG" }
       ]
     },
     {
       "slug": "lamps",
       "title": "Лампы",
-      "description": "Галогеновые H1/H4/H7, OSRAM / PHILIPS / BOSCH",
+      "description": "Галогеновые H1/H4/H7, LED — OSRAM / PHILIPS / BOSCH",
       "articles": [
         { "article": "64210", "brand": "OSRAM" },
-        { "article": "12972PRB1", "brand": "PHILIPS" },
-        { "article": "1987302041", "brand": "BOSCH" },
         { "article": "64193", "brand": "OSRAM" },
-        { "article": "12342PRC1", "brand": "PHILIPS" }
+        { "article": "64150", "brand": "OSRAM" },
+        { "article": "64213", "brand": "OSRAM" },
+        { "article": "9003", "brand": "OSRAM" },
+        { "article": "7507", "brand": "OSRAM" },
+        { "article": "12972PRB1", "brand": "PHILIPS" },
+        { "article": "12342PRC1", "brand": "PHILIPS" },
+        { "article": "12258WVUSM", "brand": "PHILIPS" },
+        { "article": "12342XVS2", "brand": "PHILIPS" },
+        { "article": "12972LLECOB1", "brand": "PHILIPS" },
+        { "article": "11005ULWX2", "brand": "PHILIPS" },
+        { "article": "1987302041", "brand": "BOSCH" },
+        { "article": "1987302042", "brand": "BOSCH" },
+        { "article": "1987302801", "brand": "BOSCH" },
+        { "article": "1987302803", "brand": "BOSCH" },
+        { "article": "48330", "brand": "NARVA" },
+        { "article": "48470", "brand": "NARVA" },
+        { "article": "48878", "brand": "NARVA" },
+        { "article": "003121100000", "brand": "MAGNETI MARELLI" }
       ]
     },
     {
       "slug": "batteries",
       "title": "Аккумуляторы",
-      "description": "АКБ 55–74 Ач — VARTA / BOSCH / TUBOR",
+      "description": "АКБ 55–100 Ач — VARTA / BOSCH / TUBOR",
       "articles": [
         { "article": "574012068", "brand": "VARTA" },
+        { "article": "560127054", "brand": "VARTA" },
+        { "article": "585400080", "brand": "VARTA" },
+        { "article": "595402080", "brand": "VARTA" },
+        { "article": "570409064", "brand": "VARTA" },
         { "article": "0092S40080", "brand": "BOSCH" },
+        { "article": "0092S40060", "brand": "BOSCH" },
+        { "article": "0092S40040", "brand": "BOSCH" },
+        { "article": "0092S50080", "brand": "BOSCH" },
+        { "article": "0092S30080", "brand": "BOSCH" },
         { "article": "555011042", "brand": "MUTLU" },
+        { "article": "575045054", "brand": "MUTLU" },
         { "article": "EB740", "brand": "EXIDE" },
+        { "article": "EB604", "brand": "EXIDE" },
+        { "article": "EC652", "brand": "EXIDE" },
         { "article": "118655", "brand": "TOPLA" },
-        { "article": "560127054", "brand": "VARTA" }
+        { "article": "118675", "brand": "TOPLA" },
+        { "article": "318812", "brand": "TUDOR" },
+        { "article": "TA722", "brand": "TUDOR" }
       ]
     },
     {
@@ -95,9 +210,22 @@
       "articles": [
         { "article": "3397007295", "brand": "BOSCH" },
         { "article": "3397004674", "brand": "BOSCH" },
+        { "article": "3397118907", "brand": "BOSCH" },
+        { "article": "3397118908", "brand": "BOSCH" },
+        { "article": "3397014118", "brand": "BOSCH" },
+        { "article": "3397014119", "brand": "BOSCH" },
+        { "article": "3397118998", "brand": "BOSCH" },
         { "article": "567949", "brand": "VALEO" },
+        { "article": "567948", "brand": "VALEO" },
+        { "article": "574308", "brand": "VALEO" },
+        { "article": "578568", "brand": "VALEO" },
         { "article": "119551", "brand": "SWF" },
-        { "article": "AFL51/B01", "brand": "CHAMPION" }
+        { "article": "119355", "brand": "SWF" },
+        { "article": "119550", "brand": "SWF" },
+        { "article": "AFL51/B01", "brand": "CHAMPION" },
+        { "article": "AFL60/B01", "brand": "CHAMPION" },
+        { "article": "EF55/B01", "brand": "CHAMPION" },
+        { "article": "9XW358053171", "brand": "HELLA" }
       ]
     },
     {
@@ -106,9 +234,18 @@
       "description": "Флажковые, цилиндрические — универсальные наборы",
       "articles": [
         { "article": "151503000", "brand": "NARVA" },
+        { "article": "151513000", "brand": "NARVA" },
+        { "article": "151523000", "brand": "NARVA" },
+        { "article": "151543000", "brand": "NARVA" },
+        { "article": "151573000", "brand": "NARVA" },
         { "article": "FB1000", "brand": "LYNX" },
+        { "article": "FB1500", "brand": "LYNX" },
+        { "article": "FB2000", "brand": "LYNX" },
         { "article": "99906181", "brand": "SWAG" },
-        { "article": "8910-9", "brand": "HI-LUX" }
+        { "article": "99906182", "brand": "SWAG" },
+        { "article": "8910-9", "brand": "HI-LUX" },
+        { "article": "1987529029", "brand": "BOSCH" },
+        { "article": "1987529030", "brand": "BOSCH" }
       ]
     },
     {
@@ -117,9 +254,21 @@
       "description": "Полироли, шампуни, средства по уходу",
       "articles": [
         { "article": "T477R", "brand": "TURTLE WAX" },
+        { "article": "T447R", "brand": "TURTLE WAX" },
+        { "article": "T467R", "brand": "TURTLE WAX" },
         { "article": "314200", "brand": "SONAX" },
+        { "article": "316300", "brand": "SONAX" },
+        { "article": "230200", "brand": "SONAX" },
         { "article": "LN1410", "brand": "LAVR" },
-        { "article": "HG5685", "brand": "HI-GEAR" }
+        { "article": "LN1420", "brand": "LAVR" },
+        { "article": "LN2201", "brand": "LAVR" },
+        { "article": "LN2203", "brand": "LAVR" },
+        { "article": "HG5685", "brand": "HI-GEAR" },
+        { "article": "HG8101", "brand": "HI-GEAR" },
+        { "article": "HG8217", "brand": "HI-GEAR" },
+        { "article": "7600", "brand": "LIQUI MOLY" },
+        { "article": "7602", "brand": "LIQUI MOLY" },
+        { "article": "1597", "brand": "LIQUI MOLY" }
       ]
     }
   ]

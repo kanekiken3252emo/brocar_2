@@ -76,10 +76,7 @@ export default function ContactsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <a href="tel:+79326006052" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-2">
-                  +7 (932) 600-60-52
-                </a>
-                <a href="tel:+79326006015" className="text-lg text-neutral-300 hover:text-orange-500 transition-colors block mb-4">
+                <a href="tel:+79326006015" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
                   +7 (932) 600-60-15
                 </a>
                 <div className="space-y-2 text-neutral-400">
@@ -246,7 +243,7 @@ export default function ContactsPage() {
                 </a>
 
                 <a
-                  href="https://t.me/+79326006052"
+                  href="https://t.me/+79326006015"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#26A5E4]/20 border border-neutral-700 hover:border-[#26A5E4]/50 rounded-xl transition-all group"
@@ -301,19 +298,19 @@ export default function ContactsPage() {
               </p>
               
               <div className="flex flex-wrap gap-3">
-                <a href="https://wa.me/79326006052" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/79326006015" target="_blank" rel="noopener noreferrer">
                   <Button className="gap-2 bg-[#25D366] hover:bg-[#1EBE57] text-white">
                     <WhatsAppIcon className="h-4 w-4" />
                     WhatsApp
                   </Button>
                 </a>
-                <a href="https://t.me/+79326006052" target="_blank" rel="noopener noreferrer">
+                <a href="https://t.me/+79326006015" target="_blank" rel="noopener noreferrer">
                   <Button className="gap-2 bg-[#26A5E4] hover:bg-[#1E96D1] text-white">
                     <TelegramIcon className="h-4 w-4" />
                     Telegram
                   </Button>
                 </a>
-                <a href="tel:+79326006052">
+                <a href="tel:+79326006015">
                   <Button variant="outline" className="gap-2">
                     <Phone className="h-4 w-4" />
                     Позвонить

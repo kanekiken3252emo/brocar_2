@@ -201,13 +201,13 @@ export default function PaymentPage() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-                  <a href="tel:+79326006052">
+                  <a href="tel:+79326006015">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Phone className="h-4 w-4" />
                       Позвонить
                     </Button>
                   </a>
-                  <a href="https://t.me/+79326006052" target="_blank" rel="noopener noreferrer">
+                  <a href="https://t.me/+79326006015" target="_blank" rel="noopener noreferrer">
                     <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto">
                       <MessageCircle className="h-4 w-4" />
                       Telegram

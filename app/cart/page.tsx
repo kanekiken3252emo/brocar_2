@@ -105,7 +105,7 @@ function EmptyCart() {
           {
             icon: <Phone className="h-5 w-5 text-orange-500" />,
             title: "Консультация",
-            desc: "Специалисты помогут с выбором: +7 (932) 600‑60‑52",
+            desc: "Специалисты помогут с выбором: +7 (932) 600‑60‑15",
           },
         ].map((h) => (
           <div
@@ -382,9 +382,9 @@ export default function CartPage() {
                   <p className="text-xs text-neutral-400 mb-3">
                     Наши специалисты помогут подобрать нужные запчасти
                   </p>
-                  <a href="tel:+79326006052" className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5">
+                  <a href="tel:+79326006015" className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5">
                     <Phone className="h-3.5 w-3.5" />
-                    +7 (932) 600‑60‑52
+                    +7 (932) 600‑60‑15
                   </a>
                 </CardContent>
               </Card>

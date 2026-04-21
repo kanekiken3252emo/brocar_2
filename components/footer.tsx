@@ -50,7 +50,7 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-3">
               <a 
-                href="tel:+79326006052" 
+                href="tel:+79326006015" 
                 className="w-10 h-10 bg-neutral-800 hover:bg-orange-500 rounded-lg flex items-center justify-center transition-colors group"
                 title="Позвонить"
               >
@@ -66,7 +66,7 @@ export function Footer() {
                 <VkIcon className="h-5 w-5 text-neutral-400 group-hover:text-white" />
               </a>
               <a 
-                href="https://t.me/+79326006052" 
+                href="https://t.me/+79326006015" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-neutral-800 hover:bg-[#26A5E4] rounded-lg flex items-center justify-center transition-colors group"

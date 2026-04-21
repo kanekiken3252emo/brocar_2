@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import NextImage from "next/image";
 import {
@@ -17,14 +17,38 @@ import {
   Shield,
   Truck,
 } from "lucide-react";
-import { bergClient } from "@/lib/bergClient";
 import ItemCard from "@/components/Items/ItemCard";
 import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
+import type { SupplierGroup } from "@/lib/suppliers/adapter";
+
+function groupToBergResource(g: SupplierGroup): BergResource {
+  const offers: BergOffer[] = g.offers.map((o) => ({
+    price: o.ourPrice,
+    quantity: o.stock,
+    available_more: false,
+    reliability: 90,
+    multiplication_factor: 1,
+    average_period: o.deliveryDays ?? 0,
+    assured_period: o.deliveryDays ?? 0,
+    delivery_type: 1,
+    is_transit: false,
+    warehouse: { id: 0, name: o.supplier, type: 1 },
+  }));
+  return {
+    id: 0,
+    name: g.name,
+    article: g.article,
+    brand: { id: 0, name: g.brand },
+    offers,
+  };
+}
 
 export default function ProductPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const productId = params?.id as string;
+  const brand = searchParams?.get("brand") || "";
 
   const [product, setProduct] = useState<BergResource | null>(null);
   const [analogs, setAnalogs] = useState<BergResource[]>([]);
@@ -36,24 +60,44 @@ export default function ProductPage() {
     if (productId) {
       loadProduct();
     }
-  }, [productId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, brand]);
 
   const loadProduct = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await bergClient.getArticle(productId);
-      setProduct(response.article);
-      setAnalogs(response.analogs || []);
-      
-      if (response.article.offers && response.article.offers.length > 0) {
-        const bestOffer = response.article.offers.reduce((best, current) => {
+      const res = await fetch("/api/suppliers/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ article: productId, ...(brand ? { brand } : {}) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Товар не найден");
+      }
+      const data: { groups: SupplierGroup[] } = await res.json();
+      const groups = data.groups || [];
+
+      const match =
+        groups.find(
+          (g) => g.brand.toLowerCase() === brand.toLowerCase()
+        ) || groups[0];
+
+      if (!match) {
+        setError("Товар не найден");
+        return;
+      }
+
+      const resource = groupToBergResource(match);
+      setProduct(resource);
+      setAnalogs([]);
+
+      if (resource.offers && resource.offers.length > 0) {
+        const bestOffer = resource.offers.reduce((best, current) => {
           if (!best) return current;
-          if (current.price < best.price && current.reliability >= 80) {
-            return current;
-          }
-          return best;
+          return current.price < best.price ? current : best;
         });
         setSelectedOffer(bestOffer);
       }

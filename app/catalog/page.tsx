@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
+import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { Button } from "@/components/ui/button";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import type { BergResource } from "@/types/berg-api";
@@ -272,20 +273,25 @@ function CatalogContent() {
 
         {!loading && paginated.length > 0 && (
           <>
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : "space-y-4"
-              }
-            >
-              {paginated.map((group) => (
-                <SupplierItemCard
-                  key={`${group.article}-${group.brand}`}
-                  group={group}
-                />
-              ))}
-            </div>
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {paginated.map((group) => (
+                  <SupplierItemCard
+                    key={`${group.article}-${group.brand}`}
+                    group={group}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paginated.map((group) => (
+                  <SupplierGroupListItem
+                    key={`${group.article}-${group.brand}`}
+                    group={group}
+                  />
+                ))}
+              </div>
+            )}
 
             {totalPages > 1 && (
               <div className="mt-12 flex items-center justify-center gap-2">

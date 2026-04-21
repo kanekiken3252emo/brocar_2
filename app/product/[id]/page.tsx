@@ -21,16 +21,11 @@ import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 
 interface Characteristic {
   key: string;
   value: string;
-}
-
-interface AnalogItem {
-  article: string;
-  brand: string;
-  name: string;
 }
 
 interface OriginalItem {
@@ -69,7 +64,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<BergResource | null>(null);
   const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
   const [originals, setOriginals] = useState<OriginalItem[]>([]);
-  const [analogs, setAnalogs] = useState<AnalogItem[]>([]);
+  const [analogs, setAnalogs] = useState<SupplierGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(null);
@@ -99,7 +94,7 @@ export default function ProductPage() {
         group: SupplierGroup | null;
         characteristics: Characteristic[];
         originals: OriginalItem[];
-        analogs: AnalogItem[];
+        analogs: SupplierGroup[];
       } = await res.json();
 
       if (!data.group) {
@@ -425,33 +420,18 @@ export default function ProductPage() {
           </div>
         )}
 
-        {/* Аналоги */}
+        {/* Аналоги искомого бренда */}
         {analogs.length > 0 && (
           <div className="mt-12">
             <h2 className="text-2xl font-bold text-white mb-6">
               Аналоги искомого бренда
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {analogs.map((a, i) => (
-                <Link
-                  key={`${a.brand}-${a.article}-${i}`}
-                  href={`/product/${encodeURIComponent(a.article)}?brand=${encodeURIComponent(a.brand)}`}
-                  className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 hover:border-orange-500/50 transition-colors group"
-                >
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-orange-500 font-bold text-xs uppercase tracking-wide">
-                      {a.brand}
-                    </span>
-                    <span className="font-mono text-white text-sm font-bold bg-neutral-800 px-2 py-0.5 rounded">
-                      {a.article}
-                    </span>
-                  </div>
-                  {a.name && (
-                    <div className="text-sm text-neutral-300 group-hover:text-orange-400 transition-colors line-clamp-2">
-                      {a.name}
-                    </div>
-                  )}
-                </Link>
+            <div className="space-y-4">
+              {analogs.map((g) => (
+                <SupplierGroupListItem
+                  key={`${g.article}-${g.brand}`}
+                  group={g}
+                />
               ))}
             </div>
           </div>

@@ -17,7 +17,7 @@ interface ProductDetailResponse {
   group: SupplierGroup | null;
   characteristics: ShateCharacteristic[];
   originals: Array<{ code: string; brand: string }>;
-  analogs: Array<{ article: string; brand: string; name: string }>;
+  analogs: SupplierGroup[];
 }
 
 export async function GET(
@@ -31,30 +31,32 @@ export async function GET(
 
     const adapters = [bergAdapter, rosskoAdapter, shateMAdapter];
 
-    const [supplierItems, shateArticleId] = await Promise.all([
+    // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M
+    const [mainItems, shateArticleId] = await Promise.all([
       searchAllSuppliers(adapters, { article: decoded, brand }, 10000).catch(
         () => [] as SupplierItem[]
       ),
       (shateMAdapter as ShateMAdapter).findArticleId(decoded, brand).catch(() => null),
     ]);
 
-    const groups = groupOffers(supplierItems, (base, ctx) =>
-      applyPricingSync(base, ctx)
-    );
+    const pricing = (base: number, ctx: { brand?: string }) =>
+      applyPricingSync(base, ctx);
 
-    const match =
-      groups.find((g) => g.brand.toLowerCase() === brand.toLowerCase()) ||
-      groups[0] ||
+    const mainGroups = groupOffers(mainItems, pricing);
+    const mainGroup =
+      mainGroups.find((g) => g.brand.toLowerCase() === brand.toLowerCase()) ||
+      mainGroups[0] ||
       null;
 
     let characteristics: ShateCharacteristic[] = [];
     let originals: ProductDetailResponse["originals"] = [];
-    let analogs: ProductDetailResponse["analogs"] = [];
+    let analogs: SupplierGroup[] = [];
 
     if (shateArticleId) {
-      const [details, analogList] = await Promise.all([
+      // Характеристики + офферы по аналогам одним большим запросом (с includeAnalogs)
+      const [details, analogItems] = await Promise.all([
         (shateMAdapter as ShateMAdapter).getArticleDetails(shateArticleId),
-        (shateMAdapter as ShateMAdapter).getAnalogs(shateArticleId),
+        (shateMAdapter as ShateMAdapter).searchWithAnalogsById(shateArticleId),
       ]);
 
       characteristics = details?.extendedInfo?.characteristics ?? [];
@@ -62,18 +64,22 @@ export async function GET(
         code: o.code,
         brand: o.tradeMarkName ?? "",
       }));
-      analogs = analogList
-        .filter((a) => a.article?.code && a.article?.tradeMarkName)
-        .slice(0, 12)
-        .map((a) => ({
-          article: a.article.code,
-          brand: a.article.tradeMarkName ?? a.tradeMark?.name ?? "",
-          name: a.article.name ?? "",
-        }));
+
+      // Группируем все полученные item'ы (основной + аналоги)
+      const analogGroups = groupOffers(analogItems, pricing);
+
+      // Исключаем группу самого искомого товара — она уже в mainGroup
+      const mainKey = `${decoded.toLowerCase()}|${brand.toLowerCase()}`;
+      analogs = analogGroups
+        .filter(
+          (g) =>
+            `${g.article.toLowerCase()}|${g.brand.toLowerCase()}` !== mainKey
+        )
+        .slice(0, 20);
     }
 
     const response: ProductDetailResponse = {
-      group: match,
+      group: mainGroup,
       characteristics,
       originals,
       analogs,

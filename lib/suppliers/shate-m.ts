@@ -277,49 +277,10 @@ export class ShateMAdapter implements SupplierAdapter {
       );
 
       const priceItems = Array.isArray(priceResp.data) ? priceResp.data : [];
-      const results: SupplierItem[] = [];
-
-      for (const p of priceItems) {
-        for (const offer of p.prices || []) {
-          const avail = offer.quantity?.available ?? 0;
-          if (avail <= 0) continue;
-
-          const priceValue =
-            offer.price?.valueWithMargin ?? offer.price?.value ?? 0;
-
-          const deliveryDate = offer.deliveryDateTimes?.[0]?.deliveryDateTime;
-          const deliveryDays = deliveryDate
-            ? Math.max(
-                0,
-                Math.ceil(
-                  (new Date(deliveryDate).getTime() - Date.now()) / 86_400_000
-                )
-              )
-            : null;
-
-          results.push({
-            article: p.article?.code || params.article,
-            brand: p.article?.tradeMarkName || params.brand || "",
-            name: p.article?.name || "",
-            price: Number(priceValue) || 0,
-            stock: avail,
-            supplier: `ShATE-M (${offer.locationCode || "склад"})`,
-            supplierCode: "shate-m",
-            deliveryDays,
-            raw: {
-              articleId: p.article?.id,
-              priceId: offer.id,
-              currencyCode: offer.price?.currencyCode,
-              multiplicity: offer.quantity?.multiplicity,
-              minimum: offer.quantity?.minimum,
-              locationCode: offer.locationCode,
-              deliveryDateTime: deliveryDate,
-            },
-          });
-        }
-      }
-
-      return results;
+      return this.mapPriceItems(priceItems, {
+        fallbackArticle: params.article,
+        fallbackBrand: params.brand,
+      });
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("ShATE-M API error:", {
@@ -332,6 +293,102 @@ export class ShateMAdapter implements SupplierAdapter {
       }
       return [];
     }
+  }
+
+  /**
+   * Получить офферы по конкретному articleId + аналоги одним запросом.
+   * Используется на странице товара для отображения «Аналогов искомого бренда»
+   * с ценами, остатками и складами.
+   */
+  async searchWithAnalogsById(articleId: number): Promise<SupplierItem[]> {
+    if (!this.apiKey) return [];
+    if (!this.agreementCode || !this.deliveryAddressCode) {
+      console.warn(
+        "ShATE-M: agreement/delivery не заданы — аналоги с ценами не получить"
+      );
+      return [];
+    }
+
+    const token = await this.getToken();
+    if (!token) return [];
+
+    try {
+      const priceResp = await this.client.post<ShatePriceResponseItem[]>(
+        "/api/v1/prices/search/with_article_info",
+        [
+          {
+            articleId,
+            agreementCode: this.agreementCode,
+            deliveryAddressCode: this.deliveryAddressCode,
+            includeAnalogs: true,
+          },
+        ],
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const priceItems = Array.isArray(priceResp.data) ? priceResp.data : [];
+      return this.mapPriceItems(priceItems, {});
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("ShATE-M searchWithAnalogsById error:", {
+          status: error.response?.status,
+          message: error.message,
+        });
+      } else {
+        console.error("ShATE-M searchWithAnalogsById unexpected error:", error);
+      }
+      return [];
+    }
+  }
+
+  /**
+   * Маппинг массива PriceResponseItem из ShATE-M → плоский список SupplierItem.
+   */
+  private mapPriceItems(
+    items: ShatePriceResponseItem[],
+    fallbacks: { fallbackArticle?: string; fallbackBrand?: string }
+  ): SupplierItem[] {
+    const results: SupplierItem[] = [];
+    for (const p of items) {
+      for (const offer of p.prices || []) {
+        const avail = offer.quantity?.available ?? 0;
+        if (avail <= 0) continue;
+
+        const priceValue =
+          offer.price?.valueWithMargin ?? offer.price?.value ?? 0;
+
+        const deliveryDate = offer.deliveryDateTimes?.[0]?.deliveryDateTime;
+        const deliveryDays = deliveryDate
+          ? Math.max(
+              0,
+              Math.ceil(
+                (new Date(deliveryDate).getTime() - Date.now()) / 86_400_000
+              )
+            )
+          : null;
+
+        results.push({
+          article: p.article?.code || fallbacks.fallbackArticle || "",
+          brand: p.article?.tradeMarkName || fallbacks.fallbackBrand || "",
+          name: p.article?.name || "",
+          price: Number(priceValue) || 0,
+          stock: avail,
+          supplier: `ShATE-M (${offer.locationCode || "склад"})`,
+          supplierCode: "shate-m",
+          deliveryDays,
+          raw: {
+            articleId: p.article?.id,
+            priceId: offer.id,
+            currencyCode: offer.price?.currencyCode,
+            multiplicity: offer.quantity?.multiplicity,
+            minimum: offer.quantity?.minimum,
+            locationCode: offer.locationCode,
+            deliveryDateTime: deliveryDate,
+          },
+        });
+      }
+    }
+    return results;
   }
 }
 

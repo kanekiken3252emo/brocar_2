@@ -351,18 +351,26 @@ export interface CarBrandMeta {
   title: string;
 }
 
+const BRAND_TITLE_OVERRIDES: Record<string, string> = {
+  BMW: "BMW",
+  KIA: "KIA",
+  UAZ: "УАЗ",
+  GAZ: "ГАЗ",
+  JAC: "JAC",
+  SSANGYONG: "SsangYong",
+  VOLKSWAGEN: "Volkswagen",
+  "LAND-ROVER": "Land Rover",
+  "ALFA-ROMEO": "Alfa Romeo",
+  "GREAT-WALL": "Great Wall",
+};
+
+function toTitleCase(s: string): string {
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+
 export const CAR_BRAND_META: CarBrandMeta[] = CAR_BRANDS.map((b) => ({
   slug: b.slug,
-  title:
-    b.slug === "VOLKSWAGEN"
-      ? "Volkswagen"
-      : b.slug === "LAND-ROVER"
-      ? "Land Rover"
-      : b.slug === "ALFA-ROMEO"
-      ? "Alfa Romeo"
-      : b.slug === "GREAT-WALL"
-      ? "Great Wall"
-      : b.slug.charAt(0) + b.slug.slice(1).toLowerCase(),
+  title: BRAND_TITLE_OVERRIDES[b.slug] ?? toTitleCase(b.slug),
 }));
 
 /**

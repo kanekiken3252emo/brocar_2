@@ -22,7 +22,7 @@ export async function GET(
     const meta = getCategoryMeta(slug);
 
     const url = new URL(request.url);
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "60", 10), 200);
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "500", 10), 2000);
     const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
     const sort = url.searchParams.get("sort") || "price-asc";
 

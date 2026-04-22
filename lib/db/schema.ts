@@ -59,6 +59,26 @@ export const products = pgTable("products", {
   supplierPrice: numeric("supplier_price").notNull(),
   ourPrice: numeric("our_price").notNull(),
   stock: integer("stock").default(0).notNull(),
+  // Импортированный каталог
+  categorySlug: text("category_slug"),
+  source: text("source").default("manual"), // 'berg' | 'rossko' | 'shate-m' | 'manual'
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// Остатки по складам/поставщикам — для импортированного каталога
+export const productStocks = pgTable("product_stocks", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  productId: bigint("product_id", { mode: "number" })
+    .references(() => products.id, { onDelete: "cascade" })
+    .notNull(),
+  supplierCode: text("supplier_code").notNull(),
+  warehouseName: text("warehouse_name").notNull(),
+  quantity: integer("quantity").default(0).notNull(),
+  supplierPrice: numeric("supplier_price").notNull(),
+  ourPrice: numeric("our_price").notNull(),
+  deliveryDays: integer("delivery_days"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -145,10 +165,18 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   }),
 }));
 
-export const productsRelations = relations(products, ({ one }) => ({
+export const productsRelations = relations(products, ({ one, many }) => ({
   supplier: one(suppliers, {
     fields: [products.supplierId],
     references: [suppliers.id],
+  }),
+  stocks: many(productStocks),
+}));
+
+export const productStocksRelations = relations(productStocks, ({ one }) => ({
+  product: one(products, {
+    fields: [productStocks.productId],
+    references: [products.id],
   }),
 }));
 

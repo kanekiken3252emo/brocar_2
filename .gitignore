@@ -42,6 +42,11 @@ drizzle/
 # claude code
 .claude/
 
+# импортированные прайсы поставщиков (большие, не храним в git)
+public/BERG_brocar_*.csv
+public/ROSSKO_*.csv
+public/SHATE_*.csv
+
 
 
 

@@ -10,6 +10,7 @@ import {
   Loader2,
   ArrowLeft,
   ChevronDown,
+  Package,
 } from "lucide-react";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
@@ -17,6 +18,12 @@ import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { Button } from "@/components/ui/button";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import type { BergResource } from "@/types/berg-api";
+
+interface CategoryHub {
+  slug: string;
+  title: string;
+  count: number;
+}
 
 function CatalogContent() {
   const searchParams = useSearchParams();
@@ -29,6 +36,7 @@ function CatalogContent() {
 
   const [groups, setGroups] = useState<SupplierGroup[]>([]);
   const [categoryTitle, setCategoryTitle] = useState<string | null>(null);
+  const [categoryHub, setCategoryHub] = useState<CategoryHub[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -50,6 +58,7 @@ function CatalogContent() {
     setLoading(true);
     setError(null);
     setCategoryTitle(null);
+    setCategoryHub(null);
 
     try {
       if (category) {
@@ -104,7 +113,13 @@ function CatalogContent() {
         });
         setGroups(bergResourcesToGroups(response.resources || []));
       } else {
+        // Нет ни одного параметра — показываем хаб с категориями
         setGroups([]);
+        const res = await fetch("/api/catalog/categories");
+        if (res.ok) {
+          const data: { categories: CategoryHub[] } = await res.json();
+          setCategoryHub(data.categories || []);
+        }
       }
     } catch (err: any) {
       console.error("Catalog load error:", err);
@@ -265,7 +280,36 @@ function CatalogContent() {
           </div>
         )}
 
-        {!loading && !error && groups.length === 0 && (
+        {!loading && !error && groups.length === 0 && categoryHub && categoryHub.length > 0 && (
+          <div>
+            <div className="mb-6">
+              <p className="text-neutral-400">
+                Выберите категорию запчастей
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {categoryHub.map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/catalog?category=${encodeURIComponent(c.slug)}`}
+                  className="group bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
+                >
+                  <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
+                    <Package className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">
+                    {c.title}
+                  </div>
+                  <div className="text-xs text-neutral-500 mt-1">
+                    {c.count.toLocaleString("ru-RU")} товаров
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && groups.length === 0 && (!categoryHub || categoryHub.length === 0) && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-12 text-center">
             <div className="w-20 h-20 bg-neutral-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <Search className="w-10 h-10 text-neutral-600" />

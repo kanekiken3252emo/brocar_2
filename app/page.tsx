@@ -132,7 +132,7 @@ export default function HomePage() {
 
           {/* Row 1 — Two large hero cards */}
           <div className="grid md:grid-cols-2 gap-4 md:gap-5 mb-4 md:mb-5">
-            <Link href="/catalog?type=original" className="group">
+            <Link href="/automarki" className="group">
               <div className="relative overflow-hidden rounded-2xl md:rounded-3xl h-[200px] md:h-[280px] bg-gradient-to-br from-teal-600 to-teal-800 flex items-center">
                 <div className="relative z-10 p-6 md:p-10 flex-1">
                   <h3 className="text-xl md:text-3xl font-bold text-white mb-1 md:mb-2">

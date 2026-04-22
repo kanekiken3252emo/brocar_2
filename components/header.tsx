@@ -15,37 +15,60 @@ interface HeaderProps {
 
 const CATALOG_ITEMS = [
   {
-    title: "Масла и автохимия",
+    title: "Масла и жидкости",
     items: [
       { name: "Масла моторные", href: "/catalog?category=engine-oils" },
       { name: "Масла трансмиссионные", href: "/catalog?category=transmission-oils" },
-      { name: "Жидкости для омывателя", href: "/catalog?category=washer-fluids" },
       { name: "Охлаждающие жидкости", href: "/catalog?category=coolants" },
+      { name: "Жидкости тормозные", href: "/catalog?category=brake-fluids" },
+      { name: "Жидкости для омывателя", href: "/catalog?category=washer-fluids" },
     ],
   },
   {
-    title: "Шины, диски",
+    title: "Фильтры",
     items: [
-      { name: "Шины летние", href: "/catalog?category=summer-tires" },
-      { name: "Шины зимние", href: "/catalog?category=winter-tires" },
-      { name: "Диски колёсные", href: "/catalog?category=wheels" },
+      { name: "Масляные", href: "/catalog?category=oil-filters" },
+      { name: "Воздушные", href: "/catalog?category=air-filters" },
+      { name: "Топливные", href: "/catalog?category=fuel-filters" },
+      { name: "Салона", href: "/catalog?category=cabin-filters" },
     ],
   },
   {
-    title: "Автоэлектроника",
+    title: "Тормозная система",
+    items: [
+      { name: "Колодки тормозные", href: "/catalog?category=brake-pads" },
+      { name: "Диски тормозные", href: "/catalog?category=brake-discs" },
+      { name: "Шланги тормозные", href: "/catalog?category=brake-hoses" },
+    ],
+  },
+  {
+    title: "Подвеска и ходовая",
+    items: [
+      { name: "Амортизаторы", href: "/catalog?category=shock-absorbers" },
+      { name: "Сайлентблоки", href: "/catalog?category=silent-blocks" },
+      { name: "Стойки стабилизатора", href: "/catalog?category=stabilizer-links" },
+      { name: "ШРУСы", href: "/catalog?category=cv-joints" },
+      { name: "Подшипники", href: "/catalog?category=bearings" },
+    ],
+  },
+  {
+    title: "Электрика",
     items: [
       { name: "Лампы", href: "/catalog?category=lamps" },
       { name: "Аккумуляторы", href: "/catalog?category=batteries" },
-      { name: "Предохранители", href: "/catalog?category=fuses" },
+      { name: "Свечи зажигания", href: "/catalog?category=spark-plugs" },
+      { name: "Датчики", href: "/catalog?category=sensors" },
+      { name: "Генераторы", href: "/catalog?category=alternators" },
+      { name: "Стартеры", href: "/catalog?category=starters" },
     ],
   },
   {
-    title: "Остальное",
+    title: "Кузов и аксессуары",
     items: [
-      { name: "Электрооборудование", href: "/catalog?category=electrical" },
-      { name: "Инструмент", href: "/catalog?category=tools" },
-      { name: "Автоаксессуары", href: "/catalog?category=accessories" },
       { name: "Щётки стеклоочистителя", href: "/catalog?category=wipers" },
+      { name: "Колёсные диски", href: "/catalog?category=wheels" },
+      { name: "Автохимия и аксессуары", href: "/catalog?category=accessories" },
+      { name: "Все категории", href: "/catalog" },
     ],
   },
 ];

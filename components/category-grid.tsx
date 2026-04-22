@@ -4,42 +4,42 @@ import { Card, CardContent } from "./ui/card";
 
 const CATEGORIES = [
   {
-    name: "Тормозная система",
+    name: "Тормозные колодки",
     img: "/tormoznaya-systema.png",
-    href: "/catalog?category=brakes",
+    href: "/catalog?category=brake-pads",
   },
   {
     name: "Масла моторные",
     img: "/oil.png",
-    href: "/catalog?category=oils",
+    href: "/catalog?category=engine-oils",
   },
   {
-    name: "Фильтры",
+    name: "Фильтры масляные",
     img: "/filtr.png",
-    href: "/catalog?category=filters",
+    href: "/catalog?category=oil-filters",
   },
   {
-    name: "Подвеска",
+    name: "Амортизаторы",
     img: "/amortizator.png",
-    href: "/catalog?category=suspension",
+    href: "/catalog?category=shock-absorbers",
   },
   {
-    name: "Электрика",
+    name: "Датчики",
     img: "/avtoelektrika.png",
-    href: "/catalog?category=electrical",
+    href: "/catalog?category=sensors",
   },
   {
-    name: "Колёса и диски",
+    name: "Колёсные диски",
     img: "/lotoi-disk.png",
     href: "/catalog?category=wheels",
   },
   {
     name: "Ремни ГРМ",
     img: "/remen-grm.png",
-    href: "/catalog?category=fluids",
+    href: "/catalog?category=belts",
   },
   {
-    name: "Аксессуары",
+    name: "Автохимия",
     img: "/avtoaksesuary.png",
     href: "/catalog?category=accessories",
   },

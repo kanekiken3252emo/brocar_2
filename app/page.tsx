@@ -226,10 +226,10 @@ export default function HomePage() {
             <div className="col-span-2 md:col-span-1 bg-neutral-900 border border-neutral-800 rounded-2xl p-4 md:p-5 flex flex-col justify-center gap-3">
               {[
                 { name: "Трансмиссионные масла", href: "/catalog?category=transmission-oils" },
-                { name: "Автокосметика", href: "/catalog?category=cosmetics" },
+                { name: "Тормозные жидкости", href: "/catalog?category=brake-fluids" },
                 { name: "Охлаждающие жидкости", href: "/catalog?category=coolants" },
-                { name: "Омыватель стекла", href: "/catalog?category=washer-fluid" },
-                { name: "Вся автохимия", href: "/catalog?category=chemicals" },
+                { name: "Омыватель стекла", href: "/catalog?category=washer-fluids" },
+                { name: "Автохимия и аксессуары", href: "/catalog?category=accessories" },
               ].map((link) => (
                 <Link
                   key={link.name}
@@ -265,10 +265,10 @@ export default function HomePage() {
             {/* Sidebar links */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 md:p-5 flex flex-col justify-center gap-3">
               {[
-                { name: "Все для ремонта", href: "/catalog?category=repair" },
-                { name: "Автолитература", href: "/catalog?category=books" },
-                { name: "Инструмент", href: "/catalog?category=tools", isNew: true },
-                { name: "Все принадлежности", href: "/catalog?category=all-accessories" },
+                { name: "Щётки стеклоочистителя", href: "/catalog?category=wipers", isNew: false },
+                { name: "Лампы", href: "/catalog?category=lamps", isNew: false },
+                { name: "Аккумуляторы", href: "/catalog?category=batteries", isNew: false },
+                { name: "Все категории", href: "/catalog", isNew: true },
               ].map((link) => (
                 <Link
                   key={link.name}
@@ -286,7 +286,7 @@ export default function HomePage() {
               ))}
             </div>
 
-            <Link href="/catalog?category=tires" className="group">
+            <Link href="/catalog?category=wheels" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -339,7 +339,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=lighting" className="group">
+            <Link href="/catalog?category=lamps" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image

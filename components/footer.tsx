@@ -97,10 +97,10 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-3 md:mb-6 text-sm md:text-lg">Каталог</h4>
             <ul className="space-y-2 md:space-y-3">
               {[
-                { name: "Масла", href: "/catalog?category=oils" },
-                { name: "Фильтры", href: "/catalog?category=filters" },
-                { name: "Тормоза", href: "/catalog?category=brakes" },
-                { name: "Подвеска", href: "/catalog?category=suspension" },
+                { name: "Масла моторные", href: "/catalog?category=engine-oils" },
+                { name: "Фильтры масляные", href: "/catalog?category=oil-filters" },
+                { name: "Тормозные колодки", href: "/catalog?category=brake-pads" },
+                { name: "Амортизаторы", href: "/catalog?category=shock-absorbers" },
                 { name: "Все запчасти", href: "/catalog" },
               ].map((item) => (
                 <li key={item.name}>

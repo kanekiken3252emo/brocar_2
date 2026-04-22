@@ -15,18 +15,18 @@ function BrandLogo({ slug, title }: { slug: string; title: string }) {
   const [errored, setErrored] = useState(false);
   if (errored) {
     return (
-      <div className="w-14 h-14 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
-        <Car className="w-7 h-7 text-orange-500" />
+      <div className="w-24 h-24 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-orange-500/20 transition-colors">
+        <Car className="w-12 h-12 text-orange-500" />
       </div>
     );
   }
   return (
-    <div className="w-14 h-14 bg-white rounded-xl p-1.5 flex items-center justify-center mb-3 group-hover:bg-neutral-100 transition-colors">
+    <div className="w-24 h-24 bg-white rounded-2xl p-1 flex items-center justify-center mb-4 group-hover:bg-neutral-50 transition-colors">
       <Image
         src={`/brand-logos/${slug}.png`}
         alt={title}
-        width={56}
-        height={56}
+        width={128}
+        height={128}
         className="object-contain w-full h-full"
         onError={() => setErrored(true)}
         unoptimized

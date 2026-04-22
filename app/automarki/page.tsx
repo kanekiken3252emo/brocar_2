@@ -15,19 +15,19 @@ function BrandLogo({ slug, title }: { slug: string; title: string }) {
   const [errored, setErrored] = useState(false);
   if (errored) {
     return (
-      <div className="w-24 h-24 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-orange-500/20 transition-colors">
-        <Car className="w-12 h-12 text-orange-500" />
+      <div className="h-28 bg-neutral-800 flex items-center justify-center">
+        <Car className="w-14 h-14 text-orange-500" />
       </div>
     );
   }
   return (
-    <div className="w-24 h-24 bg-white rounded-2xl p-1 flex items-center justify-center mb-4 group-hover:bg-neutral-50 transition-colors">
+    <div className="h-28 bg-white flex items-center justify-center p-4 transition-colors group-hover:bg-neutral-50">
       <Image
         src={`/brand-logos/${slug}.png`}
         alt={title}
-        width={128}
-        height={128}
-        className="object-contain w-full h-full"
+        width={160}
+        height={160}
+        className="object-contain max-h-full max-w-full"
         onError={() => setErrored(true)}
         unoptimized
       />
@@ -116,19 +116,21 @@ export default function AutomarkiPage() {
               <Link
                 key={b.slug}
                 href={`/catalog?brand=${encodeURIComponent(b.slug)}`}
-                className="group bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
+                className="group bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
               >
                 <BrandLogo slug={b.slug} title={b.title} />
-                <div className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">
-                  {b.title}
-                </div>
-                <div className="text-xs text-neutral-500 mt-1">
-                  {b.count.toLocaleString("ru-RU")}{" "}
-                  {b.count === 1
-                    ? "товар"
-                    : b.count < 5
-                    ? "товара"
-                    : "товаров"}
+                <div className="p-4">
+                  <div className="text-base font-bold text-white group-hover:text-orange-400 transition-colors">
+                    {b.title}
+                  </div>
+                  <div className="text-xs text-neutral-500 mt-1">
+                    {b.count.toLocaleString("ru-RU")}{" "}
+                    {b.count === 1
+                      ? "товар"
+                      : b.count < 5
+                      ? "товара"
+                      : "товаров"}
+                  </div>
                 </div>
               </Link>
             ))}

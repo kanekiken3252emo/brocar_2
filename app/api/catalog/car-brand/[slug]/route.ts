@@ -22,7 +22,11 @@ export async function GET(
 
     const url = new URL(request.url);
     const category = url.searchParams.get("category");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "500", 10), 2000);
+    // По умолчанию возвращаем всё. Потолок 20000 — защита.
+    const limitParam = url.searchParams.get("limit");
+    const limit = limitParam
+      ? Math.min(parseInt(limitParam, 10), 20000)
+      : 20000;
     const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
     const sort = url.searchParams.get("sort") || "price-asc";
 

@@ -2,12 +2,37 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Car, Search, Loader2 } from "lucide-react";
 
 interface CarBrand {
   slug: string;
   title: string;
   count: number;
+}
+
+function BrandLogo({ slug, title }: { slug: string; title: string }) {
+  const [errored, setErrored] = useState(false);
+  if (errored) {
+    return (
+      <div className="w-14 h-14 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
+        <Car className="w-7 h-7 text-orange-500" />
+      </div>
+    );
+  }
+  return (
+    <div className="w-14 h-14 bg-white rounded-xl p-1.5 flex items-center justify-center mb-3 group-hover:bg-neutral-100 transition-colors">
+      <Image
+        src={`/brand-logos/${slug}.png`}
+        alt={title}
+        width={56}
+        height={56}
+        className="object-contain w-full h-full"
+        onError={() => setErrored(true)}
+        unoptimized
+      />
+    </div>
+  );
 }
 
 export default function AutomarkiPage() {
@@ -93,9 +118,7 @@ export default function AutomarkiPage() {
                 href={`/catalog?brand=${encodeURIComponent(b.slug)}`}
                 className="group bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
               >
-                <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
-                  <Car className="w-6 h-6 text-orange-500" />
-                </div>
+                <BrandLogo slug={b.slug} title={b.title} />
                 <div className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">
                   {b.title}
                 </div>

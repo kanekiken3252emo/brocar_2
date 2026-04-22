@@ -273,3 +273,112 @@ export function detectCategory(name: string): string {
   }
   return "misc";
 }
+
+/**
+ * Определение марок автомобилей из наименования запчасти.
+ * Например: "Колодки тормозные TOYOTA AVENSIS" → ['TOYOTA'].
+ * Несколько марок в одном наименовании поддерживаются.
+ *
+ * ВАЖНО: ищем только **упомянутые** марки. Универсальные товары
+ * (например, масло без привязки к авто) не попадут ни в одну марку.
+ */
+
+interface CarBrandPattern {
+  slug: string; // используем как URL-slug и ключ БД
+  patterns: RegExp[]; // регулярки в ВЕРХНЕМ регистре, match по слову
+}
+
+const CAR_BRANDS: CarBrandPattern[] = [
+  { slug: "BMW", patterns: [/\bBMW\b/] },
+  { slug: "AUDI", patterns: [/\bAUDI\b/] },
+  { slug: "MERCEDES", patterns: [/\bMERCEDES\b/, /\bBENZ\b/, /\bMB\b/] },
+  { slug: "VOLKSWAGEN", patterns: [/\bVOLKSWAGEN\b/, /\bVW\b/] },
+  { slug: "SKODA", patterns: [/\bSKODA\b/, /\bШКОДА\b/] },
+  { slug: "SEAT", patterns: [/\bSEAT\b/] },
+  { slug: "PORSCHE", patterns: [/\bPORSCHE\b/] },
+  { slug: "TOYOTA", patterns: [/\bTOYOTA\b/] },
+  { slug: "LEXUS", patterns: [/\bLEXUS\b/] },
+  { slug: "HONDA", patterns: [/\bHONDA\b/] },
+  { slug: "ACURA", patterns: [/\bACURA\b/] },
+  { slug: "NISSAN", patterns: [/\bNISSAN\b/] },
+  { slug: "INFINITI", patterns: [/\bINFINITI\b/] },
+  { slug: "MAZDA", patterns: [/\bMAZDA\b/] },
+  { slug: "MITSUBISHI", patterns: [/\bMITSUBISHI\b/] },
+  { slug: "SUBARU", patterns: [/\bSUBARU\b/] },
+  { slug: "SUZUKI", patterns: [/\bSUZUKI\b/] },
+  { slug: "ISUZU", patterns: [/\bISUZU\b/] },
+  { slug: "DAIHATSU", patterns: [/\bDAIHATSU\b/] },
+  { slug: "SSANGYONG", patterns: [/\bSSANGYONG\b/] },
+  { slug: "HYUNDAI", patterns: [/\bHYUNDAI\b/] },
+  { slug: "KIA", patterns: [/\bKIA\b/] },
+  { slug: "DAEWOO", patterns: [/\bDAEWOO\b/] },
+  { slug: "FORD", patterns: [/\bFORD\b/] },
+  { slug: "CHEVROLET", patterns: [/\bCHEVROLET\b/, /\bCHEVY\b/] },
+  { slug: "OPEL", patterns: [/\bOPEL\b/] },
+  { slug: "RENAULT", patterns: [/\bRENAULT\b/] },
+  { slug: "PEUGEOT", patterns: [/\bPEUGEOT\b/] },
+  { slug: "CITROEN", patterns: [/\bCITROEN\b/] },
+  { slug: "DACIA", patterns: [/\bDACIA\b/] },
+  { slug: "FIAT", patterns: [/\bFIAT\b/] },
+  { slug: "LANCIA", patterns: [/\bLANCIA\b/] },
+  { slug: "ALFA-ROMEO", patterns: [/\bALFA\s+ROMEO\b/, /\bALFA-ROMEO\b/] },
+  { slug: "VOLVO", patterns: [/\bVOLVO\b/] },
+  { slug: "SAAB", patterns: [/\bSAAB\b/] },
+  { slug: "LAND-ROVER", patterns: [/\bLAND\s+ROVER\b/, /\bLAND-ROVER\b/] },
+  { slug: "JAGUAR", patterns: [/\bJAGUAR\b/] },
+  { slug: "MINI", patterns: [/\bMINI\s+COOPER\b/, /\bMINI\b/] },
+  { slug: "JEEP", patterns: [/\bJEEP\b/] },
+  { slug: "DODGE", patterns: [/\bDODGE\b/] },
+  { slug: "CHRYSLER", patterns: [/\bCHRYSLER\b/] },
+  { slug: "CADILLAC", patterns: [/\bCADILLAC\b/] },
+  { slug: "TESLA", patterns: [/\bTESLA\b/] },
+  { slug: "LADA", patterns: [/\bLADA\b/, /\bВАЗ\b/, /\bЛАДА\b/] },
+  { slug: "UAZ", patterns: [/\bUAZ\b/, /\bУАЗ\b/] },
+  { slug: "GAZ", patterns: [/\bGAZ\b/, /\bГАЗ\b/] },
+  { slug: "CHERY", patterns: [/\bCHERY\b/] },
+  { slug: "GEELY", patterns: [/\bGEELY\b/] },
+  { slug: "HAVAL", patterns: [/\bHAVAL\b/] },
+  { slug: "GREAT-WALL", patterns: [/\bGREAT\s+WALL\b/, /\bGREAT-WALL\b/] },
+  { slug: "JAC", patterns: [/\bJAC\b/] },
+  { slug: "CHANGAN", patterns: [/\bCHANGAN\b/] },
+  { slug: "EXEED", patterns: [/\bEXEED\b/] },
+  { slug: "OMODA", patterns: [/\bOMODA\b/] },
+  { slug: "CHERYEXEED", patterns: [/\bCHERYEXEED\b/] },
+];
+
+export interface CarBrandMeta {
+  slug: string;
+  title: string;
+}
+
+export const CAR_BRAND_META: CarBrandMeta[] = CAR_BRANDS.map((b) => ({
+  slug: b.slug,
+  title:
+    b.slug === "VOLKSWAGEN"
+      ? "Volkswagen"
+      : b.slug === "LAND-ROVER"
+      ? "Land Rover"
+      : b.slug === "ALFA-ROMEO"
+      ? "Alfa Romeo"
+      : b.slug === "GREAT-WALL"
+      ? "Great Wall"
+      : b.slug.charAt(0) + b.slug.slice(1).toLowerCase(),
+}));
+
+/**
+ * Возвращает массив slug'ов марок авто, упомянутых в наименовании.
+ * Пустой массив если ничего не распознано (универсальный товар).
+ */
+export function detectCarBrands(name: string): string[] {
+  const upper = (name || "").toUpperCase();
+  const found: string[] = [];
+  for (const b of CAR_BRANDS) {
+    for (const re of b.patterns) {
+      if (re.test(upper)) {
+        found.push(b.slug);
+        break;
+      }
+    }
+  }
+  return found;
+}

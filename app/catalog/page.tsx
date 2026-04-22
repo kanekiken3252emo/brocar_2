@@ -53,7 +53,7 @@ function CatalogContent() {
 
     try {
       if (category) {
-        // Курируемый каталог: категория → набор артикулов у всех поставщиков
+        // Каталог из импортированной БД (Berg)
         const res = await fetch(
           `/api/catalog/category/${encodeURIComponent(category)}`
         );
@@ -64,6 +64,18 @@ function CatalogContent() {
         const data: { groups: SupplierGroup[]; title: string } = await res.json();
         setGroups(data.groups || []);
         setCategoryTitle(data.title || null);
+      } else if (brand && !model && !article) {
+        // Страница марки авто: товары из БД с этой маркой в car_brands
+        const res = await fetch(
+          `/api/catalog/car-brand/${encodeURIComponent(brand)}`
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Ошибка загрузки");
+        }
+        const data: { groups: SupplierGroup[]; title: string } = await res.json();
+        setGroups(data.groups || []);
+        setCategoryTitle(data.title ? `Запчасти для ${data.title}` : null);
       } else if (article) {
         // Мульти-поставщиковый поиск по артикулу
         const res = await fetch("/api/suppliers/search", {

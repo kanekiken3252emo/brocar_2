@@ -62,6 +62,7 @@ export const products = pgTable("products", {
   // Импортированный каталог
   categorySlug: text("category_slug"),
   source: text("source").default("manual"), // 'berg' | 'rossko' | 'shate-m' | 'manual'
+  carBrands: text("car_brands").array(), // ['BMW','AUDI',...] — марки авто из наименования
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

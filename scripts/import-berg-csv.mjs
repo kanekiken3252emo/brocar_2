@@ -92,6 +92,75 @@ function detectCategory(name) {
   return "misc";
 }
 
+// ── Детект марок авто (синхронизирован с lib/catalog/classifier.ts) ────────
+const CAR_BRANDS = [
+  { slug: "BMW", patterns: [/\bBMW\b/] },
+  { slug: "AUDI", patterns: [/\bAUDI\b/] },
+  { slug: "MERCEDES", patterns: [/\bMERCEDES\b/, /\bBENZ\b/, /\bMB\b/] },
+  { slug: "VOLKSWAGEN", patterns: [/\bVOLKSWAGEN\b/, /\bVW\b/] },
+  { slug: "SKODA", patterns: [/\bSKODA\b/, /\bШКОДА\b/] },
+  { slug: "SEAT", patterns: [/\bSEAT\b/] },
+  { slug: "PORSCHE", patterns: [/\bPORSCHE\b/] },
+  { slug: "TOYOTA", patterns: [/\bTOYOTA\b/] },
+  { slug: "LEXUS", patterns: [/\bLEXUS\b/] },
+  { slug: "HONDA", patterns: [/\bHONDA\b/] },
+  { slug: "ACURA", patterns: [/\bACURA\b/] },
+  { slug: "NISSAN", patterns: [/\bNISSAN\b/] },
+  { slug: "INFINITI", patterns: [/\bINFINITI\b/] },
+  { slug: "MAZDA", patterns: [/\bMAZDA\b/] },
+  { slug: "MITSUBISHI", patterns: [/\bMITSUBISHI\b/] },
+  { slug: "SUBARU", patterns: [/\bSUBARU\b/] },
+  { slug: "SUZUKI", patterns: [/\bSUZUKI\b/] },
+  { slug: "ISUZU", patterns: [/\bISUZU\b/] },
+  { slug: "DAIHATSU", patterns: [/\bDAIHATSU\b/] },
+  { slug: "SSANGYONG", patterns: [/\bSSANGYONG\b/] },
+  { slug: "HYUNDAI", patterns: [/\bHYUNDAI\b/] },
+  { slug: "KIA", patterns: [/\bKIA\b/] },
+  { slug: "DAEWOO", patterns: [/\bDAEWOO\b/] },
+  { slug: "FORD", patterns: [/\bFORD\b/] },
+  { slug: "CHEVROLET", patterns: [/\bCHEVROLET\b/, /\bCHEVY\b/] },
+  { slug: "OPEL", patterns: [/\bOPEL\b/] },
+  { slug: "RENAULT", patterns: [/\bRENAULT\b/] },
+  { slug: "PEUGEOT", patterns: [/\bPEUGEOT\b/] },
+  { slug: "CITROEN", patterns: [/\bCITROEN\b/] },
+  { slug: "DACIA", patterns: [/\bDACIA\b/] },
+  { slug: "FIAT", patterns: [/\bFIAT\b/] },
+  { slug: "LANCIA", patterns: [/\bLANCIA\b/] },
+  { slug: "ALFA-ROMEO", patterns: [/\bALFA\s+ROMEO\b/, /\bALFA-ROMEO\b/] },
+  { slug: "VOLVO", patterns: [/\bVOLVO\b/] },
+  { slug: "SAAB", patterns: [/\bSAAB\b/] },
+  { slug: "LAND-ROVER", patterns: [/\bLAND\s+ROVER\b/, /\bLAND-ROVER\b/] },
+  { slug: "JAGUAR", patterns: [/\bJAGUAR\b/] },
+  { slug: "MINI", patterns: [/\bMINI\s+COOPER\b/, /\bMINI\b/] },
+  { slug: "JEEP", patterns: [/\bJEEP\b/] },
+  { slug: "DODGE", patterns: [/\bDODGE\b/] },
+  { slug: "CHRYSLER", patterns: [/\bCHRYSLER\b/] },
+  { slug: "CADILLAC", patterns: [/\bCADILLAC\b/] },
+  { slug: "TESLA", patterns: [/\bTESLA\b/] },
+  { slug: "LADA", patterns: [/\bLADA\b/, /\bВАЗ\b/, /\bЛАДА\b/] },
+  { slug: "UAZ", patterns: [/\bUAZ\b/, /\bУАЗ\b/] },
+  { slug: "GAZ", patterns: [/\bGAZ\b/, /\bГАЗ\b/] },
+  { slug: "CHERY", patterns: [/\bCHERY\b/] },
+  { slug: "GEELY", patterns: [/\bGEELY\b/] },
+  { slug: "HAVAL", patterns: [/\bHAVAL\b/] },
+  { slug: "GREAT-WALL", patterns: [/\bGREAT\s+WALL\b/, /\bGREAT-WALL\b/] },
+  { slug: "JAC", patterns: [/\bJAC\b/] },
+  { slug: "CHANGAN", patterns: [/\bCHANGAN\b/] },
+  { slug: "EXEED", patterns: [/\bEXEED\b/] },
+  { slug: "OMODA", patterns: [/\bOMODA\b/] },
+];
+
+function detectCarBrands(name) {
+  const upper = (name || "").toUpperCase();
+  const found = [];
+  for (const b of CAR_BRANDS) {
+    for (const re of b.patterns) {
+      if (re.test(upper)) { found.push(b.slug); break; }
+    }
+  }
+  return found;
+}
+
 function applyMarkup(price) {
   const percent = price * 1.15;
   const fixed = price + 200;
@@ -141,8 +210,10 @@ async function main() {
   console.log("\n⚙️  Миграция схемы…");
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS category_slug TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'manual'`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS car_brands TEXT[]`;
   await sql`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_slug)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_products_source ON products(source)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_products_car_brands ON products USING gin(car_brands)`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS uniq_products_article_brand ON products(article, brand)`;
   await sql`
     CREATE TABLE IF NOT EXISTS product_stocks (
@@ -195,7 +266,14 @@ async function main() {
     const key = `${article}|${brand}`;
     let p = products.get(key);
     if (!p) {
-      p = { article, brand, name, category: detectCategory(name), stocks: [] };
+      p = {
+        article,
+        brand,
+        name,
+        category: detectCategory(name),
+        carBrands: detectCarBrands(name),
+        stocks: [],
+      };
       products.set(key, p);
     }
     p.stocks.push({ warehouse, qty, price, delivery });
@@ -223,18 +301,20 @@ async function main() {
         our_price: String(applyMarkup(minPrice)),
         stock: totalStock,
         category_slug: p.category,
+        car_brands: p.carBrands,
         source: "berg",
       };
     });
 
     await sql`
-      INSERT INTO products ${sql(rows, "article","brand","name","supplier_price","our_price","stock","category_slug","source")}
+      INSERT INTO products ${sql(rows, "article","brand","name","supplier_price","our_price","stock","category_slug","car_brands","source")}
       ON CONFLICT (article, brand) DO UPDATE SET
         name = EXCLUDED.name,
         supplier_price = EXCLUDED.supplier_price,
         our_price = EXCLUDED.our_price,
         stock = EXCLUDED.stock,
         category_slug = EXCLUDED.category_slug,
+        car_brands = EXCLUDED.car_brands,
         source = EXCLUDED.source,
         updated_at = NOW()
     `;
@@ -320,6 +400,15 @@ async function main() {
     ORDER BY count DESC
   `;
   for (const c of cats) console.log(`   ${String(c.category_slug).padEnd(22)} ${c.count}`);
+
+  console.log("\n🚗 Разбивка по маркам авто (топ-25):");
+  const carBrands = await sql`
+    SELECT brand, COUNT(*)::int as count FROM (
+      SELECT UNNEST(car_brands) AS brand FROM products WHERE source='berg' AND car_brands IS NOT NULL
+    ) t
+    GROUP BY brand ORDER BY count DESC LIMIT 25
+  `;
+  for (const c of carBrands) console.log(`   ${String(c.brand).padEnd(22)} ${c.count}`);
 
   await sql.end();
   console.log("\n🎉 Импорт завершён");

@@ -17,6 +17,15 @@ SHATE_M_API_KEY=вставьте_ваш_shate_m_api_key_сюда
 SHATE_M_AGREEMENT_CODE=
 SHATE_M_DELIVERY_ADDRESS_CODE=
 
+# Forum-Auto API Configuration (REST v2, логин/пароль в query-параметрах)
+# Docs: https://api.forum-auto.ru/docs/index.php
+# Лимит: 50 запросов/мин (выдаётся при заведении учётки)
+FORUM_AUTO_API_URL=https://api.forum-auto.ru
+FORUM_AUTO_LOGIN=вставьте_ваш_forum_auto_login_сюда
+FORUM_AUTO_PASSWORD=вставьте_ваш_forum_auto_password_сюда
+# Включать ли аналоги (кроссы) в результатах: 0 — нет (по умолчанию), 1 — да
+FORUM_AUTO_CROSS=0
+
 # Supabase Configuration (ОБЯЗАТЕЛЬНО!)
 SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co
 SUPABASE_ANON_KEY=вставьте_ваш_anon_key_сюда

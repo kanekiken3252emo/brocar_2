@@ -4,6 +4,7 @@ import { searchAllSuppliers, groupOffers } from "@/lib/suppliers/adapter";
 import bergAdapter from "@/lib/suppliers/berg";
 import rosskoAdapter from "@/lib/suppliers/rossko";
 import shateMAdapter from "@/lib/suppliers/shate-m";
+import forumAutoAdapter from "@/lib/suppliers/forum-auto";
 import { applyPricingSync } from "@/lib/pricing";
 
 const searchSchema = z.object({
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adapters = [bergAdapter, rosskoAdapter, shateMAdapter];
+    const adapters = [bergAdapter, rosskoAdapter, shateMAdapter, forumAutoAdapter];
     const items = await searchAllSuppliers(adapters, validatedData);
 
     const groups = groupOffers(items, (base, ctx) =>

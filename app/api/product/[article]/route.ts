@@ -12,6 +12,7 @@ import shateMAdapter, {
   type ShateCharacteristic,
 } from "@/lib/suppliers/shate-m";
 import forumAutoAdapter from "@/lib/suppliers/forum-auto";
+import armtekAdapter from "@/lib/suppliers/armtek";
 import { applyPricingSync } from "@/lib/pricing";
 
 interface ProductDetailResponse {
@@ -30,7 +31,7 @@ export async function GET(
     const decoded = decodeURIComponent(article);
     const brand = request.nextUrl.searchParams.get("brand") || "";
 
-    const adapters = [bergAdapter, rosskoAdapter, shateMAdapter, forumAutoAdapter];
+    const adapters = [bergAdapter, rosskoAdapter, shateMAdapter, forumAutoAdapter, armtekAdapter];
 
     // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M
     const [mainItems, shateArticleId] = await Promise.all([

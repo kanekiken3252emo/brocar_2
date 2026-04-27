@@ -26,6 +26,17 @@ FORUM_AUTO_PASSWORD=вставьте_ваш_forum_auto_password_сюда
 # Включать ли аналоги (кроссы) в результатах: 0 — нет (по умолчанию), 1 — да
 FORUM_AUTO_CROSS=0
 
+# Armtek API Configuration (REST, HTTP Basic Auth)
+# Docs: http://ws.armtek.ru/?page=service&alias=search
+# Логин/пароль — те же, что от etp.armtek.ru (или отдельный технический аккаунт от менеджера)
+ARMTEK_API_URL=http://ws.armtek.ru/api
+ARMTEK_LOGIN=вставьте_ваш_armtek_login_сюда
+ARMTEK_PASSWORD=вставьте_ваш_armtek_password_сюда
+# VKORG — сбытовая организация (4000 = Россия)
+ARMTEK_VKORG=4000
+# KUNNR_RG — код покупателя (из ЛК → Структура клиента → Покупатели)
+ARMTEK_KUNNR_RG=вставьте_ваш_kunnr_сюда
+
 # Supabase Configuration (ОБЯЗАТЕЛЬНО!)
 SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co
 SUPABASE_ANON_KEY=вставьте_ваш_anon_key_сюда

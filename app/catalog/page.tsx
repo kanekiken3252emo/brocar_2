@@ -25,6 +25,20 @@ interface CategoryHub {
   count: number;
 }
 
+/**
+ * Определяет, является ли поисковый запрос свободным текстом
+ * (название/описание), а не артикулом. Артикулы у автозапчастей —
+ * латиница + цифры с возможными `-./_`. Кириллица или несколько слов —
+ * почти гарантированно описание.
+ */
+function isFreeText(query: string): boolean {
+  const q = query.trim();
+  if (!q) return false;
+  if (/[а-яёА-ЯЁ]/.test(q)) return true;
+  if (/\s/.test(q)) return true;
+  return false;
+}
+
 function CatalogContent() {
   const searchParams = useSearchParams();
 
@@ -86,21 +100,36 @@ function CatalogContent() {
         setGroups(data.groups || []);
         setCategoryTitle(data.title ? `Запчасти для ${data.title}` : null);
       } else if (article) {
-        // Мульти-поставщиковый поиск по артикулу
-        const res = await fetch("/api/suppliers/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            article,
-            ...(brand ? { brand } : {}),
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Ошибка поиска");
+        // Если в поисковой строке свободный текст («Лампа накаливания»),
+        // а не артикул — ищем в импортированном каталоге Supabase по
+        // названию. У API поставщиков поиска по описанию нет.
+        if (isFreeText(article)) {
+          const res = await fetch(
+            `/api/catalog/text-search?q=${encodeURIComponent(article)}`
+          );
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Ошибка поиска");
+          }
+          const data: { groups: SupplierGroup[] } = await res.json();
+          setGroups(data.groups || []);
+        } else {
+          // Мульти-поставщиковый поиск по артикулу
+          const res = await fetch("/api/suppliers/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              article,
+              ...(brand ? { brand } : {}),
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Ошибка поиска");
+          }
+          const data: { groups: SupplierGroup[] } = await res.json();
+          setGroups(data.groups || []);
         }
-        const data: { groups: SupplierGroup[] } = await res.json();
-        setGroups(data.groups || []);
       } else if (vin) {
         // VIN ищем только по Berg (Rossko не поддерживает VIN).
         // Конвертируем BergResource → SupplierGroup на лету.
@@ -161,7 +190,10 @@ function CatalogContent() {
   const getSearchSummary = () => {
     if (categoryTitle) return categoryTitle;
     if (vin) return `Поиск по VIN: ${vin}`;
-    if (article) return `Поиск по артикулу: ${article}`;
+    if (article)
+      return isFreeText(article)
+        ? `Поиск: ${article}`
+        : `Поиск по артикулу: ${article}`;
     if (brand && model) return `${brand} ${model}`;
     if (brand) return `Бренд: ${brand}`;
     return "Каталог запчастей";

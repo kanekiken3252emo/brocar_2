@@ -198,12 +198,12 @@ export function Header({ user }: HeaderProps) {
 
             {/* Right Actions */}
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
-              <Link href="/vin-search" className="hidden lg:block">
+              <Link href="/catalog-vin" className="hidden lg:block">
                 <Button variant="outline" className="flex items-center gap-2 border-neutral-700 text-neutral-300 hover:border-orange-500 hover:text-orange-500 bg-transparent h-12 px-4">
                   <Wrench className="h-5 w-5" />
                   <div className="text-left">
                     <div className="text-xs opacity-70">ПОДОБРАТЬ</div>
-                    <div className="text-xs font-semibold">ЗАПЧАСТИ</div>
+                    <div className="text-xs font-semibold">ПО VIN</div>
                   </div>
                 </Button>
               </Link>
@@ -302,6 +302,9 @@ export function Header({ user }: HeaderProps) {
                 <ChevronDown className={`h-4 w-4 transition-transform ${isBrandCatalogOpen ? 'rotate-180' : ''}`} />
               </button>
 
+              <Link href="/catalog-vin" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
+                КАТАЛОГ ПО VIN
+              </Link>
               <Link href="/vin-search" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
                 ЗАПРОС ПО VIN
               </Link>
@@ -350,6 +353,9 @@ export function Header({ user }: HeaderProps) {
                 >
                   Автомарки
                 </button>
+                <Link href="/catalog-vin" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                  Каталог по VIN
+                </Link>
                 <Link href="/vin-search" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   Запрос по VIN
                 </Link>

@@ -156,6 +156,34 @@ export default function VinSearchPage() {
 
       <div className="container mx-auto px-4 pb-20">
         <div className="max-w-5xl mx-auto">
+          <Card className="border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-neutral-900 mb-8">
+            <CardContent className="p-5 md:p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400">
+                    <Zap className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white text-base mb-1">
+                      Хотите подобрать деталь сами?
+                    </p>
+                    <p className="text-neutral-300 text-sm">
+                      Откройте онлайн-каталог: 400+ марок, поиск по VIN, схемы
+                      узлов и оригинальные номера деталей.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/catalog-vin" className="shrink-0">
+                  <Button className="gap-2 w-full md:w-auto">
+                    <Search className="h-4 w-4" />
+                    Открыть каталог
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid lg:grid-cols-5 gap-8">
 
             {/* Form */}

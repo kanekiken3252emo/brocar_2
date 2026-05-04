@@ -53,6 +53,10 @@ DATABASE_URL=postgresql://postgres:пароль@db.ngfooubrlgdhaqihihci.supabase
 NEXT_PUBLIC_SITE_NAME=BroCar
 NEXT_PUBLIC_SITE_DOMAIN=localhost:3000
 
+# AutoКаталог Online (acat.online) — внешний виджет каталога по VIN
+# URL вашего поддомена из ЛК acat.online → Возможности → Виджет на ваш сайт
+NEXT_PUBLIC_ACAT_WIDGET_URL=https://brocarparts.acat.online
+
 # Node Environment
 NODE_ENV=development
 

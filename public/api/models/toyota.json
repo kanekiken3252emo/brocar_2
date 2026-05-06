@@ -1,0 +1,8 @@
+[
+  { "id": 1, "brandId": 17, "name": "Camry" },
+  { "id": 2, "brandId": 17, "name": "Corolla" },
+  { "id": 3, "brandId": 17, "name": "RAV4" },
+  { "id": 4, "brandId": 17, "name": "Land Cruiser" },
+  { "id": 5, "brandId": 17, "name": "Highlander" }
+]
+

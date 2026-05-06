@@ -1,0 +1,13 @@
+# Игнорируем для Docker
+node_modules
+npm-debug.log
+.next
+.git
+.gitignore
+*.md
+.env.local
+.env.development
+.env.test
+Dockerfile*
+docker-compose*
+.dockerignore

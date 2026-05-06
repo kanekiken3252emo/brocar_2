@@ -1,0 +1,62 @@
+# Berg.ru API Configuration
+BERG_API_URL=https://api.berg.ru
+BERG_API_KEY=вставьте_ваш_berg_api_key_сюда
+
+# Rossko API Configuration (SOAP)
+ROSSKO_API_URL=http://api.rossko.ru/service/v2.1
+ROSSKO_KEY1=вставьте_ваш_rossko_key1_сюда
+ROSSKO_KEY2=вставьте_ваш_rossko_key2_сюда
+# Контекст поиска: самовывоз, Екатеринбург (Заводская 16)
+ROSSKO_DELIVERY_ID=000000001
+ROSSKO_ADDRESS_ID=270997
+
+# ShATE-M API Configuration (REST, Bearer auth via /auth/loginbyapikey)
+SHATE_M_API_URL=https://api.shate-m.ru
+SHATE_M_API_KEY=вставьте_ваш_shate_m_api_key_сюда
+# Контекст для получения цен — заполнить из ЛК ShATE-M
+SHATE_M_AGREEMENT_CODE=
+SHATE_M_DELIVERY_ADDRESS_CODE=
+
+# Forum-Auto API Configuration (REST v2, логин/пароль в query-параметрах)
+# Docs: https://api.forum-auto.ru/docs/index.php
+# Лимит: 50 запросов/мин (выдаётся при заведении учётки)
+FORUM_AUTO_API_URL=https://api.forum-auto.ru
+FORUM_AUTO_LOGIN=вставьте_ваш_forum_auto_login_сюда
+FORUM_AUTO_PASSWORD=вставьте_ваш_forum_auto_password_сюда
+# Включать ли аналоги (кроссы) в результатах: 0 — нет (по умолчанию), 1 — да
+FORUM_AUTO_CROSS=0
+
+# Armtek API Configuration (REST, HTTP Basic Auth)
+# Docs: http://ws.armtek.ru/?page=service&alias=search
+# Логин/пароль — те же, что от etp.armtek.ru (или отдельный технический аккаунт от менеджера)
+ARMTEK_API_URL=http://ws.armtek.ru/api
+ARMTEK_LOGIN=вставьте_ваш_armtek_login_сюда
+ARMTEK_PASSWORD=вставьте_ваш_armtek_password_сюда
+# VKORG — сбытовая организация (4000 = Россия)
+ARMTEK_VKORG=4000
+# KUNNR_RG — код покупателя (из ЛК → Структура клиента → Покупатели)
+ARMTEK_KUNNR_RG=вставьте_ваш_kunnr_сюда
+
+# Supabase Configuration (ОБЯЗАТЕЛЬНО!)
+SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co
+SUPABASE_ANON_KEY=вставьте_ваш_anon_key_сюда
+SUPABASE_SERVICE_ROLE_KEY=вставьте_ваш_service_role_key_сюда
+
+# Public Supabase (для клиента)
+NEXT_PUBLIC_SUPABASE_URL=https://ngfooubrlgdhaqihihci.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=вставьте_ваш_anon_key_сюда
+
+# Database
+DATABASE_URL=postgresql://postgres:пароль@db.ngfooubrlgdhaqihihci.supabase.co:5432/postgres
+
+# Site
+NEXT_PUBLIC_SITE_NAME=BroCar
+NEXT_PUBLIC_SITE_DOMAIN=localhost:3000
+
+# AutoКаталог Online (acat.online) — внешний виджет каталога по VIN
+# URL вашего поддомена из ЛК acat.online → Возможности → Виджет на ваш сайт
+NEXT_PUBLIC_ACAT_WIDGET_URL=https://brocarparts.acat.online
+
+# Node Environment
+NODE_ENV=development
+

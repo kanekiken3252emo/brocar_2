@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { getVegaName } from "@/lib/vega-names";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 
 interface Characteristic {
@@ -45,7 +46,7 @@ function groupToBergResource(g: SupplierGroup): BergResource {
     assured_period: o.deliveryDays ?? 0,
     delivery_type: 1,
     is_transit: false,
-    warehouse: { id: 0, name: o.supplier, type: 1 },
+    warehouse: { id: 0, name: getVegaName(o.supplierCode), type: 1 },
   }));
   return {
     id: 0,
@@ -311,7 +312,7 @@ export default function ProductPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="text-sm text-neutral-300">VEGA {index + 1}</span>
+                        <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
                       </div>
                       <span className="text-base font-bold text-white">
                         {offer.price.toLocaleString("ru-RU")} ₽
@@ -377,7 +378,7 @@ export default function ProductPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-neutral-500" />
-                            <span className="text-sm text-neutral-300">VEGA {index + 1}</span>
+                            <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-neutral-300">

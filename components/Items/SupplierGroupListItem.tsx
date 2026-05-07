@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingCart, Package, Clock, MapPin, ChevronDown } from "lucide-react";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { getVegaName } from "@/lib/vega-names";
 
 interface Props {
   group: SupplierGroup;
@@ -24,11 +25,9 @@ function formatDelivery(days: number | null) {
 function OfferRow({
   offer,
   group,
-  offerIndex,
 }: {
   offer: SupplierOffer;
   group: SupplierGroup;
-  offerIndex: number;
 }) {
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -69,7 +68,7 @@ function OfferRow({
       <td className="px-4 py-3 text-neutral-300">
         <span className="inline-flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-neutral-500" />
-          VEGA {offerIndex + 1}
+          {getVegaName(offer.supplierCode)}
         </span>
       </td>
       <td className="px-4 py-3 text-neutral-300 whitespace-nowrap">
@@ -160,7 +159,6 @@ export default function SupplierGroupListItem({ group }: Props) {
                 key={`${offer.supplierCode}-${i}`}
                 offer={offer}
                 group={group}
-                offerIndex={i}
               />
             ))}
           </tbody>

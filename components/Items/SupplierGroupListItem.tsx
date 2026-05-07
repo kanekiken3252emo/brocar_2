@@ -24,9 +24,11 @@ function formatDelivery(days: number | null) {
 function OfferRow({
   offer,
   group,
+  offerIndex,
 }: {
   offer: SupplierOffer;
   group: SupplierGroup;
+  offerIndex: number;
 }) {
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -67,7 +69,7 @@ function OfferRow({
       <td className="px-4 py-3 text-neutral-300">
         <span className="inline-flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-neutral-500" />
-          {offer.supplier}
+          VEGA {offerIndex + 1}
         </span>
       </td>
       <td className="px-4 py-3 text-neutral-300 whitespace-nowrap">
@@ -123,7 +125,7 @@ export default function SupplierGroupListItem({ group }: Props) {
               Всего: {group.totalStock} шт.
             </span>
             <span>
-              {group.offers.length} предл. / {uniqueSuppliers} пост.
+              {group.offers.length} предл. / {uniqueSuppliers} скл.
             </span>
             <span>
               от <span className="text-white font-semibold">{formatPrice(group.minPrice)} ₽</span>
@@ -158,6 +160,7 @@ export default function SupplierGroupListItem({ group }: Props) {
                 key={`${offer.supplierCode}-${i}`}
                 offer={offer}
                 group={group}
+                offerIndex={i}
               />
             ))}
           </tbody>

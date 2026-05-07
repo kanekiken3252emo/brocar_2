@@ -46,7 +46,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
             <TableHead>Артикул</TableHead>
             <TableHead>Бренд</TableHead>
             <TableHead>Наименование</TableHead>
-            <TableHead>Поставщик</TableHead>
+            <TableHead>Склад</TableHead>
             <TableHead>Наличие</TableHead>
             <TableHead>Цена закупки</TableHead>
             <TableHead>Наша цена</TableHead>
@@ -60,7 +60,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
               <TableCell>{item.brand}</TableCell>
               <TableCell className="max-w-xs">{item.name}</TableCell>
               <TableCell>
-                <Badge variant="outline">{item.supplier}</Badge>
+                <Badge variant="outline">VEGA {index + 1}</Badge>
               </TableCell>
               <TableCell>
                 {item.stock > 0 ? (

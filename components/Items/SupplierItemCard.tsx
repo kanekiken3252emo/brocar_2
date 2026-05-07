@@ -93,7 +93,7 @@ export default function SupplierItemCard({
             <div className="flex items-center gap-1">
               <Truck className="w-3.5 h-3.5" />
               <span>
-                {group.offers.length} предл. / {uniqueSuppliers} пост.
+                {group.offers.length} предл. / {uniqueSuppliers} скл.
               </span>
             </div>
           </div>

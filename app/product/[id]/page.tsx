@@ -292,7 +292,7 @@ export default function ProductPage() {
               }`}
               aria-expanded={!offersCollapsed}
             >
-              <h2 className="text-xl font-bold text-white">Предложения поставщиков</h2>
+              <h2 className="text-xl font-bold text-white">Предложения</h2>
               <ChevronDown
                 className={`w-5 h-5 text-neutral-400 transition-transform duration-200 ${
                   offersCollapsed ? "" : "rotate-180"
@@ -311,7 +311,7 @@ export default function ProductPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
+                        <span className="text-sm text-neutral-300">VEGA {index + 1}</span>
                       </div>
                       <span className="text-base font-bold text-white">
                         {offer.price.toLocaleString("ru-RU")} ₽
@@ -377,7 +377,7 @@ export default function ProductPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-neutral-500" />
-                            <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
+                            <span className="text-sm text-neutral-300">VEGA {index + 1}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-neutral-300">

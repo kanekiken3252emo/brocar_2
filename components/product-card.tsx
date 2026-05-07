@@ -55,7 +55,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
 
           <p className="text-xs text-gray-500">
-            Поставщик: {product.supplier}
+            Склад: VEGA
           </p>
 
           <div className="pt-2">

@@ -81,11 +81,15 @@ export class ArmtekAdapter implements SupplierAdapter {
     }
 
     try {
+      // QUERY_TYPE=1 — без аналогов. Аналоги показываются отдельным блоком
+      // на странице товара (через ShATE-M), а в общем поиске они только
+      // зашумляют выдачу: пользователь искал MILES ALSP085, не хочет 48
+      // вариантов «других свечей, которые могут подойти».
       const body = new URLSearchParams({
         VKORG: this.vkorg,
         KUNNR_RG: this.kunnrRg,
         PIN: params.article,
-        QUERY_TYPE: params.brand ? "2" : "1",
+        QUERY_TYPE: "1",
         ...(params.brand ? { BRAND: params.brand } : {}),
       }).toString();
 

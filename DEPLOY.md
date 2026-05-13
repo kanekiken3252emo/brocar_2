@@ -157,6 +157,10 @@ docker compose restart
 cd /var/www/brocar
 git pull                      # если используешь git
 docker compose up -d --build  # пересобрать и запустить
+# Примечание: в проде это происходит автоматически через
+# /usr/local/bin/brocar-deploy.sh — запускается из cron раз в минуту,
+# подхватывает новые коммиты из origin/main и пересобирает контейнер.
+# Логи деплоя: tail -f /var/log/brocar-deploy.log
 
 # Посмотреть логи
 docker compose logs -f

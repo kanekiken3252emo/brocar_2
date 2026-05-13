@@ -139,7 +139,7 @@ export default function ContactsPage() {
               {/* Yandex Map */}
               <div className="rounded-xl overflow-hidden h-80 border border-neutral-700">
                 <iframe
-                  src="https://yandex.ru/map-widget/v1/?ll=60.579500%2C56.838500&z=16&pt=60.579500%2C56.838500%2Cpm2rdm&lang=ru_RU"
+                  src="https://yandex.ru/map-widget/v1/?ll=60.553000%2C56.837600&z=17&pt=60.553000%2C56.837600%2Cpm2rdm&lang=ru_RU"
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
@@ -159,7 +159,7 @@ export default function ContactsPage() {
                   Открыть в 2ГИС <ExternalLink className="h-3 w-3" />
                 </a>
                 <a 
-                  href="https://yandex.ru/maps/?pt=60.579500,56.838500&z=16&l=map" 
+                  href="https://yandex.ru/maps/?pt=60.553000,56.837600&z=17&l=map"
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 transition-colors text-sm font-medium"

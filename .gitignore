@@ -47,6 +47,9 @@ public/BERG_brocar_*.csv
 public/ROSSKO_*.csv
 public/SHATE_*.csv
 
+# сырые ответы API из диагностических скриптов
+scripts/probe-output/
+
 
 
 

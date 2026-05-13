@@ -56,40 +56,63 @@ export class BergAdapter implements SupplierAdapter {
       const resources = response.data.resources || [];
       const allItems: SupplierItem[] = [];
 
-      // Each resource can have multiple offers (from different warehouses)
+      // Each resource can have multiple offers (from different warehouses).
+      //
+      // Логика фильтрации с fallback:
+      //  1. Для каждого ресурса (товара) разделяем оферы на «надёжные» и «остальные».
+      //     Надёжный = есть остаток + reliability ≥ 70% + срок поставки ≤ 21 день.
+      //  2. Если есть хоть один надёжный — отдаём только надёжные.
+      //     Если ни одного надёжного нет — отдаём «остальные» (с пометкой
+      //     isLowConfidence в raw), чтобы товар не исчезал с сайта совсем.
+      //     Так клиент видит «под заказ, долгая доставка» вместо «нет в наличии».
       for (const resource of resources) {
         const offers = resource.offers || [];
-        
-        // Process each offer
+        const passing: SupplierItem[] = [];
+        const fallback: SupplierItem[] = [];
+
         for (const offer of offers) {
-          // Only include items with stock and reasonable reliability
-          if (offer.quantity > 0 && offer.reliability >= 80) {
-            allItems.push({
-              article: resource.article || "",
-              brand: resource.brand?.name || "",
-              name: resource.name || "",
-              price: parseFloat(offer.price || 0),
-              stock: parseInt(offer.quantity || 0, 10),
-              supplier: `Berg (${offer.warehouse?.name || "склад"})`,
-              supplierCode: "berg",
-              deliveryDays:
-                offer.average_period != null
-                  ? parseInt(offer.average_period, 10)
-                  : null,
-              raw: {
-                resource_id: resource.id,
-                warehouse_id: offer.warehouse?.id,
-                warehouse_type: offer.warehouse?.type,
-                reliability: offer.reliability,
-                average_period: offer.average_period,
-                assured_period: offer.assured_period,
-                multiplication_factor: offer.multiplication_factor,
-                delivery_type: offer.delivery_type,
-                is_transit: offer.is_transit,
-                available_more: offer.available_more,
-              },
-            });
-          }
+          const stock = parseInt(offer.quantity || 0, 10);
+          if (!(stock > 0)) continue;
+
+          const period =
+            offer.average_period != null
+              ? parseInt(offer.average_period, 10)
+              : null;
+          const isReliable =
+            offer.reliability >= 70 && (period == null || period <= 21);
+
+          const item: SupplierItem = {
+            article: resource.article || "",
+            brand: resource.brand?.name || "",
+            name: resource.name || "",
+            price: parseFloat(offer.price || 0),
+            stock,
+            supplier: `Berg (${offer.warehouse?.name || "склад"})`,
+            supplierCode: "berg",
+            deliveryDays: period,
+            raw: {
+              resource_id: resource.id,
+              warehouse_id: offer.warehouse?.id,
+              warehouse_type: offer.warehouse?.type,
+              reliability: offer.reliability,
+              average_period: offer.average_period,
+              assured_period: offer.assured_period,
+              multiplication_factor: offer.multiplication_factor,
+              delivery_type: offer.delivery_type,
+              is_transit: offer.is_transit,
+              available_more: offer.available_more,
+              isLowConfidence: !isReliable,
+            },
+          };
+
+          if (isReliable) passing.push(item);
+          else fallback.push(item);
+        }
+
+        if (passing.length > 0) {
+          allItems.push(...passing);
+        } else if (fallback.length > 0) {
+          allItems.push(...fallback);
         }
       }
 

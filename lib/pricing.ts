@@ -53,34 +53,28 @@ export async function applyPricing(
         finalPrice = basePrice + minMargin;
       }
     } else {
-      // Default pricing: 15% markup or +200 RUB, whichever is higher
-      const percentMarkup = basePrice * 1.15;
-      const fixedMarkup = basePrice + 200;
-      finalPrice = Math.max(percentMarkup, fixedMarkup);
+      // Дефолт: 30% к закупке
+      finalPrice = basePrice * 1.30;
     }
 
     // Round to whole rubles
     return Math.round(finalPrice);
   } catch (error) {
     console.error("Error applying pricing rules:", error);
-    // Fallback to default pricing on error
-    const percentMarkup = basePrice * 1.15;
-    const fixedMarkup = basePrice + 200;
-    return Math.round(Math.max(percentMarkup, fixedMarkup));
+    // Fallback on error: same default 30%
+    return Math.round(basePrice * 1.30);
   }
 }
 
 /**
- * Synchronous version using cached rules (for bulk operations)
+ * Synchronous version using cached rules (for bulk operations).
+ * Текущая наценка: 30% к закупочной цене поставщика.
  */
 export function applyPricingSync(
   basePrice: number,
   _opts: PricingOptions = {}
 ): number {
-  // Default pricing: 15% markup or +200 RUB, whichever is higher
-  const percentMarkup = basePrice * 1.15;
-  const fixedMarkup = basePrice + 200;
-  return Math.round(Math.max(percentMarkup, fixedMarkup));
+  return Math.round(basePrice * 1.30);
 }
 
 

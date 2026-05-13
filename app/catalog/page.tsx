@@ -35,8 +35,59 @@ function isFreeText(query: string): boolean {
   const q = query.trim();
   if (!q) return false;
   if (/[а-яёА-ЯЁ]/.test(q)) return true;
-  if (/\s/.test(q)) return true;
+  // Многословные запросы трактуем как описание ТОЛЬКО если parseQuery не смог
+  // распознать в них пару "бренд + артикул". См. parseQuery — она вызывается
+  // в обработчике поиска и решает, идти ли в supplier API или text-search.
+  if (/\s/.test(q)) {
+    const parsed = parseQuery(q);
+    return parsed.isText;
+  }
   return false;
+}
+
+/**
+ * Парсит поисковую строку и определяет — это артикул, пара бренд+артикул,
+ * или свободный текст.
+ *
+ * Примеры:
+ *   "ALSP085"          → { article: "ALSP085" }
+ *   "MILES ALSP085"    → { article: "ALSP085", brand: "MILES" }
+ *   "0986452041 Bosch" → { article: "0986452041", brand: "Bosch" }
+ *   "Miles alsp085"    → { article: "alsp085", brand: "Miles" } (регистр сохраняется)
+ *   "масляный фильтр"  → { isText: true }
+ *
+ * Эвристика для двух токенов: тот, что содержит цифру — артикул, другой — бренд.
+ * Артикулы автозапчастей почти всегда содержат хотя бы одну цифру.
+ */
+function parseQuery(query: string): {
+  article?: string;
+  brand?: string;
+  isText: boolean;
+} {
+  const q = query.trim();
+  if (!q) return { isText: true };
+  if (/[а-яёА-ЯЁ]/.test(q)) return { isText: true };
+
+  const tokens = q.split(/\s+/).filter(Boolean);
+  if (tokens.length === 1) return { article: tokens[0], isText: false };
+
+  if (tokens.length === 2) {
+    const [a, b] = tokens;
+    const hasDigit = (s: string) => /\d/.test(s);
+    if (hasDigit(a) && !hasDigit(b)) return { article: a, brand: b, isText: false };
+    if (!hasDigit(a) && hasDigit(b)) return { article: b, brand: a, isText: false };
+    if (hasDigit(a) && hasDigit(b)) {
+      // Оба с цифрами — артикулом считаем тот, что длиннее
+      return a.length >= b.length
+        ? { article: a, brand: b, isText: false }
+        : { article: b, brand: a, isText: false };
+    }
+    // Ни в одном цифр — точно описание
+    return { isText: true };
+  }
+
+  // 3+ слов — описание
+  return { isText: true };
 }
 
 function CatalogContent() {
@@ -100,10 +151,12 @@ function CatalogContent() {
         setGroups(data.groups || []);
         setCategoryTitle(data.title ? `Запчасти для ${data.title}` : null);
       } else if (article) {
-        // Если в поисковой строке свободный текст («Лампа накаливания»),
-        // а не артикул — ищем в импортированном каталоге Supabase по
-        // названию. У API поставщиков поиска по описанию нет.
-        if (isFreeText(article)) {
+        // Разбираем поисковую строку: один артикул, "BRAND ARTICLE" / "ARTICLE BRAND",
+        // или свободный текст (описание/кириллица).
+        const parsed = parseQuery(article);
+        if (parsed.isText) {
+          // Свободный текст («масляный фильтр») — ищем в Supabase по названию.
+          // У API поставщиков поиска по описанию нет.
           const res = await fetch(
             `/api/catalog/text-search?q=${encodeURIComponent(article)}`
           );
@@ -114,13 +167,18 @@ function CatalogContent() {
           const data: { groups: SupplierGroup[] } = await res.json();
           setGroups(data.groups || []);
         } else {
-          // Мульти-поставщиковый поиск по артикулу
+          // Мульти-поставщиковый поиск по артикулу (и бренду, если распарсили).
+          // brand из URL имеет приоритет — например, при переходе с карточки бренда.
           const res = await fetch("/api/suppliers/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              article,
-              ...(brand ? { brand } : {}),
+              article: parsed.article,
+              ...(brand
+                ? { brand }
+                : parsed.brand
+                ? { brand: parsed.brand }
+                : {}),
             }),
           });
           if (!res.ok) {

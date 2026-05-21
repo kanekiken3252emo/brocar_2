@@ -17,8 +17,11 @@ export class RosskoAdapter implements SupplierAdapter {
   private addressId: string;
 
   constructor() {
+    // Россько с 2026 года переводит API с HTTP на HTTPS — старый протокол
+    // в скором времени отключат. Намespace в SOAP-конверте и SOAPAction
+    // также должны быть https:// — иначе вернётся 500 «некорректный вызов».
     this.baseUrl =
-      process.env.ROSSKO_API_URL || "http://api.rossko.ru/service/v2.1";
+      process.env.ROSSKO_API_URL || "https://api.rossko.ru/service/v2.1";
     this.key1 = process.env.ROSSKO_KEY1 || "";
     this.key2 = process.env.ROSSKO_KEY2 || "";
     this.deliveryId = process.env.ROSSKO_DELIVERY_ID || "000000001"; // самовывоз
@@ -57,7 +60,7 @@ export class RosskoAdapter implements SupplierAdapter {
           responseType: "text",
           headers: {
             "Content-Type": "text/xml; charset=utf-8",
-            SOAPAction: '"http://api.rossko.ru/GetSearch"',
+            SOAPAction: '"https://api.rossko.ru/GetSearch"',
           },
         }
       );
@@ -94,7 +97,7 @@ function buildSoapEnvelope(input: {
   addressId: string;
 }): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:api="http://api.rossko.ru/">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:api="https://api.rossko.ru/">
   <soapenv:Body>
     <api:GetSearch>
       <KEY1>${escapeXml(input.key1)}</KEY1>

@@ -3,7 +3,7 @@ BERG_API_URL=https://api.berg.ru
 BERG_API_KEY=вставьте_ваш_berg_api_key_сюда
 
 # Rossko API Configuration (SOAP)
-ROSSKO_API_URL=http://api.rossko.ru/service/v2.1
+ROSSKO_API_URL=https://api.rossko.ru/service/v2.1
 ROSSKO_KEY1=вставьте_ваш_rossko_key1_сюда
 ROSSKO_KEY2=вставьте_ваш_rossko_key2_сюда
 # Контекст поиска: самовывоз, Екатеринбург (Заводская 16)

@@ -23,11 +23,13 @@ export async function GET(
 
     const url = new URL(request.url);
     const category = url.searchParams.get("category");
-    // По умолчанию возвращаем всё. Потолок 20000 — защита.
+    // Дефолтный limit = 200 (10 страниц по 20). Раньше было 20000 —
+    // тащили весь каталог марки авто и грузили JSON в несколько МБ.
+    // Полный count остаётся правильным (отдельный COUNT(*) ниже).
     const limitParam = url.searchParams.get("limit");
     const limit = limitParam
       ? Math.min(parseInt(limitParam, 10), 20000)
-      : 20000;
+      : 200;
     const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
     const sort = url.searchParams.get("sort") || "price-asc";
 

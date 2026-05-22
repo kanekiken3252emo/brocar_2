@@ -23,13 +23,16 @@ export async function GET(
     const meta = getCategoryMeta(slug);
 
     const url = new URL(request.url);
-    // По умолчанию возвращаем всё что есть в категории. Клиент может
-    // ограничить через ?limit=. Серверный потолок 20000 — защита от
-    // перегрузки БД на «прочем» где 57к товаров.
+    // Дефолтный limit = 200: хватает на 10 страниц клиентской пагинации
+    // по 20, что покрывает почти все сессии. Раньше было 20000 — JSON
+    // на «колодках» раздувался до 3MB и валил LCP в ~18 с на 4G.
+    // Полный count остаётся правильным (см. COUNT(*) ниже).
+    // Если клиенту реально нужно больше — пусть запросит ?limit=,
+    // потолок 20000 как защита от случайного =999999.
     const limitParam = url.searchParams.get("limit");
     const limit = limitParam
       ? Math.min(parseInt(limitParam, 10), 20000)
-      : 20000;
+      : 200;
     const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
     const sort = url.searchParams.get("sort") || "price-asc";
 

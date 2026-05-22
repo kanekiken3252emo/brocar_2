@@ -445,10 +445,15 @@ function CatalogContent() {
           <>
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {paginated.map((group) => (
+                {paginated.map((group, index) => (
                   <SupplierItemCard
                     key={`${group.article}-${group.brand}`}
                     group={group}
+                    // Первые 8 карточек — это первый экран (xl:grid-cols-4 ×
+                    // 2 ряда). priority даёт next/image preload-подсказку,
+                    // что ускоряет LCP — Lighthouse как раз выбирает одну из
+                    // верхних карточек как LCP-элемент.
+                    priority={index < 8}
                   />
                 ))}
               </div>

@@ -9,6 +9,11 @@ import ProductImage from "@/components/Items/ProductImage";
 interface SupplierItemCardProps {
   group: SupplierGroup;
   showAddToCart?: boolean;
+  /**
+   * priority=true для первых 4-8 карточек на странице каталога — даёт
+   * Next.js preload-подсказку для LCP-картинки и отключает lazy-load.
+   */
+  priority?: boolean;
 }
 
 function formatPrice(n: number) {
@@ -18,6 +23,7 @@ function formatPrice(n: number) {
 export default function SupplierItemCard({
   group,
   showAddToCart = true,
+  priority = false,
 }: SupplierItemCardProps) {
   const isInStock = group.totalStock > 0;
   const uniqueSuppliers = new Set(group.offers.map((o) => o.supplierCode)).size;
@@ -58,6 +64,7 @@ export default function SupplierItemCard({
           alt={group.name || "Товар"}
           className="h-48 w-full"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          priority={priority}
         />
 
         <div className="p-4 flex-1 flex flex-col">

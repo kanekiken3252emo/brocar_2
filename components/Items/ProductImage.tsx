@@ -14,6 +14,12 @@ interface Props {
   sizes?: string;
   /** На каком padding-е рисовать картинку внутри (по умолчанию p-3). */
   innerPadding?: string;
+  /**
+   * priority=true отключает lazy-load и даёт preload-подсказку браузеру.
+   * Нужно ставить только для картинок, видимых в первом экране (LCP) —
+   * иначе теряем выгоду от ленивой загрузки.
+   */
+  priority?: boolean;
 }
 
 const PLACEHOLDER = "/photo-soon.png";
@@ -25,6 +31,7 @@ export default function ProductImage({
   className,
   sizes,
   innerPadding = "p-3",
+  priority = false,
 }: Props) {
   const { url, loading } = useProductImage(brand, article);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -74,7 +81,7 @@ export default function ProductImage({
           imgLoaded ? "opacity-100" : "opacity-0"
         }`}
         onLoad={() => setImgLoaded(true)}
-        unoptimized
+        priority={priority}
       />
     </div>
   );

@@ -130,10 +130,27 @@ function CatalogContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
+  // Серверная пагинация: для category/car-brand веток `groups` приходит уже
+  // отфильтрованным, отсортированным и спагинированным с сервера. count и
+  // availableBrands приходят оттуда же. Для article/vin/text-search пагинация
+  // остаётся клиентской (там источники возвращают сразу всё).
+  const useServerPagination = Boolean(
+    category || (brand && !model && !article)
+  );
+  const [serverTotalCount, setServerTotalCount] = useState(0);
+  const [serverBrands, setServerBrands] = useState<string[]>([]);
+
+  // Сбрасываем номер страницы на 1 при смене параметров, которые меняют
+  // саму выборку (другая категория, бренд, фильтр, сортировка).
+  useEffect(() => {
+    setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vin, article, brand, model, category, brandFilter, sortBy]);
+
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vin, article, brand, model, category]);
+  }, [vin, article, brand, model, category, currentPage, brandFilter, sortBy]);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -142,33 +159,71 @@ function CatalogContent() {
     setCategoryHub(null);
 
     try {
+      // sort из UI в API: API понимает price-asc/price-desc/name/stock.
+      // "delivery" сервер не поддерживает — пусть отсортирует по price-asc,
+      // на клиенте затем dosortBy delivery — это применится только в
+      // пределах текущей страницы из 20, но при выборе сортировки по
+      // delivery это компромисс.
+      const apiSort =
+        sortBy === "price-asc" ||
+        sortBy === "price-desc" ||
+        sortBy === "name"
+          ? sortBy
+          : "price-asc";
+
       if (category) {
-        // Каталог из импортированной БД (Berg)
+        // Каталог из импортированной БД (Berg). Серверная пагинация.
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          limit: String(itemsPerPage),
+          sort: apiSort,
+        });
+        if (brandFilter) params.set("brand", brandFilter);
         const res = await fetch(
-          `/api/catalog/category/${encodeURIComponent(category)}`
+          `/api/catalog/category/${encodeURIComponent(category)}?${params.toString()}`
         );
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || "Ошибка загрузки категории");
         }
-        const data: { groups: SupplierGroup[]; title: string } = await res.json();
+        const data: {
+          groups: SupplierGroup[];
+          title: string;
+          count?: number;
+          availableBrands?: string[];
+        } = await res.json();
         const groups = data.groups || [];
         seedImagesFromGroups(groups);
         setGroups(groups);
+        setServerTotalCount(data.count ?? groups.length);
+        setServerBrands(data.availableBrands ?? []);
         setCategoryTitle(data.title || null);
       } else if (brand && !model && !article) {
-        // Страница марки авто: товары из БД с этой маркой в car_brands
+        // Страница марки авто: товары из БД с этой маркой в car_brands. Серверная пагинация.
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          limit: String(itemsPerPage),
+          sort: apiSort,
+        });
+        if (brandFilter) params.set("brand", brandFilter);
         const res = await fetch(
-          `/api/catalog/car-brand/${encodeURIComponent(brand)}`
+          `/api/catalog/car-brand/${encodeURIComponent(brand)}?${params.toString()}`
         );
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || "Ошибка загрузки");
         }
-        const data: { groups: SupplierGroup[]; title: string } = await res.json();
+        const data: {
+          groups: SupplierGroup[];
+          title: string;
+          count?: number;
+          availableBrands?: string[];
+        } = await res.json();
         const groups = data.groups || [];
         seedImagesFromGroups(groups);
         setGroups(groups);
+        setServerTotalCount(data.count ?? groups.length);
+        setServerBrands(data.availableBrands ?? []);
         setCategoryTitle(data.title ? `Запчасти для ${data.title}` : null);
       } else if (article) {
         // Разбираем поисковую строку: один артикул, "BRAND ARTICLE" / "ARTICLE BRAND",
@@ -240,34 +295,50 @@ function CatalogContent() {
     }
   };
 
-  const availableBrands = Array.from(
-    new Set(groups.map((g) => g.brand).filter(Boolean))
-  ).sort();
+  // Бренды для выпадающего фильтра: на серверной пагинации список приходит
+  // от API (отражает все бренды в выборке, а не только в текущих 20). Иначе
+  // собираем по полученным группам.
+  const availableBrands = useServerPagination
+    ? serverBrands
+    : Array.from(new Set(groups.map((g) => g.brand).filter(Boolean))).sort();
 
-  const filtered = groups.filter((g) =>
-    brandFilter ? g.brand === brandFilter : true
-  );
+  // Для serverPagination фильтрация/сортировка уже применены сервером,
+  // а пагинация = текущая страница. Клиентский фильтр/sort всё равно
+  // прогоняем для пользовательского sort=delivery (его API не знает).
+  const filtered = useServerPagination
+    ? groups
+    : groups.filter((g) => (brandFilter ? g.brand === brandFilter : true));
 
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sortBy) {
-      case "price-asc":
-        return a.minPrice - b.minPrice;
-      case "price-desc":
-        return b.minPrice - a.minPrice;
-      case "name":
-        return a.name.localeCompare(b.name);
-      case "delivery":
-        return (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999);
-      default:
-        return 0;
-    }
-  });
+  const sorted = useServerPagination
+    ? // На серверной пагинации не пересортировываем, КРОМЕ delivery —
+      // его сервер не знает, а delivery работает в пределах одной страницы.
+      sortBy === "delivery"
+      ? [...filtered].sort(
+          (a, b) =>
+            (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999)
+        )
+      : filtered
+    : [...filtered].sort((a, b) => {
+        switch (sortBy) {
+          case "price-asc":
+            return a.minPrice - b.minPrice;
+          case "price-desc":
+            return b.minPrice - a.minPrice;
+          case "name":
+            return a.name.localeCompare(b.name);
+          case "delivery":
+            return (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999);
+          default:
+            return 0;
+        }
+      });
 
-  const totalPages = Math.ceil(sorted.length / itemsPerPage);
-  const paginated = sorted.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalCount = useServerPagination ? serverTotalCount : filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  // На серверной пагинации `sorted` уже = 20 нужных товаров текущей страницы.
+  const paginated = useServerPagination
+    ? sorted
+    : sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getSearchSummary = () => {
     if (categoryTitle) return categoryTitle;
@@ -295,11 +366,11 @@ function CatalogContent() {
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
             {getSearchSummary()}
           </h1>
-          {filtered.length > 0 && (
+          {totalCount > 0 && (
             <p className="text-neutral-400">
               Найдено товаров:{" "}
               <span className="text-white font-semibold">
-                {filtered.length}
+                {totalCount}
               </span>
             </p>
           )}

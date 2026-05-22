@@ -23,15 +23,19 @@ export async function GET(
 
     const url = new URL(request.url);
     const category = url.searchParams.get("category");
-    // Дефолтный limit = 200 (10 страниц по 20). Раньше было 20000 —
-    // тащили весь каталог марки авто и грузили JSON в несколько МБ.
-    // Полный count остаётся правильным (отдельный COUNT(*) ниже).
+    // Серверная пагинация: limit=20 на страницу, переключение страницы =
+    // новый fetch. Раньше тащили весь каталог марки авто (несколько МБ).
     const limitParam = url.searchParams.get("limit");
     const limit = limitParam
-      ? Math.min(parseInt(limitParam, 10), 20000)
-      : 200;
-    const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
+      ? Math.min(Math.max(parseInt(limitParam, 10), 1), 100)
+      : 20;
+    const pageParam = url.searchParams.get("page");
+    const offsetParam = url.searchParams.get("offset");
+    const offset = pageParam
+      ? Math.max(parseInt(pageParam, 10) - 1, 0) * limit
+      : Math.max(parseInt(offsetParam || "0", 10), 0);
     const sort = url.searchParams.get("sort") || "price-asc";
+    const brandFilter = url.searchParams.get("brand")?.trim() || "";
 
     const orderBy = (() => {
       switch (sort) {
@@ -46,12 +50,16 @@ export async function GET(
       }
     })();
 
-    const conditions = [
+    const baseConditions = [
       eq(products.source, "berg"),
       dsql`${products.stock} > 0`,
       dsql`${carBrand} = ANY(${products.carBrands})`,
     ];
-    if (category) conditions.push(eq(products.categorySlug, category));
+    if (category) baseConditions.push(eq(products.categorySlug, category));
+
+    const conditionsWithFilter = brandFilter
+      ? [...baseConditions, eq(products.brand, brandFilter)]
+      : baseConditions;
 
     const productRows = await db
       .select({
@@ -65,7 +73,7 @@ export async function GET(
         categorySlug: products.categorySlug,
       })
       .from(products)
-      .where(and(...conditions))
+      .where(and(...conditionsWithFilter))
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -118,7 +126,17 @@ export async function GET(
     const [{ count = 0 } = { count: 0 }] = await db
       .select({ count: dsql<number>`COUNT(*)::int` })
       .from(products)
-      .where(and(...conditions));
+      .where(and(...conditionsWithFilter));
+
+    // Список доступных брендов запчастей в выборке (без учёта brand-фильтра).
+    const brandRows = await db
+      .selectDistinct({ brand: products.brand })
+      .from(products)
+      .where(and(...baseConditions));
+    const availableBrands = brandRows
+      .map((r) => r.brand)
+      .filter((b): b is string => Boolean(b))
+      .sort();
 
     // Подсеваем картинки из кэша product_images — клиент не будет делать
     // N round-trip'ов к /api/product-image на рендере грида.
@@ -132,6 +150,8 @@ export async function GET(
       count,
       limit,
       offset,
+      page: Math.floor(offset / limit) + 1,
+      availableBrands,
     });
   } catch (error) {
     console.error("Catalog car-brand route error:", error);

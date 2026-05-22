@@ -23,20 +23,23 @@ export async function GET(
     const meta = getCategoryMeta(slug);
 
     const url = new URL(request.url);
-    // Дефолтный limit = 200: хватает на 10 страниц клиентской пагинации
-    // по 20, что покрывает почти все сессии. Раньше было 20000 — JSON
-    // на «колодках» раздувался до 3MB и валил LCP в ~18 с на 4G.
-    // Полный count остаётся правильным (см. COUNT(*) ниже).
-    // Если клиенту реально нужно больше — пусть запросит ?limit=,
-    // потолок 20000 как защита от случайного =999999.
+    // Серверная пагинация: limit=20 (одна страница каталога), page=1..N.
+    // Клиент при смене страницы/фильтра/сортировки делает новый fetch,
+    // получает только нужные 20 товаров — никаких 3MB-JSON, никаких
+    // пустых страниц после 10-й.
     const limitParam = url.searchParams.get("limit");
     const limit = limitParam
-      ? Math.min(parseInt(limitParam, 10), 20000)
-      : 200;
-    const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
+      ? Math.min(Math.max(parseInt(limitParam, 10), 1), 100)
+      : 20;
+    // Поддерживаем оба: ?page=N (предпочтительный) и legacy ?offset=N.
+    const pageParam = url.searchParams.get("page");
+    const offsetParam = url.searchParams.get("offset");
+    const offset = pageParam
+      ? Math.max(parseInt(pageParam, 10) - 1, 0) * limit
+      : Math.max(parseInt(offsetParam || "0", 10), 0);
     const sort = url.searchParams.get("sort") || "price-asc";
+    const brandFilter = url.searchParams.get("brand")?.trim() || "";
 
-    // 1. Товары категории (только те что в наличии)
     const orderBy = (() => {
       switch (sort) {
         case "price-desc":
@@ -50,6 +53,18 @@ export async function GET(
       }
     })();
 
+    // Базовые условия выборки (категория + только что в наличии).
+    const baseConditions = [
+      eq(products.categorySlug, slug),
+      eq(products.source, "berg"),
+      dsql`${products.stock} > 0`,
+    ];
+    // Условия с учётом фильтра по бренду — используем для productRows
+    // и для count'а, чтобы пагинация и числа совпадали.
+    const conditionsWithFilter = brandFilter
+      ? [...baseConditions, eq(products.brand, brandFilter)]
+      : baseConditions;
+
     const productRows = await db
       .select({
         id: products.id,
@@ -61,13 +76,7 @@ export async function GET(
         stock: products.stock,
       })
       .from(products)
-      .where(
-        and(
-          eq(products.categorySlug, slug),
-          eq(products.source, "berg"),
-          dsql`${products.stock} > 0`
-        )
-      )
+      .where(and(...conditionsWithFilter))
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -120,17 +129,24 @@ export async function GET(
       };
     });
 
-    // 4. Общее количество для пагинации
+    // 4. Общее количество для пагинации (с учётом brand-фильтра, чтобы
+    //    цифра «Найдено N» соответствовала тому что доступно для скролла).
     const [{ count = 0 } = { count: 0 }] = await db
       .select({ count: dsql<number>`COUNT(*)::int` })
       .from(products)
-      .where(
-        and(
-          eq(products.categorySlug, slug),
-          eq(products.source, "berg"),
-          dsql`${products.stock} > 0`
-        )
-      );
+      .where(and(...conditionsWithFilter));
+
+    // 5. Список всех брендов в категории — для выпадашки фильтра.
+    //    БЕЗ учёта brand-фильтра, иначе после выбора бренда в селекте
+    //    остался бы только один вариант. Берём только бренды где есть остаток.
+    const brandRows = await db
+      .selectDistinct({ brand: products.brand })
+      .from(products)
+      .where(and(...baseConditions));
+    const availableBrands = brandRows
+      .map((r) => r.brand)
+      .filter((b): b is string => Boolean(b))
+      .sort();
 
     // Подсеваем картинки из кэша product_images — клиент не будет делать
     // N round-trip'ов к /api/product-image на рендере грида.
@@ -144,6 +160,8 @@ export async function GET(
       count,
       limit,
       offset,
+      page: Math.floor(offset / limit) + 1,
+      availableBrands,
     });
   } catch (error) {
     console.error("Catalog category route error:", error);

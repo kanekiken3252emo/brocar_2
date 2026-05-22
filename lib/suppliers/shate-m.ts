@@ -114,9 +114,13 @@ export class ShateMAdapter implements SupplierAdapter {
   /**
    * Найти articleId по коду + бренду.
    *
-   * Только ТОЧНОЕ совпадение `article.code` с искомым кодом (без знаков
-   * пунктуации/регистра). Иначе ShATE-M по подстроке отдаёт «соседей» — типа
-   * AFRR010 вместо AFR1 — и на сайте появляется чужая картинка.
+   * Логика выбора (от строгого к мягкому):
+   *  1. Точный матч code+brand (нормализованный).
+   *  2. Точный матч code без учёта бренда.
+   *  3. Если по бренду пришёл ровно один уникальный articleId — берём его.
+   *     Это даёт картинки в случае когда у поставщика артикул в другом формате,
+   *     но это уникально тот же товар.
+   *  4. null — иначе. Лучше плейсхолдер чем чужая картинка (AFRR010 вместо AFR1).
    */
   async findArticleId(code: string, brand?: string): Promise<number | null> {
     if (!this.apiKey) return null;
@@ -134,6 +138,7 @@ export class ShateMAdapter implements SupplierAdapter {
       const list = Array.isArray(resp.data) ? resp.data : resp.data ? [resp.data] : [];
       const targetCode = normalizeKey(code);
 
+      // 1. Точный матч code+brand
       if (brand) {
         const b = brand.toLowerCase().trim();
         const match = list.find(
@@ -144,10 +149,31 @@ export class ShateMAdapter implements SupplierAdapter {
         if (match) return match.article.id;
       }
 
+      // 2. Точный матч code без бренда
       const exact = list.find(
         (x) => normalizeKey(x.article?.code) === targetCode
       );
-      return exact?.article?.id ?? null;
+      if (exact?.article?.id) return exact.article.id;
+
+      // 3. Fallback: если по бренду пришёл ровно один уникальный articleId —
+      //    значит у поставщика это однозначно один товар.
+      if (brand) {
+        const b = brand.toLowerCase().trim();
+        const brandIds = new Set(
+          list
+            .filter(
+              (x) =>
+                (x.article?.tradeMarkName || "").toLowerCase().trim() === b &&
+                typeof x.article?.id === "number"
+            )
+            .map((x) => x.article.id)
+        );
+        if (brandIds.size === 1) {
+          return [...brandIds][0];
+        }
+      }
+
+      return null;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("ShATE-M findArticleId error:", error.response?.status);

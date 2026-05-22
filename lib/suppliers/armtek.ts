@@ -169,12 +169,17 @@ export class ArmtekAdapter implements SupplierAdapter {
 
   /**
    * Получить ARTID (внутренний идентификатор товара в Armtek) по PIN + бренд.
-   * В отличие от search() не фильтрует по наличию/цене — возвращает первый
-   * подходящий ARTID, чтобы можно было сконструировать URL картинки.
+   * В отличие от search() не фильтрует по наличию/цене — возвращает ARTID,
+   * чтобы можно было сконструировать URL картинки.
    *
-   * Только ТОЧНОЕ совпадение PIN (без знаков пунктуации/регистра). Иначе
-   * Армтек по fulltext-поиску может вернуть «соседа» — например AFRR010
-   * вместо AFR1 — и мы прицепимся к чужой картинке.
+   * Логика выбора (от строгого к мягкому):
+   *  1. Точное совпадение PIN+BRAND (без знаков пунктуации/регистра).
+   *  2. Точное совпадение PIN без учёта бренда.
+   *  3. Если по PIN+BRAND поставщик вернул ровно один уникальный ARTID —
+   *     берём его. Это даёт картинки в случае когда у поставщика артикул
+   *     записан в другом формате (например с суффиксом склада), но это
+   *     уникально тот же товар.
+   *  4. null — иначе. Лучше плейсхолдер чем чужая картинка (AFRR010 вместо AFR1).
    */
   async getArtid(pin: string, brand?: string): Promise<string | null> {
     if (!this.login || !this.password || !this.kunnrRg) return null;
@@ -209,6 +214,7 @@ export class ArmtekAdapter implements SupplierAdapter {
       const rows = Array.isArray(response.data.RESP) ? response.data.RESP : [];
       const targetPin = normalizeKey(pin);
 
+      // 1. Точный матч PIN+BRAND
       if (brand) {
         const b = brand.toLowerCase().trim();
         const match = rows.find(
@@ -220,10 +226,28 @@ export class ArmtekAdapter implements SupplierAdapter {
         if (match?.ARTID) return match.ARTID;
       }
 
+      // 2. Точный матч PIN без учёта бренда
       const exact = rows.find(
         (r) => normalizeKey(r.PIN) === targetPin && Boolean(r.ARTID)
       );
-      return exact?.ARTID ?? null;
+      if (exact?.ARTID) return exact.ARTID;
+
+      // 3. Fallback: если по бренду пришёл ровно один уникальный ARTID —
+      //    значит у поставщика это однозначно один товар, просто формат
+      //    артикула отличается (например HYUNDAI XTEER 1011192 vs 1011192-0001).
+      if (brand) {
+        const b = brand.toLowerCase().trim();
+        const brandArtids = new Set(
+          rows
+            .filter((r) => (r.BRAND || "").toLowerCase().trim() === b && r.ARTID)
+            .map((r) => r.ARTID as string)
+        );
+        if (brandArtids.size === 1) {
+          return [...brandArtids][0];
+        }
+      }
+
+      return null;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Armtek getArtid error:", error.response?.status);

@@ -314,10 +314,13 @@ async function tryArmtek(
  *
  * Алгоритм:
  *  1. Проверяет кэш в product_images.
- *  2. Если кэша нет — пробует поставщиков по очереди:
- *       а) ShATE-M (data-URI base64 → Storage)
- *       б) Armtek (img.armtek.ru CDN → скачать → Storage)
+ *  2. Если кэша нет — пробует ОБОИХ поставщиков параллельно через Promise.all
+ *     и берёт первый успешный (Armtek приоритетнее: у него обычно лучше
+ *     качество и быстрее CDN).
  *  3. Результат (даже null) кэшируется чтобы не дёргать API повторно.
+ *
+ * Параллельный запуск важен: для холодного товара кейс «armtek впустую → потом
+ * shate-m» давал суммарно ~6с. Параллельно — max(armtek, shate-m) ≈ 3с.
  *
  * Поле product_images.source отражает кто реально предоставил картинку.
  */
@@ -332,20 +335,21 @@ export async function getOrFetchProductImage(
   const cached = await lookupCached(brand, article);
   if (cached.found) return cached.url;
 
-  // Армтек первый — у них покрытие шире и end-to-end быстрее
-  // (getArtid + скачивание ~1.5s против ShATE-M find+contents+fetch ~2-3s).
-  let url: string | null = await tryArmtek(brand, article);
-  let source = "armtek";
+  const [armtekUrl, shateMUrl] = await Promise.all([
+    tryArmtek(brand, article).catch((err) => {
+      console.error("tryArmtek rejected:", err);
+      return null;
+    }),
+    tryShateM(brand, article).catch((err) => {
+      console.error("tryShateM rejected:", err);
+      return null;
+    }),
+  ]);
 
-  if (!url) {
-    url = await tryShateM(brand, article);
-    if (url) source = "shate-m";
-  }
-
-  // Если никто не дал картинку — negative cache всё равно пишем, source
-  // оставляем последним опробованным (shate-m), чтобы видеть в БД что
-  // мы прошли весь fallback-chain.
-  if (!url) source = "shate-m";
+  const url: string | null = armtekUrl ?? shateMUrl;
+  // Кто реально дал картинку. Negative cache (никто не дал) помечаем
+  // shate-m'ом — это последний из опробованных, маркер «прошли всю цепочку».
+  const source = armtekUrl ? "armtek" : shateMUrl ? "shate-m" : "shate-m";
 
   await persistCache(brand, article, url, source);
   return url;

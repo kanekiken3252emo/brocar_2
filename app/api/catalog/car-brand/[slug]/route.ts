@@ -4,6 +4,7 @@ import { products, productStocks } from "@/lib/db/schema";
 import { eq, desc, asc, and, sql as dsql, inArray } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
+import { enrichGroupsWithImages } from "@/lib/product-images";
 
 /**
  * Товары, совместимые с указанной маркой авто.
@@ -117,11 +118,15 @@ export async function GET(
       .from(products)
       .where(and(...conditions));
 
+    // Подсеваем картинки из кэша product_images — клиент не будет делать
+    // N round-trip'ов к /api/product-image на рендере грида.
+    const enriched = await enrichGroupsWithImages(groups);
+
     return NextResponse.json({
       slug: carBrand,
       title: meta?.title ?? carBrand,
       category: category ?? null,
-      groups,
+      groups: enriched,
       count,
       limit,
       offset,

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, asc, desc, inArray, or, ilike, sql as dsql } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
+import { enrichGroupsWithImages } from "@/lib/product-images";
 
 /**
  * Поиск по названию/артикулу в импортированном каталоге Supabase.
@@ -116,10 +117,14 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Подсеваем картинки из кэша product_images — клиент не будет делать
+    // N round-trip'ов к /api/product-image на рендере грида.
+    const enriched = await enrichGroupsWithImages(groups);
+
     return NextResponse.json({
       q,
-      groups,
-      count: groups.length,
+      groups: enriched,
+      count: enriched.length,
       limit,
     });
   } catch (error) {

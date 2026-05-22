@@ -18,6 +18,22 @@ import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { Button } from "@/components/ui/button";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import type { BergResource } from "@/types/berg-api";
+import { seedProductImageCache } from "@/lib/hooks/useProductImage";
+
+/**
+ * Засеять in-memory кэш картинок до того как карточки смонтируются.
+ * Серверный роут уже положил готовые imageUrl в каждую группу
+ * (см. enrichGroupsWithImages), нам остаётся только переложить их в кэш.
+ * После этого useProductImage в каждой карточке найдёт URL мгновенно
+ * и не пойдёт в /api/product-image.
+ */
+function seedImagesFromGroups(groups: SupplierGroup[]): void {
+  for (const g of groups) {
+    if (g.imageUrl !== undefined) {
+      seedProductImageCache(g.brand, g.article, g.imageUrl);
+    }
+  }
+}
 
 interface CategoryHub {
   slug: string;
@@ -136,7 +152,9 @@ function CatalogContent() {
           throw new Error(err.error || "Ошибка загрузки категории");
         }
         const data: { groups: SupplierGroup[]; title: string } = await res.json();
-        setGroups(data.groups || []);
+        const groups = data.groups || [];
+        seedImagesFromGroups(groups);
+        setGroups(groups);
         setCategoryTitle(data.title || null);
       } else if (brand && !model && !article) {
         // Страница марки авто: товары из БД с этой маркой в car_brands
@@ -148,7 +166,9 @@ function CatalogContent() {
           throw new Error(err.error || "Ошибка загрузки");
         }
         const data: { groups: SupplierGroup[]; title: string } = await res.json();
-        setGroups(data.groups || []);
+        const groups = data.groups || [];
+        seedImagesFromGroups(groups);
+        setGroups(groups);
         setCategoryTitle(data.title ? `Запчасти для ${data.title}` : null);
       } else if (article) {
         // Разбираем поисковую строку: один артикул, "BRAND ARTICLE" / "ARTICLE BRAND",
@@ -165,7 +185,9 @@ function CatalogContent() {
             throw new Error(err.error || "Ошибка поиска");
           }
           const data: { groups: SupplierGroup[] } = await res.json();
-          setGroups(data.groups || []);
+          const groups = data.groups || [];
+          seedImagesFromGroups(groups);
+          setGroups(groups);
         } else {
           // Мульти-поставщиковый поиск по артикулу (и бренду, если распарсили).
           // brand из URL имеет приоритет — например, при переходе с карточки бренда.
@@ -186,7 +208,9 @@ function CatalogContent() {
             throw new Error(err.error || "Ошибка поиска");
           }
           const data: { groups: SupplierGroup[] } = await res.json();
-          setGroups(data.groups || []);
+          const groups = data.groups || [];
+          seedImagesFromGroups(groups);
+          setGroups(groups);
         }
       } else if (vin) {
         // VIN ищем только по Berg (Rossko не поддерживает VIN).

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import ProductImage from "@/components/Items/ProductImage";
 
 interface SupplierItemCardProps {
   group: SupplierGroup;
@@ -52,16 +52,13 @@ export default function SupplierItemCard({
   return (
     <Link href={href}>
       <div className="group bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all duration-300 h-full flex flex-col hover:shadow-lg hover:shadow-orange-500/10">
-        <div className="relative h-48 bg-neutral-800 flex items-center justify-center">
-          <Image
-            src="/photo-soon.png"
-            alt={group.name || "Товар"}
-            width={160}
-            height={160}
-            className="w-40 h-40 object-contain"
-          />
-
-        </div>
+        <ProductImage
+          brand={group.brand}
+          article={group.article}
+          alt={group.name || "Товар"}
+          className="h-48 w-full"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        />
 
         <div className="p-4 flex-1 flex flex-col">
           <div className="text-xs text-orange-500 font-semibold mb-1">

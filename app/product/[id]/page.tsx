@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import NextImage from "next/image";
+import ProductImage from "@/components/Items/ProductImage";
 import {
   ArrowLeft,
   Package,
@@ -194,15 +194,14 @@ export default function ProductPage() {
           <div className="grid md:grid-cols-2 gap-8 p-8">
             {/* Image Section */}
             <div className="space-y-4">
-              <div className="aspect-square bg-neutral-800 rounded-2xl flex items-center justify-center p-8">
-                <NextImage
-                  src="/photo-soon.png"
-                  alt="Фото товара"
-                  width={300}
-                  height={300}
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              <ProductImage
+                brand={product.brand?.name}
+                article={product.article}
+                alt={product.name || "Фото товара"}
+                className="aspect-square w-full rounded-2xl"
+                innerPadding="p-8"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
               
               {/* Stock Status */}
               <div className="flex items-center gap-4">

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import ProductImage from "@/components/Items/ProductImage";
 import {
   ShoppingCart,
   Trash2,
@@ -139,6 +140,16 @@ function CartItemRow({
 }) {
   return (
     <div className="flex flex-col sm:flex-row gap-4 p-5 bg-neutral-900 border border-neutral-800 rounded-2xl hover:border-neutral-700 transition-colors">
+      {/* Image */}
+      <ProductImage
+        brand={item.product.brand}
+        article={item.product.article}
+        alt={item.product.name}
+        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl shrink-0"
+        innerPadding="p-2"
+        sizes="96px"
+      />
+
       {/* Product info */}
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap gap-2 mb-2">

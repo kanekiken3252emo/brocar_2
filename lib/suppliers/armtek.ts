@@ -166,6 +166,75 @@ export class ArmtekAdapter implements SupplierAdapter {
       return [];
     }
   }
+
+  /**
+   * Получить ARTID (внутренний идентификатор товара в Armtek) по PIN + бренд.
+   * В отличие от search() не фильтрует по наличию/цене — возвращает первый
+   * подходящий ARTID, чтобы можно было сконструировать URL картинки.
+   *
+   * Если бренд передан — ищем точное совпадение, иначе берём первый ответ.
+   */
+  async getArtid(pin: string, brand?: string): Promise<string | null> {
+    if (!this.login || !this.password || !this.kunnrRg) return null;
+    if (!pin) return null;
+
+    try {
+      const body = new URLSearchParams({
+        VKORG: this.vkorg,
+        KUNNR_RG: this.kunnrRg,
+        PIN: pin,
+        QUERY_TYPE: brand ? "2" : "1",
+        ...(brand ? { BRAND: brand } : {}),
+      }).toString();
+
+      const auth = Buffer.from(
+        `${this.login}:${this.password}`
+      ).toString("base64");
+
+      const response = await axios.post<ArmtekEnvelope<ArmtekSearchItem[]>>(
+        `${this.baseUrl}/ws_search/search?format=json`,
+        body,
+        {
+          timeout: 8000,
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${auth}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const rows = Array.isArray(response.data.RESP) ? response.data.RESP : [];
+
+      if (brand) {
+        const b = brand.toLowerCase().trim();
+        const match = rows.find(
+          (r) =>
+            (r.BRAND || "").toLowerCase().trim() === b && Boolean(r.ARTID)
+        );
+        if (match?.ARTID) return match.ARTID;
+      }
+
+      return rows.find((r) => Boolean(r.ARTID))?.ARTID ?? null;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("Armtek getArtid error:", error.response?.status);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Сконструировать URL картинки товара по ARTID.
+   * Шаблон img.armtek.ru разобран по примеру с сайта:
+   *   /img/article/{первые_3_символа_artid}/{artid}/{size}/{artid}_0.webp
+   * Размер можно варьировать (например 230x230, 500x500). Возможные индексы
+   * после _: 0, 1, 2... (первая картинка обычно _0).
+   */
+  static buildImageUrl(artid: string, size: string = "500x500"): string {
+    const prefix = artid.slice(0, 3);
+    return `https://img.armtek.ru/img/article/${prefix}/${artid}/${size}/${artid}_0.webp`;
+  }
 }
 
 /**

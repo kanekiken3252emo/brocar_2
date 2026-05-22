@@ -9,6 +9,7 @@ import {
   boolean,
   timestamp,
   bigint,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -84,6 +85,30 @@ export const productStocks = pgTable("product_stocks", {
     .defaultNow()
     .notNull(),
 });
+
+// Кэш URL картинок товаров по (brand, article).
+// Заполняется лениво при первом запросе картинки — см. lib/product-images.ts.
+// image_url = NULL означает «уже искали, картинки нет» (negative cache),
+// чтобы не дёргать ShATE-M повторно для отсутствующих позиций.
+export const productImages = pgTable(
+  "product_images",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    brand: text("brand").notNull(),
+    article: text("article").notNull(),
+    imageUrl: text("image_url"),
+    source: text("source").default("shate-m").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    brandArticleIdx: uniqueIndex("product_images_brand_article_idx").on(
+      t.brand,
+      t.article
+    ),
+  })
+);
 
 // Carts table
 export const carts = pgTable("carts", {

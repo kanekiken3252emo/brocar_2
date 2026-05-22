@@ -83,6 +83,18 @@ export interface ShateAnalogItem {
   tradeMark?: { name?: string; country?: string };
 }
 
+export interface ShateContent {
+  // contentId — длинный hex-хэш (~128 символов), не число.
+  contentId: string;
+  contentType?: string;
+}
+
+export interface ShateContentData {
+  contentId: string;
+  data: string;
+  mimeType: string;
+}
+
 export class ShateMAdapter implements SupplierAdapter {
   private baseUrl: string;
   private apiKey: string;
@@ -154,6 +166,91 @@ export class ShateMAdapter implements SupplierAdapter {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("ShATE-M getArticleDetails error:", error.response?.status);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Получить список content-записей (картинки/3D) товара по articleId.
+   * Возвращает массив с contentId и contentType — сами данные тащим отдельным
+   * запросом через fetchContent().
+   */
+  async getArticleContents(articleId: number): Promise<ShateContent[]> {
+    const token = await this.getToken();
+    if (!token) return [];
+
+    try {
+      const resp = await this.client.get<{
+        article?: ShateArticle;
+        contents?: ShateContent[];
+      }>(`/api/v1/articles/${articleId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { include: "contents" },
+      });
+      return Array.isArray(resp.data?.contents) ? resp.data.contents : [];
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("ShATE-M getArticleContents error:", error.response?.status);
+      }
+      return [];
+    }
+  }
+
+  /**
+   * Скачать сам контент (картинку) по contentId + contentType.
+   * ShATE-M возвращает data-URI: "data:image/webp;base64,...".
+   *
+   * Реальный формат body (дока в шатем.txt раздел 4.1 устарела):
+   *  {
+   *    ContentKeys: [ { ContentId, ContentType } ],
+   *    WidthSize?, HeightSize?
+   *  }
+   * Ответ (массив): [{ id, value }], value содержит data-URI.
+   */
+  async fetchContent(
+    contentId: string,
+    contentType: string,
+    width?: number,
+    height?: number
+  ): Promise<ShateContentData | null> {
+    const token = await this.getToken();
+    if (!token) return null;
+
+    const body = {
+      ContentKeys: [{ ContentId: contentId, ContentType: contentType }],
+      ...(width ? { WidthSize: width } : {}),
+      ...(height ? { HeightSize: height } : {}),
+    };
+
+    try {
+      const resp = await this.client.post<
+        Array<{ id?: string; value?: string }> | { id?: string; value?: string }
+      >("/api/v1/contents/search", body, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const result = Array.isArray(resp.data) ? resp.data[0] : resp.data;
+      if (!result?.value) return null;
+
+      const dataUri = result.value;
+      const match = dataUri.match(/^data:([^;]+);base64,/);
+      const mimeType = match?.[1] || "image/webp";
+
+      return {
+        contentId: result.id ?? contentId,
+        data: dataUri,
+        mimeType,
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("ShATE-M fetchContent error:", {
+          status: error.response?.status,
+          data: error.response?.data,
+          sentBody: body,
+        });
+      } else {
+        console.error("ShATE-M fetchContent unexpected error:", error);
       }
       return null;
     }

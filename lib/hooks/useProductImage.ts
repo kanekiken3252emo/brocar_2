@@ -1,0 +1,89 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+// In-memory кэш URL картинок на время жизни SPA-сессии. Ключ — `brand|article`
+// в нижнем регистре. null означает «уже спрашивали — картинки нет».
+const memoryCache = new Map<string, string | null>();
+const inflight = new Map<string, Promise<string | null>>();
+
+function cacheKey(brand: string, article: string): string {
+  return `${brand.trim().toLowerCase()}|${article.trim().toLowerCase()}`;
+}
+
+async function fetchProductImage(
+  brand: string,
+  article: string
+): Promise<string | null> {
+  const key = cacheKey(brand, article);
+  if (memoryCache.has(key)) return memoryCache.get(key) ?? null;
+
+  const existing = inflight.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(
+        `/api/product-image?brand=${encodeURIComponent(brand)}&article=${encodeURIComponent(article)}`
+      );
+      if (!res.ok) {
+        memoryCache.set(key, null);
+        return null;
+      }
+      const data: { url: string | null } = await res.json();
+      memoryCache.set(key, data.url ?? null);
+      return data.url ?? null;
+    } catch {
+      memoryCache.set(key, null);
+      return null;
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+
+  inflight.set(key, promise);
+  return promise;
+}
+
+export function useProductImage(
+  brand: string | undefined | null,
+  article: string | undefined | null
+): { url: string | null; loading: boolean } {
+  const [url, setUrl] = useState<string | null>(() => {
+    if (!brand || !article) return null;
+    const key = cacheKey(brand, article);
+    return memoryCache.has(key) ? memoryCache.get(key) ?? null : null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!brand || !article) return false;
+    return !memoryCache.has(cacheKey(brand, article));
+  });
+
+  useEffect(() => {
+    if (!brand || !article) {
+      setUrl(null);
+      setLoading(false);
+      return;
+    }
+    const key = cacheKey(brand, article);
+    if (memoryCache.has(key)) {
+      setUrl(memoryCache.get(key) ?? null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    fetchProductImage(brand, article).then((result) => {
+      if (cancelled) return;
+      setUrl(result);
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [brand, article]);
+
+  return { url, loading };
+}

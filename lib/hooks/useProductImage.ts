@@ -11,25 +11,6 @@ function cacheKey(brand: string, article: string): string {
   return `${brand.trim().toLowerCase()}|${article.trim().toLowerCase()}`;
 }
 
-/**
- * Засеять кэш картинок одной парой (brand, article). Используется на страницах
- * каталога после получения списка товаров от сервера, который уже подмешал
- * картинки в JSON-ответ — чтобы useProductImage сразу нашёл URL в памяти и
- * не делал индивидуальный fetch к /api/product-image на каждой карточке.
- *
- * url:
- *   string — готовая картинка, отрисовать сразу
- *   null   — negative cache, плейсхолдер сразу
- */
-export function seedProductImageCache(
-  brand: string | undefined | null,
-  article: string | undefined | null,
-  url: string | null
-): void {
-  if (!brand || !article) return;
-  memoryCache.set(cacheKey(brand, article), url);
-}
-
 async function fetchProductImage(
   brand: string,
   article: string

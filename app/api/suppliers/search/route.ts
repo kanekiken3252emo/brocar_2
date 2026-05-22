@@ -7,7 +7,6 @@ import shateMAdapter from "@/lib/suppliers/shate-m";
 import forumAutoAdapter from "@/lib/suppliers/forum-auto";
 import armtekAdapter from "@/lib/suppliers/armtek";
 import { applyPricingSync } from "@/lib/pricing";
-import { enrichGroupsWithImages } from "@/lib/product-images";
 
 const searchSchema = z.object({
   article: z.string().optional(),
@@ -33,13 +32,9 @@ export async function POST(request: NextRequest) {
       applyPricingSync(base, ctx)
     );
 
-    // Подсеваем картинки из кэша product_images, чтобы клиент не делал
-    // N round-trip'ов к /api/product-image при рендере грида карточек.
-    const enriched = await enrichGroupsWithImages(groups);
-
     return NextResponse.json({
-      groups: enriched,
-      count: enriched.length,
+      groups,
+      count: groups.length,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -38,14 +38,6 @@ export interface SupplierGroup {
   totalStock: number;
   minDeliveryDays: number | null;
   offers: SupplierOffer[];
-  /**
-   * URL картинки из кэша product_images, если был обогащён сервером:
-   *   string    — готовый URL, рисуем сразу
-   *   null      — negative cache (картинки нет), сразу плейсхолдер
-   *   undefined — не обогащено, клиент сам спросит /api/product-image
-   * См. enrichGroupsWithImages в lib/product-images.ts.
-   */
-  imageUrl?: string | null;
 }
 
 /**

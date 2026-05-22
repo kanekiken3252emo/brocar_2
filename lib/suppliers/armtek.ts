@@ -172,7 +172,9 @@ export class ArmtekAdapter implements SupplierAdapter {
    * В отличие от search() не фильтрует по наличию/цене — возвращает первый
    * подходящий ARTID, чтобы можно было сконструировать URL картинки.
    *
-   * Если бренд передан — ищем точное совпадение, иначе берём первый ответ.
+   * Только ТОЧНОЕ совпадение PIN (без знаков пунктуации/регистра). Иначе
+   * Армтек по fulltext-поиску может вернуть «соседа» — например AFRR010
+   * вместо AFR1 — и мы прицепимся к чужой картинке.
    */
   async getArtid(pin: string, brand?: string): Promise<string | null> {
     if (!this.login || !this.password || !this.kunnrRg) return null;
@@ -205,17 +207,23 @@ export class ArmtekAdapter implements SupplierAdapter {
       );
 
       const rows = Array.isArray(response.data.RESP) ? response.data.RESP : [];
+      const targetPin = normalizeKey(pin);
 
       if (brand) {
         const b = brand.toLowerCase().trim();
         const match = rows.find(
           (r) =>
-            (r.BRAND || "").toLowerCase().trim() === b && Boolean(r.ARTID)
+            (r.BRAND || "").toLowerCase().trim() === b &&
+            normalizeKey(r.PIN) === targetPin &&
+            Boolean(r.ARTID)
         );
         if (match?.ARTID) return match.ARTID;
       }
 
-      return rows.find((r) => Boolean(r.ARTID))?.ARTID ?? null;
+      const exact = rows.find(
+        (r) => normalizeKey(r.PIN) === targetPin && Boolean(r.ARTID)
+      );
+      return exact?.ARTID ?? null;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Armtek getArtid error:", error.response?.status);
@@ -235,6 +243,15 @@ export class ArmtekAdapter implements SupplierAdapter {
     const prefix = artid.slice(0, 3);
     return `https://img.armtek.ru/img/article/${prefix}/${artid}/${size}/${artid}_0.webp`;
   }
+}
+
+/**
+ * Сравнение артикулов «по сути»: убираем все небуквенно-цифровые символы и
+ * регистр. AFR-1 / afr 1 / AFR1 — один и тот же артикул. AFRR010 — другой.
+ */
+function normalizeKey(value: string | undefined | null): string {
+  if (!value) return "";
+  return value.replace(/[^a-z0-9]+/gi, "").toLowerCase();
 }
 
 /**

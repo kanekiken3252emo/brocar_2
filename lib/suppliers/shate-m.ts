@@ -113,7 +113,10 @@ export class ShateMAdapter implements SupplierAdapter {
 
   /**
    * Найти articleId по коду + бренду.
-   * Возвращает первый совпадающий articleId или null.
+   *
+   * Только ТОЧНОЕ совпадение `article.code` с искомым кодом (без знаков
+   * пунктуации/регистра). Иначе ShATE-M по подстроке отдаёт «соседей» — типа
+   * AFRR010 вместо AFR1 — и на сайте появляется чужая картинка.
    */
   async findArticleId(code: string, brand?: string): Promise<number | null> {
     if (!this.apiKey) return null;
@@ -129,14 +132,22 @@ export class ShateMAdapter implements SupplierAdapter {
       });
 
       const list = Array.isArray(resp.data) ? resp.data : resp.data ? [resp.data] : [];
+      const targetCode = normalizeKey(code);
+
       if (brand) {
         const b = brand.toLowerCase().trim();
         const match = list.find(
-          (x) => (x.article?.tradeMarkName || "").toLowerCase().trim() === b
+          (x) =>
+            (x.article?.tradeMarkName || "").toLowerCase().trim() === b &&
+            normalizeKey(x.article?.code) === targetCode
         );
         if (match) return match.article.id;
       }
-      return list[0]?.article?.id ?? null;
+
+      const exact = list.find(
+        (x) => normalizeKey(x.article?.code) === targetCode
+      );
+      return exact?.article?.id ?? null;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("ShATE-M findArticleId error:", error.response?.status);
@@ -487,6 +498,15 @@ export class ShateMAdapter implements SupplierAdapter {
     }
     return results;
   }
+}
+
+/**
+ * Сравнение артикулов «по сути»: убираем все небуквенно-цифровые символы и
+ * регистр. AFR-1 / afr 1 / AFR1 — один и тот же артикул. AFRR010 — другой.
+ */
+function normalizeKey(value: string | undefined | null): string {
+  if (!value) return "";
+  return value.replace(/[^a-z0-9]+/gi, "").toLowerCase();
 }
 
 const shateMAdapter = new ShateMAdapter();

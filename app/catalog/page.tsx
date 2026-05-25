@@ -65,15 +65,19 @@ function isFreeText(query: string): boolean {
  * Парсит поисковую строку и определяет — это артикул, пара бренд+артикул,
  * или свободный текст.
  *
- * Примеры:
- *   "ALSP085"          → { article: "ALSP085" }
- *   "MILES ALSP085"    → { article: "ALSP085", brand: "MILES" }
- *   "0986452041 Bosch" → { article: "0986452041", brand: "Bosch" }
- *   "Miles alsp085"    → { article: "alsp085", brand: "Miles" } (регистр сохраняется)
- *   "масляный фильтр"  → { isText: true }
+ * Эвристика: бренды у автозапчастей почти всегда БЕЗ цифр (Toyota, Bosch,
+ * MILES, XYG, DEPO, …), артикулы — ВСЕГДА с цифрами. На этой основе:
+ *   - токены без цифр → бренд (склеиваем если их несколько подряд)
+ *   - токены с цифрами → части артикула (склеиваем пробелом)
  *
- * Эвристика для двух токенов: тот, что содержит цифру — артикул, другой — бренд.
- * Артикулы автозапчастей почти всегда содержат хотя бы одну цифру.
+ * Примеры:
+ *   "ALSP085"            → { article: "ALSP085" }
+ *   "MILES ALSP085"      → { article: "ALSP085", brand: "MILES" }
+ *   "0986452041 Bosch"   → { article: "0986452041", brand: "Bosch" }
+ *   "KE100 LFW/X"        → { article: "KE100 LFW/X" }  (оба с цифрами — один артикул)
+ *   "XYG KE100 LFW/X"    → { article: "KE100 LFW/X", brand: "XYG" }
+ *   "MILES SUPER ALSP085"→ { article: "ALSP085", brand: "MILES SUPER" }
+ *   "масляный фильтр"    → { isText: true }
  */
 function parseQuery(query: string): {
   article?: string;
@@ -87,23 +91,17 @@ function parseQuery(query: string): {
   const tokens = q.split(/\s+/).filter(Boolean);
   if (tokens.length === 1) return { article: tokens[0], isText: false };
 
-  if (tokens.length === 2) {
-    const [a, b] = tokens;
-    const hasDigit = (s: string) => /\d/.test(s);
-    if (hasDigit(a) && !hasDigit(b)) return { article: a, brand: b, isText: false };
-    if (!hasDigit(a) && hasDigit(b)) return { article: b, brand: a, isText: false };
-    if (hasDigit(a) && hasDigit(b)) {
-      // Оба с цифрами — артикулом считаем тот, что длиннее
-      return a.length >= b.length
-        ? { article: a, brand: b, isText: false }
-        : { article: b, brand: a, isText: false };
-    }
-    // Ни в одном цифр — точно описание
-    return { isText: true };
-  }
+  const hasDigit = (s: string) => /\d/.test(s);
+  const articleTokens = tokens.filter(hasDigit);
+  const brandTokens = tokens.filter((t) => !hasDigit(t));
 
-  // 3+ слов — описание
-  return { isText: true };
+  // Нет токенов с цифрами — точно описание/текстовый запрос.
+  if (articleTokens.length === 0) return { isText: true };
+
+  const article = articleTokens.join(" ");
+  const brand = brandTokens.length > 0 ? brandTokens.join(" ") : undefined;
+
+  return { article, brand, isText: false };
 }
 
 function CatalogContent() {

@@ -4,6 +4,7 @@ const SUPPLIER_MAP: Record<string, string> = {
   rossko: "VEGA 3",
   "shate-m": "VEGA 4",
   "forum-auto": "VEGA 5",
+  autotrade: "VEGA 6",
 };
 
 let nextIndex = Object.keys(SUPPLIER_MAP).length + 1;

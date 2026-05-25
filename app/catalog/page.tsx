@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -138,10 +138,17 @@ function CatalogContent() {
   const [serverTotalCount, setServerTotalCount] = useState(0);
   const [serverBrands, setServerBrands] = useState<string[]>([]);
 
+  // Активный AbortController — отменяем предыдущий запрос при старте нового,
+  // чтобы устаревший ответ не перетёр актуальные groups (race condition при
+  // нескольких ре-рендерах подряд от useSearchParams + setCurrentPage).
+  const activeRequestRef = useRef<AbortController | null>(null);
+
   // Сбрасываем номер страницы на 1 при смене параметров, которые меняют
-  // саму выборку (другая категория, бренд, фильтр, сортировка).
+  // саму выборку (другая категория, бренд, фильтр, сортировка). Используем
+  // функциональный setState чтобы не перезапускать loadProducts если
+  // currentPage уже был 1.
   useEffect(() => {
-    setCurrentPage(1);
+    setCurrentPage((p) => (p === 1 ? p : 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vin, article, brand, model, category, brandFilter, sortBy]);
 
@@ -151,6 +158,14 @@ function CatalogContent() {
   }, [vin, article, brand, model, category, currentPage, brandFilter, sortBy]);
 
   const loadProducts = async () => {
+    // Отменяем предыдущий запрос если он ещё в полёте — иначе его поздний
+    // ответ перетрёт результат текущего (race condition при нескольких
+    // ре-рендерах подряд).
+    activeRequestRef.current?.abort();
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
+    const { signal } = controller;
+
     setLoading(true);
     setError(null);
     setCategoryTitle(null);
@@ -178,7 +193,8 @@ function CatalogContent() {
         });
         if (brandFilter) params.set("brand", brandFilter);
         const res = await fetch(
-          `/api/catalog/category/${encodeURIComponent(category)}?${params.toString()}`
+          `/api/catalog/category/${encodeURIComponent(category)}?${params.toString()}`,
+          { signal }
         );
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -190,6 +206,7 @@ function CatalogContent() {
           count?: number;
           availableBrands?: string[];
         } = await res.json();
+        if (signal.aborted) return;
         const groups = data.groups || [];
         seedImagesFromGroups(groups);
         setGroups(groups);
@@ -205,7 +222,8 @@ function CatalogContent() {
         });
         if (brandFilter) params.set("brand", brandFilter);
         const res = await fetch(
-          `/api/catalog/car-brand/${encodeURIComponent(brand)}?${params.toString()}`
+          `/api/catalog/car-brand/${encodeURIComponent(brand)}?${params.toString()}`,
+          { signal }
         );
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -217,6 +235,7 @@ function CatalogContent() {
           count?: number;
           availableBrands?: string[];
         } = await res.json();
+        if (signal.aborted) return;
         const groups = data.groups || [];
         seedImagesFromGroups(groups);
         setGroups(groups);
@@ -231,13 +250,15 @@ function CatalogContent() {
           // Свободный текст («масляный фильтр») — ищем в Supabase по названию.
           // У API поставщиков поиска по описанию нет.
           const res = await fetch(
-            `/api/catalog/text-search?q=${encodeURIComponent(article)}`
+            `/api/catalog/text-search?q=${encodeURIComponent(article)}`,
+            { signal }
           );
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || "Ошибка поиска");
           }
           const data: { groups: SupplierGroup[] } = await res.json();
+          if (signal.aborted) return;
           const groups = data.groups || [];
           seedImagesFromGroups(groups);
           setGroups(groups);
@@ -255,12 +276,14 @@ function CatalogContent() {
                 ? { brand: parsed.brand }
                 : {}),
             }),
+            signal,
           });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || "Ошибка поиска");
           }
           const data: { groups: SupplierGroup[] } = await res.json();
+          if (signal.aborted) return;
           const groups = data.groups || [];
           seedImagesFromGroups(groups);
           setGroups(groups);
@@ -269,27 +292,32 @@ function CatalogContent() {
         // VIN ищем только по Berg (Rossko не поддерживает VIN).
         // Конвертируем BergResource → SupplierGroup на лету.
         const response = await bergClient.searchByVIN(vin);
+        if (signal.aborted) return;
         setGroups(bergResourcesToGroups(response.resources || []));
       } else if (brand && model) {
         const response = await bergClient.searchByArticle("", {
           brandName: brand,
           analogs: true,
         });
+        if (signal.aborted) return;
         setGroups(bergResourcesToGroups(response.resources || []));
       } else {
         // Нет ни одного параметра — показываем хаб с категориями
         setGroups([]);
-        const res = await fetch("/api/catalog/categories");
+        const res = await fetch("/api/catalog/categories", { signal });
         if (res.ok) {
           const data: { categories: CategoryHub[] } = await res.json();
+          if (signal.aborted) return;
           setCategoryHub(data.categories || []);
         }
       }
     } catch (err: any) {
+      // AbortError — это «нас отменили», не показываем как ошибку.
+      if (err?.name === "AbortError" || signal.aborted) return;
       console.error("Catalog load error:", err);
       setError(err.message || "Не удалось загрузить товары");
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 

@@ -6,6 +6,7 @@ import rosskoAdapter from "@/lib/suppliers/rossko";
 import shateMAdapter from "@/lib/suppliers/shate-m";
 import forumAutoAdapter from "@/lib/suppliers/forum-auto";
 import armtekAdapter from "@/lib/suppliers/armtek";
+import autotradeAdapter from "@/lib/suppliers/autotrade";
 import { applyPricingSync } from "@/lib/pricing";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 
@@ -26,7 +27,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adapters = [bergAdapter, rosskoAdapter, shateMAdapter, forumAutoAdapter, armtekAdapter];
+    const adapters = [
+      bergAdapter,
+      rosskoAdapter,
+      shateMAdapter,
+      forumAutoAdapter,
+      armtekAdapter,
+      autotradeAdapter,
+    ];
     const items = await searchAllSuppliers(adapters, validatedData);
 
     const groups = groupOffers(items, (base, ctx) =>

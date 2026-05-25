@@ -6,6 +6,7 @@ import { db } from "./db";
 import { productImages } from "./db/schema";
 import { ShateMAdapter } from "./suppliers/shate-m";
 import { ArmtekAdapter } from "./suppliers/armtek";
+import { AutotradeAdapter } from "./suppliers/autotrade";
 
 const BUCKET = "product-images";
 
@@ -13,6 +14,7 @@ const BUCKET = "product-images";
 // которых нет в типе SupplierAdapter.
 const shateM = new ShateMAdapter();
 const armtek = new ArmtekAdapter();
+const autotrade = new AutotradeAdapter();
 
 let cachedStorage: ReturnType<typeof createClient> | null = null;
 
@@ -310,17 +312,49 @@ async function tryArmtek(
 }
 
 /**
+ * Источник №3 — Autotrade. У них картинки на static.autotrade.su,
+ * получаем URL через getItemsByQuery (strict=1) — в ответе сразу
+ * поле photo. Точное совпадение бренда обязательно, иначе fallback
+ * на «единственный товар по бренду» (см. adapter.getProductImageUrl).
+ *
+ * Важно: rate-limit у Autotrade 1 req/sec — встроенный throttle
+ * в adapter'е сериализует все запросы автоматически.
+ */
+async function tryAutotrade(
+  brand: string,
+  article: string
+): Promise<string | null> {
+  try {
+    const imageUrl = await autotrade.getProductImageUrl(article, brand);
+    if (!imageUrl) return null;
+
+    const downloaded = await downloadImage(imageUrl);
+    if (!downloaded) return null;
+
+    return uploadBufferToStorage(
+      brand,
+      article,
+      downloaded.buffer,
+      downloaded.mimeType
+    );
+  } catch (error) {
+    console.error("tryAutotrade error:", error);
+    return null;
+  }
+}
+
+/**
  * Получить URL картинки товара по (brand, article).
  *
  * Алгоритм:
  *  1. Проверяет кэш в product_images.
- *  2. Если кэша нет — пробует ОБОИХ поставщиков параллельно через Promise.all
+ *  2. Если кэша нет — пробует ВСЕХ поставщиков параллельно через Promise.all
  *     и берёт первый успешный (Armtek приоритетнее: у него обычно лучше
- *     качество и быстрее CDN).
+ *     качество и быстрее CDN, затем ShATE-M, затем Autotrade).
  *  3. Результат (даже null) кэшируется чтобы не дёргать API повторно.
  *
  * Параллельный запуск важен: для холодного товара кейс «armtek впустую → потом
- * shate-m» давал суммарно ~6с. Параллельно — max(armtek, shate-m) ≈ 3с.
+ * shate-m → потом autotrade» давал суммарно 10+с. Параллельно — max ≈ 3-4с.
  *
  * Поле product_images.source отражает кто реально предоставил картинку.
  */
@@ -335,7 +369,7 @@ export async function getOrFetchProductImage(
   const cached = await lookupCached(brand, article);
   if (cached.found) return cached.url;
 
-  const [armtekUrl, shateMUrl] = await Promise.all([
+  const [armtekUrl, shateMUrl, autotradeUrl] = await Promise.all([
     tryArmtek(brand, article).catch((err) => {
       console.error("tryArmtek rejected:", err);
       return null;
@@ -344,12 +378,22 @@ export async function getOrFetchProductImage(
       console.error("tryShateM rejected:", err);
       return null;
     }),
+    tryAutotrade(brand, article).catch((err) => {
+      console.error("tryAutotrade rejected:", err);
+      return null;
+    }),
   ]);
 
-  const url: string | null = armtekUrl ?? shateMUrl;
+  const url: string | null = armtekUrl ?? shateMUrl ?? autotradeUrl;
   // Кто реально дал картинку. Negative cache (никто не дал) помечаем
-  // shate-m'ом — это последний из опробованных, маркер «прошли всю цепочку».
-  const source = armtekUrl ? "armtek" : shateMUrl ? "shate-m" : "shate-m";
+  // autotrade'ом — это последний из опробованных, маркер «прошли всю цепочку».
+  const source = armtekUrl
+    ? "armtek"
+    : shateMUrl
+      ? "shate-m"
+      : autotradeUrl
+        ? "autotrade"
+        : "autotrade";
 
   await persistCache(brand, article, url, source);
   return url;

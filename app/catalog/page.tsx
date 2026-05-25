@@ -65,16 +65,17 @@ function isFreeText(query: string): boolean {
  * Парсит поисковую строку и определяет — это артикул, пара бренд+артикул,
  * или свободный текст.
  *
- * Эвристика: бренды у автозапчастей почти всегда БЕЗ цифр (Toyota, Bosch,
- * MILES, XYG, DEPO, …), артикулы — ВСЕГДА с цифрами. На этой основе:
- *   - токены без цифр → бренд (склеиваем если их несколько подряд)
- *   - токены с цифрами → части артикула (склеиваем пробелом)
+ * Эвристика: бренд автозапчастей — токен из ТОЛЬКО латинских букв
+ * (Toyota, Bosch, MILES, XYG, DEPO, …). Артикул — всё остальное: токены
+ * с цифрами (KE100, ALSP085, 0986452041) или со спецсимволами (LFW/X,
+ * ST-42510-TA0-A00). У артикула могут быть пробелы внутри (KE100 LFW/X
+ * у XYG-стёкол), мы склеиваем все «не-чисто-буквенные» токены подряд.
  *
  * Примеры:
  *   "ALSP085"            → { article: "ALSP085" }
  *   "MILES ALSP085"      → { article: "ALSP085", brand: "MILES" }
  *   "0986452041 Bosch"   → { article: "0986452041", brand: "Bosch" }
- *   "KE100 LFW/X"        → { article: "KE100 LFW/X" }  (оба с цифрами — один артикул)
+ *   "KE100 LFW/X"        → { article: "KE100 LFW/X" }  (LFW/X со слэшем — часть артикула)
  *   "XYG KE100 LFW/X"    → { article: "KE100 LFW/X", brand: "XYG" }
  *   "MILES SUPER ALSP085"→ { article: "ALSP085", brand: "MILES SUPER" }
  *   "масляный фильтр"    → { isText: true }
@@ -91,11 +92,13 @@ function parseQuery(query: string): {
   const tokens = q.split(/\s+/).filter(Boolean);
   if (tokens.length === 1) return { article: tokens[0], isText: false };
 
-  const hasDigit = (s: string) => /\d/.test(s);
-  const articleTokens = tokens.filter(hasDigit);
-  const brandTokens = tokens.filter((t) => !hasDigit(t));
+  // Бренд = токен из чисто латинских букв (без цифр, без спецсимволов).
+  // Артикул = всё остальное (содержит цифру либо спецсимвол - / _ . и т.п.).
+  const isPureLetters = (s: string) => /^[a-zA-Z]+$/.test(s);
+  const articleTokens = tokens.filter((t) => !isPureLetters(t));
+  const brandTokens = tokens.filter(isPureLetters);
 
-  // Нет токенов с цифрами — точно описание/текстовый запрос.
+  // Совсем нет «не-буквенных» токенов — это слова, ищем как текст.
   if (articleTokens.length === 0) return { isText: true };
 
   const article = articleTokens.join(" ");

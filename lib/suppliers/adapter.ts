@@ -106,6 +106,12 @@ export function groupOffers(
   const groups = new Map<string, SupplierGroup>();
 
   for (const item of items) {
+    // Защита от «пустых» оферов от поставщиков: цена или остаток ≤ 0 —
+    // нечего выставлять. Иначе один такой offer обнуляет minPrice
+    // на карточке поиска.
+    if (!Number.isFinite(item.price) || item.price <= 0) continue;
+    if (!Number.isFinite(item.stock) || item.stock <= 0) continue;
+
     const brand = (item.brand || "").trim();
     const key = `${item.article.toLowerCase()}|${brand.toLowerCase()}`;
 

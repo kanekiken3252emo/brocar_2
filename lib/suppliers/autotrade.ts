@@ -198,12 +198,14 @@ export class AutotradeAdapter implements SupplierAdapter {
     }
     if (!params.article) return [];
 
-    // getStocksAndPrices принимает структуру: items[article][brand] = quantity.
-    // Если бренда нет — используем wildcard "*", но API такое не понимает.
-    // Без бренда лучше идти через getItemsByQuery. Здесь же — обязательная пара.
+    // getStocksAndPrices принимает структуру: items[article][brand] = quantity
+    // и требует обязательную пару артикул+бренд. Без бренда — пропускаем,
+    // иначе пришлось бы возвращать заглушки с price=0/stock=0, которые
+    // ломают minPrice на карточках поиска без указания бренда.
+    // (Поиск картинок без бренда работает через отдельный метод
+    // getProductImageUrl → getItemsByQuery, ему бренд не обязателен.)
     if (!params.brand) {
-      // Без бренда — отдельный путь через getItemsByQuery (нестрого, фильтр потом).
-      return this.searchByQuery(params.article);
+      return [];
     }
 
     const data = await this.call<AutotradeStocksAndPricesResponse>(
@@ -222,64 +224,6 @@ export class AutotradeAdapter implements SupplierAdapter {
     if (!data?.items) return [];
 
     return this.flattenStocksAndPrices(data.items, params);
-  }
-
-  /**
-   * Поиск по произвольной строке через getItemsByQuery с включёнными
-   * остатками/ценами. Используется когда бренд не известен.
-   * Возвращает только товары с положительной ценой и остатком.
-   */
-  private async searchByQuery(query: string): Promise<SupplierItem[]> {
-    const data = await this.call<AutotradeItemsByQueryResponse>(
-      "getItemsByQuery",
-      {
-        q: [query],
-        strict: 1,
-        with_stocks_and_prices: 1,
-        with_delivery: 1,
-        limit: 20,
-        // отключаем шум: ни кроссов, ни сопутки, ни «деталей в составе».
-        replace: 0,
-        cross: 0,
-        related: 0,
-        component: 0,
-      }
-    );
-
-    const items = data?.items ?? [];
-    if (items.length === 0) return [];
-
-    // У getItemsByQuery нет structured stocks/price — поля приходят в
-    // зависимости от with_stocks_and_prices, но в публичной доке поля
-    // не описаны явно. Если в ответе есть price/quantity — берём.
-    // Иначе возвращаем пустой список (как заглушку), пусть основной
-    // путь идёт через getStocksAndPrices при известном бренде.
-    const results: SupplierItem[] = [];
-    for (const it of items) {
-      const article = it.article ?? "";
-      const brand = it.brand_name ?? "";
-      if (!article || !brand) continue;
-      // Поля цены/остатка не гарантированы в getItemsByQuery —
-      // ограничиваемся метаданными для tryAutotrade (картинка),
-      // а реальный поиск офферов делает adapter.search через
-      // getStocksAndPrices, когда у нас есть бренд.
-      results.push({
-        article,
-        brand,
-        name: it.name ?? "",
-        price: 0,
-        stock: 0,
-        supplier: "Autotrade",
-        supplierCode: "autotrade",
-        deliveryDays: null,
-        raw: {
-          inside_id_in: it.inside_id_in,
-          photo: it.photo,
-          country_of_origin: it.country_of_origin,
-        },
-      });
-    }
-    return results;
   }
 
   /**

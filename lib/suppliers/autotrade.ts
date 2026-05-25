@@ -198,14 +198,12 @@ export class AutotradeAdapter implements SupplierAdapter {
     }
     if (!params.article) return [];
 
-    // getStocksAndPrices принимает структуру: items[article][brand] = quantity
-    // и требует обязательную пару артикул+бренд. Без бренда — пропускаем,
-    // иначе пришлось бы возвращать заглушки с price=0/stock=0, которые
-    // ломают minPrice на карточках поиска без указания бренда.
-    // (Поиск картинок без бренда работает через отдельный метод
-    // getProductImageUrl → getItemsByQuery, ему бренд не обязателен.)
+    // Без бренда — сначала находим возможные пары (article, brand) через
+    // getItemsByQuery, потом для каждой делаем getStocksAndPrices. Это
+    // позволяет показывать Autotrade в выдаче когда пользователь ищет
+    // только по артикулу (например ввёл строку без пробела).
     if (!params.brand) {
-      return [];
+      return this.searchAllBrandsForArticle(params.article);
     }
 
     const data = await this.call<AutotradeStocksAndPricesResponse>(
@@ -224,6 +222,54 @@ export class AutotradeAdapter implements SupplierAdapter {
     if (!data?.items) return [];
 
     return this.flattenStocksAndPrices(data.items, params);
+  }
+
+  /**
+   * Поиск без указанного бренда: находим все уникальные (article, brand)
+   * через getItemsByQuery (strict=1), затем для каждой пары запрашиваем
+   * остатки и цены через getStocksAndPrices.
+   *
+   * Ограничиваем 5 первыми уникальными парами — больше не имеет смысла
+   * (5 секунд лимита на throttle и searchAllSuppliers timeout = 8с).
+   */
+  private async searchAllBrandsForArticle(
+    article: string
+  ): Promise<SupplierItem[]> {
+    const searchData = await this.call<AutotradeItemsByQueryResponse>(
+      "getItemsByQuery",
+      {
+        q: [article],
+        strict: 1,
+        replace: 0,
+        cross: 0,
+        related: 0,
+        component: 0,
+        limit: 20,
+      }
+    );
+
+    const items = searchData?.items ?? [];
+    if (items.length === 0) return [];
+
+    // Уникальные пары article+brand из ответа поиска.
+    const uniquePairs = new Map<string, { article: string; brand: string }>();
+    for (const it of items) {
+      const a = it.article;
+      const b = it.brand_name;
+      if (!a || !b) continue;
+      const key = `${a}|${b}`.toLowerCase();
+      if (!uniquePairs.has(key)) uniquePairs.set(key, { article: a, brand: b });
+      if (uniquePairs.size >= 5) break;
+    }
+
+    if (uniquePairs.size === 0) return [];
+
+    const allItems: SupplierItem[] = [];
+    for (const pair of uniquePairs.values()) {
+      const result = await this.search(pair);
+      allItems.push(...result);
+    }
+    return allItems;
   }
 
   /**

@@ -75,7 +75,13 @@ const PATTERNS: CategoryPattern[] = [
   // Охлаждение
   {
     slug: "coolants",
-    keywords: ["антифриз", "охлаждающ", "coolant", "тосол", "g11", "g12", "g13"],
+    keywords: [
+      "антифриз",
+      "тосол",
+      "coolant",
+      "охлаждающая жидкост",
+      "жидкость охлаждающ",
+    ],
   },
   { slug: "thermostats", keywords: ["термостат"] },
   { slug: "radiators", keywords: ["радиатор охлажд", "радиатор системы охлажд"] },

@@ -44,19 +44,32 @@ export default function BrandCatalogDropdown({ isOpen, onClose }: BrandCatalogDr
         onClick={onClose}
       />
 
-      {/* Dropdown Panel */}
-      <div className="absolute left-0 right-0 top-full bg-neutral-900 border-t border-neutral-800 shadow-2xl z-50 animate-slide-down">
-        <div className="container mx-auto px-4 py-8">
-          {/* Close Button */}
+      {/* Dropdown Panel — fullscreen on mobile (scrollable), dropdown on desktop */}
+      <div className="fixed inset-0 lg:absolute lg:inset-auto lg:left-0 lg:right-0 lg:top-full bg-neutral-900 border-t border-neutral-800 shadow-2xl z-50 animate-slide-down flex flex-col">
+        {/* Sticky header with title + close (mobile-only); on desktop title is inside scrollable area */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-neutral-800 lg:hidden">
+          <h3 className="text-xl font-bold text-white">Выберите марку автомобиля</h3>
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors"
+            className="p-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors"
+            aria-label="Закрыть"
+          >
+            <X className="w-5 h-5 text-neutral-400" />
+          </button>
+        </div>
+
+        <div className="container mx-auto px-4 py-6 lg:py-8 overflow-y-auto flex-1 overscroll-contain">
+          {/* Desktop close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors hidden lg:block"
+            aria-label="Закрыть"
           >
             <X className="w-5 h-5 text-neutral-400" />
           </button>
 
-          {/* Title */}
-          <h3 className="text-xl font-bold text-white mb-8">
+          {/* Desktop title */}
+          <h3 className="text-xl font-bold text-white mb-8 hidden lg:block">
             Выберите марку автомобиля
           </h3>
 

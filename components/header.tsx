@@ -97,7 +97,7 @@ export function Header({ user }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50">
       {/* Top Bar */}
-      <div className="bg-neutral-950 border-b border-neutral-800/50">
+      <div className="bg-neutral-950">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-10 text-sm">
             <div className="hidden md:flex items-center gap-6">
@@ -162,7 +162,7 @@ export function Header({ user }: HeaderProps) {
       </div>
 
       {/* Main Header */}
-      <div className="bg-neutral-900/95 backdrop-blur-xl border-b border-neutral-800/50">
+      <div className="bg-neutral-950 border-b border-neutral-800/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3 md:py-4 gap-3 md:gap-6">
             {/* Logo */}

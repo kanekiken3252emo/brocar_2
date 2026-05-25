@@ -44,16 +44,16 @@ export default function HomePage() {
         <div className="absolute top-20 right-20 w-72 h-72 bg-orange-500/20 rounded-full blur-3xl hidden md:block" />
         <div className="absolute bottom-20 left-20 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl hidden md:block" />
         
-        <div className="container mx-auto px-4 py-10 md:py-20 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-20">
+        <div className="container mx-auto px-4 py-6 md:py-20 relative z-10">
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-20">
             {/* Text Content */}
-            <div className="flex-1 max-w-2xl text-center lg:text-left order-2 lg:order-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-orange-500/10 border border-orange-500/30 rounded-full text-orange-400 text-xs md:text-sm mb-4 md:mb-6">
+            <div className="flex-1 max-w-2xl text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-orange-500/10 border border-orange-500/30 rounded-full text-orange-400 text-xs md:text-sm mb-3 md:mb-6">
                 <Zap className="h-3 w-3 md:h-4 md:w-4" />
                 Более 1 000 000 запчастей в наличии
               </div>
-              
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-4 md:mb-6 leading-tight">
+
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-3 md:mb-6 leading-tight">
                 Качественные
                 <br />
                 <span className="bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
@@ -62,12 +62,12 @@ export default function HomePage() {
                 <br />
                 для вашего авто
               </h1>
-              
-              <p className="text-base md:text-xl text-neutral-400 mb-6 md:mb-8 px-2 md:px-0">
-                Профессиональный поставщик автозапчастей. Поиск по VIN, артикулу или марке автомобиля. Быстрая доставка по всей России.
+
+              <p className="text-sm md:text-xl text-neutral-400 mb-4 md:mb-8 px-2 md:px-0">
+                Поиск по VIN, артикулу или марке. Быстрая доставка по всей России.
               </p>
-              
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start px-4 sm:px-0">
+
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-4 justify-center lg:justify-start px-2 sm:px-0">
                 <Link href="/catalog" className="w-full sm:w-auto">
                   <Button size="lg" className="group w-full sm:w-auto">
                     Перейти в каталог
@@ -81,10 +81,10 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-            
-            {/* Logo - smaller on mobile, shown first */}
-            <div className="relative flex-shrink-0 order-1 lg:order-2">
-              <div className="relative w-40 h-40 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-96 lg:h-96">
+
+            {/* Logo - hidden on mobile (already shown in header), visible from lg up */}
+            <div className="relative flex-shrink-0 hidden lg:block">
+              <div className="relative lg:w-96 lg:h-96">
                 {/* Glow effect behind logo */}
                 <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-3xl scale-110" />
                 <div className="absolute inset-4 bg-orange-500/10 rounded-full blur-2xl" />
@@ -193,7 +193,7 @@ export default function HomePage() {
                     alt="Тормозные жидкости"
                     width={200}
                     height={200}
-                    className="h-24 md:h-40 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-28 md:h-40 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <h3 className="text-sm md:text-base font-semibold text-neutral-800 text-center mt-2">
@@ -203,21 +203,21 @@ export default function HomePage() {
             </Link>
 
             <Link href="/catalog?category=engine-oils" className="group md:col-span-2">
-              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-amber-50 to-orange-50 flex items-center px-4 md:px-8">
-                <div className="flex-1 flex items-center justify-center">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-amber-50 to-orange-50 flex flex-col md:flex-row items-center justify-center p-4 md:px-8">
+                <div className="flex-1 flex items-center justify-center min-h-0 w-full">
                   <Image
                     src="/motornie-masla.png"
                     alt="Моторные масла"
                     width={400}
                     height={300}
-                    className="h-28 md:h-44 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-24 md:h-44 w-auto max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
-                <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-lg md:text-2xl font-bold text-neutral-800 mb-1">
+                <div className="md:flex-1 text-center md:text-left mt-1 md:mt-0">
+                  <h3 className="text-sm md:text-2xl font-bold text-neutral-800 mb-0.5 md:mb-1">
                     Моторные масла
                   </h3>
-                  <p className="text-neutral-500 text-xs md:text-sm">Castrol, Toyota, Shell, Mobil</p>
+                  <p className="text-neutral-500 text-[11px] md:text-sm">Castrol, Toyota, Shell, Mobil</p>
                 </div>
               </div>
             </Link>
@@ -246,14 +246,14 @@ export default function HomePage() {
           {/* Row 3 — Accessories + sidebar + Tires & Wheels */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-4 md:mb-5">
             <Link href="/catalog?category=accessories" className="group md:col-span-1">
-              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-violet-600 to-purple-800 flex flex-col items-center justify-center p-4">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-teal-600 to-teal-800 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
-                    src="/autobox-top.png"
+                    src="/accessories.png"
                     alt="Аксессуары"
                     width={300}
-                    height={200}
-                    className="h-20 md:h-32 w-auto object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-300"
+                    height={300}
+                    className="h-28 md:h-32 w-auto object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <h3 className="text-sm md:text-lg font-bold text-white text-center mt-2">
@@ -286,33 +286,33 @@ export default function HomePage() {
               ))}
             </div>
 
-            <Link href="/catalog?category=wheels" className="group">
+            <Link href="/catalog?category=shock-absorbers" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
-                    src="/shina-png1.png"
-                    alt="Шины"
+                    src="/amortizator-home.png"
+                    alt="Амортизаторы"
                     width={250}
                     height={250}
-                    className="h-24 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-32 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
-                <h3 className="text-sm md:text-lg font-bold text-neutral-800 text-center mt-2">Шины</h3>
+                <h3 className="text-sm md:text-lg font-bold text-neutral-800 text-center mt-2">Амортизаторы</h3>
               </div>
             </Link>
 
-            <Link href="/catalog?category=wheels" className="group">
+            <Link href="/catalog?category=air-filters" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
-                    src="/litoi-disk.png"
-                    alt="Диски"
+                    src="/filtr-home.png"
+                    alt="Воздушные фильтры"
                     width={250}
                     height={250}
-                    className="h-24 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-32 md:h-36 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
-                <h3 className="text-sm md:text-lg font-bold text-neutral-800 text-center mt-2">Диски</h3>
+                <h3 className="text-sm md:text-lg font-bold text-neutral-800 text-center mt-2">Воздушные фильтры</h3>
               </div>
             </Link>
           </div>
@@ -320,21 +320,21 @@ export default function HomePage() {
           {/* Row 4 — Brake system + Lamps + Battery + Antifreeze */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
             <Link href="/catalog?category=brake-pads" className="group md:col-span-2">
-              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex items-center px-4 md:px-8">
-                <div className="flex-1 flex items-center justify-center">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex flex-col md:flex-row items-center justify-center p-4 md:px-8">
+                <div className="flex-1 flex items-center justify-center min-h-0 w-full">
                   <Image
                     src="/kolodki-i-disk.png"
                     alt="Тормозная система"
                     width={350}
                     height={250}
-                    className="h-28 md:h-40 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-28 md:h-40 w-auto max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
-                <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-lg md:text-2xl font-bold text-neutral-800 mb-1">
+                <div className="md:flex-1 text-center md:text-left mt-1 md:mt-0">
+                  <h3 className="text-sm md:text-2xl font-bold text-neutral-800 mb-0.5 md:mb-1">
                     Тормозная система
                   </h3>
-                  <p className="text-neutral-500 text-xs md:text-sm">Диски, колодки, суппорты</p>
+                  <p className="text-neutral-500 text-[11px] md:text-sm">Диски, колодки, суппорты</p>
                 </div>
               </div>
             </Link>
@@ -347,7 +347,7 @@ export default function HomePage() {
                     alt="Лампы"
                     width={200}
                     height={200}
-                    className="h-20 md:h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-28 md:h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <h3 className="text-sm md:text-base font-semibold text-neutral-800 text-center mt-2">Лампы</h3>
@@ -355,14 +355,14 @@ export default function HomePage() {
             </Link>
 
             <Link href="/catalog?category=batteries" className="group">
-              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-rose-400 to-rose-500 flex flex-col items-center justify-center p-4">
+              <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-teal-600 to-teal-800 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
                     src="/akkumulyatorr1.png"
                     alt="Аккумуляторы"
                     width={200}
                     height={200}
-                    className="h-20 md:h-32 w-auto object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-300"
+                    className="h-36 md:h-40 w-auto object-contain drop-shadow-lg group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <h3 className="text-sm md:text-base font-bold text-white text-center mt-2">Аккумуляторы</h3>
@@ -376,7 +376,7 @@ export default function HomePage() {
                     alt="Охлаждающие жидкости"
                     width={200}
                     height={200}
-                    className="h-20 md:h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                    className="h-28 md:h-32 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <h3 className="text-xs md:text-base font-semibold text-neutral-800 text-center mt-2">Охлаждающие жидкости</h3>

@@ -31,20 +31,29 @@ export function Footer() {
 
   return (
     <footer className="bg-neutral-950 border-t border-neutral-800/50 mt-auto">
-      {/* Main Footer */}
-      <div className="container mx-auto px-4 py-8 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
-          {/* Company Info */}
-          <div className="col-span-2 md:col-span-2 lg:col-span-1">
-            <Link href="/" className="inline-block mb-4 md:mb-6 max-w-full">
+      {/* Centered Logo */}
+      <div className="container mx-auto px-4 pt-10 md:pt-16 pb-2 md:pb-4 flex justify-center">
+        <Link href="/" className="inline-block group">
+          <div className="relative w-28 h-28 md:w-36 md:h-36">
+            <div className="absolute inset-0 bg-orange-500/15 rounded-full blur-2xl scale-110" />
+            <div className="relative w-full h-full rounded-full bg-black ring-1 ring-neutral-800 overflow-hidden flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
               <Image
                 src="/brocar.webp"
                 alt="BroCar"
                 width={1106}
                 height={1106}
-                className="h-11 sm:h-12 md:h-14 w-auto max-w-full aspect-square object-contain object-left drop-shadow-md"
+                className="w-full h-full object-contain"
               />
-            </Link>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* Main Footer */}
+      <div className="container mx-auto px-4 pt-6 md:pt-8 pb-8 md:pb-16">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
+          {/* Company Info */}
+          <div className="col-span-2 md:col-span-2 lg:col-span-1">
             <p className="text-neutral-400 mb-4 md:mb-6 leading-relaxed text-sm md:text-base">
               Профессиональный поставщик автозапчастей. Широкий ассортимент качественных деталей.
             </p>
@@ -170,12 +179,9 @@ export function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-neutral-800/50">
         <div className="container mx-auto px-4 py-4 md:py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+          <div className="flex items-center justify-center">
             <p className="text-neutral-500 text-xs md:text-sm">
               © {currentYear} BroCar. Все права защищены.
-            </p>
-            <p className="text-neutral-600 text-xs md:text-sm">
-              Разработано с <span className="text-orange-500">♥</span> для автолюбителей
             </p>
           </div>
         </div>

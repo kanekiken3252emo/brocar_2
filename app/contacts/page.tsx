@@ -265,11 +265,11 @@ export default function ContactsPage() {
                 >
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
                     <NextImage
-                      src="/2gis-footer-logo.png"
+                      src="/2gis-footer.webp"
                       alt="2ГИС"
                       width={48}
                       height={48}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                   <div>

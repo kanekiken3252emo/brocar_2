@@ -40,7 +40,7 @@ const PATTERNS = [
   { slug: "brake-discs", keywords: ["диск тормозн","тормозной диск"] },
   { slug: "brake-fluids", keywords: ["жидкость тормозн","тормозная жидкость","brake fluid","dot 3","dot-3","dot 4","dot-4","dot 5","dot-5"] },
   { slug: "brake-hoses", keywords: ["шланг тормозн","тормозной шланг"] },
-  { slug: "coolants", keywords: ["антифриз","охлаждающ","coolant","тосол","g11","g12","g13"] },
+  { slug: "coolants", keywords: ["антифриз","тосол","coolant","охлаждающая жидкост","жидкость охлаждающ"] },
   { slug: "thermostats", keywords: ["термостат"] },
   { slug: "radiators", keywords: ["радиатор охлажд","радиатор системы охлажд"] },
   { slug: "water-pumps", keywords: ["насос водян","помпа"] },

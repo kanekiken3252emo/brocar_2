@@ -376,11 +376,28 @@ export class ShateMAdapter implements SupplierAdapter {
       });
 
       const data = articleResp.data;
-      const articles: ShateArticleSearchItem[] = Array.isArray(data)
+      const allArticles: ShateArticleSearchItem[] = Array.isArray(data)
         ? data
         : data
         ? [data]
         : [];
+
+      // ShATE-M ищет по подстроке: запрос `KE100 LFW/X` + TradeMarkNames=`XYG`
+      // у них может вернуть товар `KE100` бренда MASUMA (clipsa), потому что
+      // TradeMarkNames — это намёк, а не строгий фильтр. Дополнительно жёстко
+      // фильтруем по бренду на нашей стороне (если бренд передан).
+      const articles = params.brand
+        ? allArticles.filter((a) => {
+            const tm = (
+              a.article?.tradeMarkName ||
+              a.tradeMark?.name ||
+              ""
+            )
+              .toLowerCase()
+              .trim();
+            return tm === params.brand!.toLowerCase().trim();
+          })
+        : allArticles;
 
       if (articles.length === 0) return [];
 

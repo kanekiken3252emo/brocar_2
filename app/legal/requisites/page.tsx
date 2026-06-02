@@ -14,8 +14,6 @@ const LEGAL = [
   { label: "Сокращённое наименование", value: "ИП Бакиров Артём Олегович" },
   { label: "ИНН", value: "660308104039" },
   { label: "ОГРНИП", value: "324665800095141" },
-  { label: "Юридический адрес", value: "624270, Свердловская область, г. Асбест, ул. Пархоменко, д. 6, кв. 14" },
-  { label: "Почтовый адрес", value: "620131, Свердловская область, г. Екатеринбург, ул. Крауля, 105/2, кв. 51" },
 ];
 
 const BANK = [
@@ -111,7 +109,7 @@ export default function RequisitesPage() {
                 </a>
                 <span className="inline-flex items-start gap-2 text-neutral-400">
                   <MapPin className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
-                  г. Екатеринбург, ул. Крауля, 105/2
+                  г. Екатеринбург, ул. Заводская, 16
                 </span>
               </div>
             </CardContent>

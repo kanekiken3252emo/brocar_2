@@ -151,6 +151,7 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-3 md:mb-6 text-sm md:text-lg">Правовая информация</h4>
             <ul className="space-y-2 md:space-y-3 mb-4 md:mb-0">
               {[
+                { name: "Реквизиты", href: "/legal/requisites" },
                 { name: "Политика конфиденциальности", href: "/legal/privacy" },
                 { name: "Условия использования", href: "/legal/terms" },
                 { name: "Cookie-файлы", href: "/legal/cookies" },
@@ -179,9 +180,15 @@ export function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-neutral-800/50">
         <div className="container mx-auto px-4 py-4 md:py-6">
-          <div className="flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center gap-1 text-center">
             <p className="text-neutral-500 text-xs md:text-sm">
               © {currentYear} BroCar. Все права защищены.
+            </p>
+            <p className="text-neutral-600 text-xs">
+              ИП Бакиров Артём Олегович · ИНН 660308104039 · ОГРНИП 324665800095141 ·{" "}
+              <Link href="/legal/requisites" className="hover:text-orange-500 transition-colors">
+                Реквизиты
+              </Link>
             </p>
           </div>
         </div>

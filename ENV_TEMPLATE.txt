@@ -69,6 +69,14 @@ PAYMENT_SEND_RECEIPT=false
 # PAYMENT_VAT_CODE=1            # код ставки НДС (1 = без НДС)
 # PAYMENT_TAX_SYSTEM_CODE=2    # система налогообложения (1=ОСН, 2=УСН доход, ...)
 
+# SMTP — уведомления о заказах на почту (почта домена, напр. Beget)
+SMTP_HOST=smtp.beget.com
+SMTP_PORT=465
+SMTP_USER=info@вашдомен.ru
+SMTP_PASSWORD=пароль_от_почтового_ящика
+MAIL_FROM=info@вашдомен.ru
+ORDER_NOTIFICATION_EMAIL=info@вашдомен.ru
+
 # Node Environment
 NODE_ENV=development
 

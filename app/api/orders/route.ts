@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { carts, cartItems, orders, orderItems } from "@/lib/db/schema";
+import { carts, cartItems, orders, orderItems, profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
+import { sendOrderNotification } from "@/lib/email";
 
 /**
  * Создаёт заказ из корзины текущего пользователя.
@@ -70,6 +71,31 @@ export async function POST() {
 
     // Очищаем корзину
     await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+
+    // Уведомление магазину на почту. Сбой отправки не должен ломать заказ —
+    // заказ уже создан, поэтому ошибки письма только логируем.
+    try {
+      const profile = await db.query.profiles.findFirst({
+        where: eq(profiles.id, user.id),
+      });
+
+      await sendOrderNotification({
+        orderId: order.id,
+        total,
+        customerEmail: user.email ?? profile?.email ?? "—",
+        customerName: profile?.fullName,
+        customerPhone: profile?.phone,
+        items: cart.items.map((item) => ({
+          name: item.product.name,
+          article: item.product.article,
+          brand: item.product.brand,
+          qty: item.qty,
+          price: item.product.ourPrice,
+        })),
+      });
+    } catch (mailError) {
+      console.error("Order notification email failed:", mailError);
+    }
 
     return NextResponse.json({ orderId: order.id, total });
   } catch (error) {

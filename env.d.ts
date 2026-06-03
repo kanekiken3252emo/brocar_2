@@ -20,6 +20,13 @@ declare global {
       NEXT_PUBLIC_SITE_NAME: string;
       NEXT_PUBLIC_SITE_DOMAIN: string;
       CRON_SECRET_TOKEN?: string;
+      // SMTP для уведомлений о заказах (почта домена на Beget)
+      SMTP_HOST?: string;
+      SMTP_PORT?: string;
+      SMTP_USER?: string;
+      SMTP_PASSWORD?: string;
+      MAIL_FROM?: string;
+      ORDER_NOTIFICATION_EMAIL?: string;
     }
   }
 }

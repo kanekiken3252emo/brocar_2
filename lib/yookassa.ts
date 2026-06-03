@@ -34,6 +34,9 @@ export interface ReceiptItem {
   quantity: string; // "1.00"
   amount: { value: string; currency: "RUB" };
   vat_code: number; // ставка НДС (см. ЛК ЮKassa). 1 = без НДС
+  // Обязательны при включённой фискализации («Чеки от ЮKassa»):
+  payment_subject: string; // предмет расчёта: "commodity" = товар
+  payment_mode: string; // способ расчёта: "full_payment" = полный расчёт
 }
 
 export interface Receipt {

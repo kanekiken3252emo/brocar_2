@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { carts, cartItems, orders, orderItems, profiles } from "@/lib/db/schema";
+import { carts, orders, orderItems, profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { sendOrderNotification } from "@/lib/email";
@@ -69,8 +69,9 @@ export async function POST() {
       }))
     );
 
-    // Очищаем корзину
-    await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+    // Корзину НЕ очищаем здесь — иначе при неудачной оплате покупатель
+    // останется с пустой корзиной и не сможет повторить. Чистим её в вебхуке
+    // после успешной оплаты (status = paid).
 
     // Уведомление магазину на почту. Сбой отправки не должен ломать заказ —
     // заказ уже создан, поэтому ошибки письма только логируем.

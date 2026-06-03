@@ -78,6 +78,8 @@ export async function POST(request: NextRequest) {
             currency: "RUB",
           },
           vat_code: vatCode,
+          payment_subject: "commodity", // товар
+          payment_mode: "full_payment", // полный расчёт
         })),
       };
     }

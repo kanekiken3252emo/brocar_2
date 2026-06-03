@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { orders, carts, cartItems } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getPayment } from "@/lib/yookassa";
 
@@ -41,11 +41,22 @@ export async function POST(request: NextRequest) {
     const orderIdNum = parseInt(orderId, 10);
 
     if (payment.status === "succeeded" && payment.paid) {
-      await db
+      const [paidOrder] = await db
         .update(orders)
         .set({ status: "paid", paymentId: payment.id })
-        .where(eq(orders.id, orderIdNum));
+        .where(eq(orders.id, orderIdNum))
+        .returning();
       console.log(`Order ${orderIdNum} marked as paid (${payment.id})`);
+
+      // Очищаем корзину покупателя только после успешной оплаты.
+      if (paidOrder?.userId) {
+        const cart = await db.query.carts.findFirst({
+          where: eq(carts.userId, paidOrder.userId),
+        });
+        if (cart) {
+          await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+        }
+      }
     } else if (payment.status === "canceled") {
       await db
         .update(orders)

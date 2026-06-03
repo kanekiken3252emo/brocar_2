@@ -77,6 +77,9 @@ SMTP_PASSWORD=пароль_от_почтового_ящика
 MAIL_FROM=info@вашдомен.ru
 ORDER_NOTIFICATION_EMAIL=info@вашдомен.ru
 
+# Администраторы магазина (доступ к /admin/orders) — через запятую
+ADMIN_EMAILS=info@вашдомен.ru
+
 # Node Environment
 NODE_ENV=development
 

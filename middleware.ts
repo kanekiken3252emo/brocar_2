@@ -36,8 +36,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes
-  const protectedPaths = ["/dashboard"];
+  // Protected routes (требуют входа; админ-права проверяются на самой странице)
+  const protectedPaths = ["/dashboard", "/admin"];
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );

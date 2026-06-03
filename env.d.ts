@@ -27,6 +27,8 @@ declare global {
       SMTP_PASSWORD?: string;
       MAIL_FROM?: string;
       ORDER_NOTIFICATION_EMAIL?: string;
+      // Email'ы администраторов магазина (через запятую) — доступ к /admin
+      ADMIN_EMAILS?: string;
     }
   }
 }

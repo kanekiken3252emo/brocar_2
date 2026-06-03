@@ -1,37 +1,26 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db";
+import { orders as ordersTable } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
+import { orderStatusMeta, isInProgress } from "@/lib/order-status";
+import { isAdmin } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
-import { ShoppingBag, User, Settings, Clock, Package, ArrowRight } from "lucide-react";
-
-async function getOrders(userId: string) {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_DOMAIN || "http://localhost:3000"}/api/order`,
-      {
-        headers: {
-          Cookie: `sb-access-token=${userId}`,
-        },
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const data = await response.json();
-    return data.orders || [];
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    return [];
-  }
-}
+import {
+  ShoppingBag,
+  User,
+  Settings,
+  Clock,
+  Package,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
 
 export default async function DashboardPage() {
   const user = await getUser();
@@ -51,7 +40,15 @@ export default async function DashboardPage() {
   const displayName =
     profile?.full_name?.trim() || user.email?.split("@")[0] || "Пользователь";
 
-  const orders: any[] = [];
+  // Реальные заказы пользователя из БД
+  const orders = await db.query.orders.findMany({
+    where: eq(ordersTable.userId, user.id),
+    orderBy: [desc(ordersTable.createdAt)],
+  });
+
+  const inProgressCount = orders.filter((o) => isInProgress(o.status)).length;
+  const shippingCount = orders.filter((o) => o.status === "shipped").length;
+  const userIsAdmin = isAdmin(user);
 
   return (
     <div className="min-h-screen bg-neutral-950">
@@ -66,6 +63,14 @@ export default async function DashboardPage() {
               </p>
             </div>
             <div className="flex gap-3">
+              {userIsAdmin && (
+                <Link href="/admin/orders">
+                  <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
+                    <ShieldCheck className="h-4 w-4" />
+                    Админка
+                  </Button>
+                </Link>
+              )}
               <Link href="/profile">
                 <Button variant="outline" className="gap-2">
                   <Settings className="h-4 w-4" />
@@ -104,7 +109,7 @@ export default async function DashboardPage() {
                     <Package className="h-6 w-6 text-green-500" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-white">0</p>
+                    <p className="text-2xl font-bold text-white">{inProgressCount}</p>
                     <p className="text-neutral-400 text-sm">В обработке</p>
                   </div>
                 </div>
@@ -118,7 +123,7 @@ export default async function DashboardPage() {
                     <Clock className="h-6 w-6 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-white">0</p>
+                    <p className="text-2xl font-bold text-white">{shippingCount}</p>
                     <p className="text-neutral-400 text-sm">Доставляется</p>
                   </div>
                 </div>
@@ -153,7 +158,7 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {orders.map((order: any) => (
+                  {orders.map((order) => (
                     <div
                       key={order.id}
                       className="bg-neutral-800/50 border border-neutral-700 rounded-xl p-4 hover:border-orange-500/50 transition-all"
@@ -171,16 +176,8 @@ export default async function DashboardPage() {
                           <p className="font-semibold text-white">
                             {formatPrice(order.total)}
                           </p>
-                          <Badge
-                            variant={
-                              order.status === "paid"
-                                ? "success"
-                                : order.status === "canceled"
-                                ? "destructive"
-                                : "secondary"
-                            }
-                          >
-                            {order.status}
+                          <Badge variant={orderStatusMeta(order.status).variant}>
+                            {orderStatusMeta(order.status).label}
                           </Badge>
                         </div>
                       </div>

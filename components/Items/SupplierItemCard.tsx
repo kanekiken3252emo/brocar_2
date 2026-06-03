@@ -91,7 +91,11 @@ export default function SupplierItemCard({
             {group.minDeliveryDays != null && (
               <div className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                <span>от {group.minDeliveryDays} дн.</span>
+                <span>
+                  {group.minDeliveryDays === 0
+                    ? "сегодня"
+                    : `от ${group.minDeliveryDays} дн.`}
+                </span>
               </div>
             )}
             <div className="flex items-center gap-1">

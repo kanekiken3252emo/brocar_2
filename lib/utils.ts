@@ -19,6 +19,17 @@ export function formatPrice(price: number | string): string {
 }
 
 /**
+ * Срок доставки в днях → человекочитаемая строка.
+ * 0 → «сегодня», 1 → «завтра», иначе «N дн.», null → «уточн.».
+ */
+export function formatDeliveryDays(days: number | null | undefined): string {
+  if (days == null) return "уточн.";
+  if (days === 0) return "сегодня";
+  if (days === 1) return "завтра";
+  return `${days} дн.`;
+}
+
+/**
  * Server-side fetch wrapper with timeout
  */
 export async function fetchWithTimeout(

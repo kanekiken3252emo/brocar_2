@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ProductImage from "@/components/Items/ProductImage";
+import { formatDeliveryDays } from "@/lib/utils";
 import {
   ArrowLeft,
   Package,
@@ -319,7 +320,7 @@ export default function ProductPage() {
                     </div>
                     <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
                       <span>{offer.quantity} шт.</span>
-                      <span>{offer.average_period} дн.</span>
+                      <span>{formatDeliveryDays(offer.average_period)}</span>
                       <span className="inline-flex items-center gap-1">
                         <span className={`w-2 h-2 rounded-full ${
                           offer.reliability >= 90 ? "bg-green-500" : offer.reliability >= 70 ? "bg-yellow-500" : "bg-red-500"
@@ -390,7 +391,7 @@ export default function ProductPage() {
                           {offer.price.toLocaleString("ru-RU")} ₽
                         </td>
                         <td className="px-6 py-4 text-sm text-neutral-300">
-                          {offer.average_period} дн.
+                          {formatDeliveryDays(offer.average_period)}
                           {offer.is_transit && (
                             <span className="ml-2 text-xs text-orange-400">(в пути)</span>
                           )}

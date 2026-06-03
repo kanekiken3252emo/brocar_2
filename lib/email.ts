@@ -22,6 +22,11 @@ export interface OrderEmailData {
   customerEmail: string;
   customerName?: string | null;
   customerPhone?: string | null;
+  contactEmail?: string | null;
+  telegram?: string | null;
+  whatsapp?: string | null;
+  vk?: string | null;
+  maxMessenger?: string | null;
   items: OrderEmailItem[];
 }
 
@@ -82,13 +87,25 @@ export async function sendOrderNotification(data: OrderEmailData): Promise<void>
     )
     .join("");
 
+  // Мессенджеры для связи — показываем только заполненные
+  const messengers: string[] = [];
+  if (data.telegram) messengers.push(`Telegram: ${esc(data.telegram)}`);
+  if (data.whatsapp) messengers.push(`WhatsApp: ${esc(data.whatsapp)}`);
+  if (data.maxMessenger) messengers.push(`MAX: ${esc(data.maxMessenger)}`);
+  if (data.vk) messengers.push(`ВКонтакте: ${esc(data.vk)}`);
+  const messengersHtml = messengers.length
+    ? `<p style="margin:4px 0"><b>Мессенджеры:</b> ${messengers.join(" · ")}</p>`
+    : "";
+
   const html = `
   <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#222">
     <h2 style="color:#ea580c">Новый заказ №${data.orderId}</h2>
     <p style="margin:4px 0"><b>Сумма:</b> ${formatRub(data.total)}</p>
     <p style="margin:4px 0"><b>Покупатель:</b> ${esc(data.customerName ?? "—")}</p>
-    <p style="margin:4px 0"><b>Email:</b> ${esc(data.customerEmail)}</p>
     <p style="margin:4px 0"><b>Телефон:</b> ${esc(data.customerPhone ?? "—")}</p>
+    <p style="margin:4px 0"><b>Почта для связи:</b> ${esc(data.contactEmail || data.customerEmail)}</p>
+    <p style="margin:4px 0"><b>Email аккаунта:</b> ${esc(data.customerEmail)}</p>
+    ${messengersHtml}
 
     <table style="border-collapse:collapse;width:100%;margin-top:16px;font-size:14px">
       <thead>

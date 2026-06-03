@@ -91,10 +91,10 @@ export default function HomePage() {
                 
                 {/* Logo */}
                 <Image
-                  src="/brocar.webp"
+                  src="/Logo_Brocar.webp"
                   alt="BroCar"
-                  width={1106}
-                  height={1106}
+                  width={1200}
+                  height={1200}
                   sizes="(max-width: 640px) 160px, (max-width: 768px) 224px, (max-width: 1024px) 288px, 384px"
                   className="w-full h-full object-contain object-center relative z-10 drop-shadow-2xl"
                   priority

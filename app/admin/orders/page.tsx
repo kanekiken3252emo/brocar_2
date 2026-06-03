@@ -41,6 +41,11 @@ export default async function AdminOrdersPage() {
         email: p?.email ?? null,
         fullName: p?.fullName ?? null,
         phone: p?.phone ?? null,
+        contactEmail: p?.contactEmail ?? null,
+        telegram: p?.telegram ?? null,
+        whatsapp: p?.whatsapp ?? null,
+        vk: p?.vk ?? null,
+        maxMessenger: p?.maxMessenger ?? null,
       },
       items: o.items.map((it) => ({
         id: it.id,

@@ -20,6 +20,12 @@ export const profiles = pgTable("profiles", {
   fullName: text("full_name"),
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
+  // Контактные данные для связи (заполняются при первом заказе)
+  contactEmail: text("contact_email"),
+  telegram: text("telegram"),
+  whatsapp: text("whatsapp"),
+  vk: text("vk"),
+  maxMessenger: text("max_messenger"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

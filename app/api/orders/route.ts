@@ -86,6 +86,11 @@ export async function POST() {
         customerEmail: user.email ?? profile?.email ?? "—",
         customerName: profile?.fullName,
         customerPhone: profile?.phone,
+        contactEmail: profile?.contactEmail,
+        telegram: profile?.telegram,
+        whatsapp: profile?.whatsapp,
+        vk: profile?.vk,
+        maxMessenger: profile?.maxMessenger,
         items: cart.items.map((item) => ({
           name: item.product.name,
           article: item.product.article,

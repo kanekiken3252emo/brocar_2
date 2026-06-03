@@ -16,12 +16,22 @@ interface Profile {
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  contact_email: string | null;
+  telegram: string | null;
+  whatsapp: string | null;
+  vk: string | null;
+  max_messenger: string | null;
 }
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [telegram, setTelegram] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [vk, setVk] = useState("");
+  const [maxMsg, setMaxMsg] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -53,6 +63,11 @@ export default function ProfilePage() {
       setProfile(data.profile);
       setFullName(data.profile.full_name || "");
       setPhone(data.profile.phone || "");
+      setContactEmail(data.profile.contact_email || "");
+      setTelegram(data.profile.telegram || "");
+      setWhatsapp(data.profile.whatsapp || "");
+      setVk(data.profile.vk || "");
+      setMaxMsg(data.profile.max_messenger || "");
     } catch (err) {
       console.error("Profile load error:", err);
       setError("Не удалось загрузить профиль");
@@ -76,6 +91,11 @@ export default function ProfilePage() {
         body: JSON.stringify({
           full_name: fullName,
           phone: phone,
+          contact_email: contactEmail || null,
+          telegram: telegram || null,
+          whatsapp: whatsapp || null,
+          vk: vk || null,
+          max_messenger: maxMsg || null,
         }),
       });
 
@@ -197,6 +217,46 @@ export default function ProfilePage() {
                       disabled={isSaving}
                       className="pl-10"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail">Почта для связи</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-500" />
+                    <Input
+                      id="contactEmail"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      disabled={isSaving}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-neutral-800">
+                  <p className="text-sm text-neutral-400 mt-4 mb-3">
+                    Мессенджеры для связи <span className="text-neutral-600">(по желанию)</span>
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="telegram">Telegram</Label>
+                      <Input id="telegram" placeholder="@username" value={telegram} onChange={(e) => setTelegram(e.target.value)} disabled={isSaving} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsapp">WhatsApp</Label>
+                      <Input id="whatsapp" placeholder="+7 (900) 123-45-67" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} disabled={isSaving} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max">MAX</Label>
+                      <Input id="max" placeholder="ник или телефон" value={maxMsg} onChange={(e) => setMaxMsg(e.target.value)} disabled={isSaving} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vk">ВКонтакте</Label>
+                      <Input id="vk" placeholder="vk.com/id или ник" value={vk} onChange={(e) => setVk(e.target.value)} disabled={isSaving} />
+                    </div>
                   </div>
                 </div>
 

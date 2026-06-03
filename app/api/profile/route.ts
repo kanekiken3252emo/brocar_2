@@ -62,15 +62,29 @@ export const GET = withAuth(async (request, { user }) => {
 export const PATCH = withAuth(async (request, { user }) => {
   try {
     const body = await request.json();
-    const { full_name, phone, avatar_url } = body;
+    const {
+      full_name,
+      phone,
+      avatar_url,
+      contact_email,
+      telegram,
+      whatsapp,
+      vk,
+      max_messenger,
+    } = body;
 
     const supabase = await createClient();
 
     // Обновляем только разрешенные поля
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
     if (full_name !== undefined) updates.full_name = full_name;
     if (phone !== undefined) updates.phone = phone;
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+    if (contact_email !== undefined) updates.contact_email = contact_email;
+    if (telegram !== undefined) updates.telegram = telegram;
+    if (whatsapp !== undefined) updates.whatsapp = whatsapp;
+    if (vk !== undefined) updates.vk = vk;
+    if (max_messenger !== undefined) updates.max_messenger = max_messenger;
 
     const { data: profile, error } = await supabase
       .from("profiles")

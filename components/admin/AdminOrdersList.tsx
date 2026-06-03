@@ -8,7 +8,7 @@ import {
   orderStatusMeta,
   ADMIN_SETTABLE_STATUSES,
 } from "@/lib/order-status";
-import { Package, User, Phone, Mail, Loader2 } from "lucide-react";
+import { Package, User, Phone, Mail, Loader2, MessageCircle } from "lucide-react";
 
 interface AdminOrderItem {
   id: number;
@@ -29,6 +29,11 @@ interface AdminOrder {
     email: string | null;
     fullName: string | null;
     phone: string | null;
+    contactEmail: string | null;
+    telegram: string | null;
+    whatsapp: string | null;
+    vk: string | null;
+    maxMessenger: string | null;
   };
   items: AdminOrderItem[];
 }
@@ -94,19 +99,36 @@ export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
               </div>
 
               {/* Покупатель */}
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-300 bg-neutral-800/40 rounded-lg p-3">
-                <span className="inline-flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-neutral-500" />
-                  {order.customer.fullName || "Имя не указано"}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5 text-neutral-500" />
-                  {order.customer.email || "—"}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5 text-neutral-500" />
-                  {order.customer.phone || "—"}
-                </span>
+              <div className="bg-neutral-800/40 rounded-lg p-3 space-y-1.5">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-neutral-300">
+                  <span className="inline-flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-neutral-500" />
+                    {order.customer.fullName || "Имя не указано"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-neutral-500" />
+                    {order.customer.phone || "—"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-neutral-500" />
+                    {order.customer.contactEmail || order.customer.email || "—"}
+                  </span>
+                </div>
+                {(order.customer.telegram ||
+                  order.customer.whatsapp ||
+                  order.customer.maxMessenger ||
+                  order.customer.vk) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400 pt-1 border-t border-neutral-700/50">
+                    <span className="inline-flex items-center gap-1.5">
+                      <MessageCircle className="h-3.5 w-3.5 text-neutral-500" />
+                      Связь:
+                    </span>
+                    {order.customer.telegram && <span>Telegram: {order.customer.telegram}</span>}
+                    {order.customer.whatsapp && <span>WhatsApp: {order.customer.whatsapp}</span>}
+                    {order.customer.maxMessenger && <span>MAX: {order.customer.maxMessenger}</span>}
+                    {order.customer.vk && <span>ВК: {order.customer.vk}</span>}
+                  </div>
+                )}
               </div>
 
               {/* Позиции */}

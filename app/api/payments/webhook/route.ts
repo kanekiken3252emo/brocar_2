@@ -2,74 +2,63 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { getPayment } from "@/lib/yookassa";
 
 /**
- * Payment webhook handler
- * Receives notifications from payment provider about payment status
- * This is a stub implementation - in production, you must verify signatures
+ * Обработчик уведомлений ЮKassa (HTTP-уведомления).
+ * URL для ЛК: https://brocarparts.ru/api/payments/webhook
+ *
+ * Безопасность: тело уведомления НЕ является доверенным. Мы берём из него
+ * только payment.id, а актуальный статус запрашиваем напрямую у API ЮKassa
+ * по этому id (через секретный ключ). Подделать такое уведомление нельзя —
+ * злоумышленник не знает реальный id платежа и не пройдёт сверку статуса.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const event: string | undefined = body?.event;
+    const paymentId: string | undefined = body?.object?.id;
 
-    // TODO: Verify webhook signature based on provider
-    // For YooKassa: verify using HMAC-SHA256
-    // For CloudPayments: verify using MD5 hash
-
-    const provider = process.env.PAYMENT_PROVIDER || "yookassa";
-
-    if (provider === "yookassa") {
-      // YooKassa webhook format stub
-      const { event, object } = body;
-
-      if (event === "payment.succeeded") {
-        const paymentId = object?.id;
-        const metadata = object?.metadata;
-        const orderId = metadata?.order_id;
-
-        if (orderId) {
-          // Update order status
-          await db
-            .update(orders)
-            .set({
-              status: "paid",
-              paymentId,
-            })
-            .where(eq(orders.id, parseInt(orderId, 10)));
-
-          console.log(`Order ${orderId} marked as paid`);
-        }
-      }
-    } else if (provider === "cloudpayments") {
-      // CloudPayments webhook format stub
-      const { Status, InvoiceId, TransactionId } = body;
-
-      if (Status === "Completed") {
-        const orderId = parseInt(InvoiceId, 10);
-
-        if (!isNaN(orderId)) {
-          await db
-            .update(orders)
-            .set({
-              status: "paid",
-              paymentId: TransactionId,
-            })
-            .where(eq(orders.id, orderId));
-
-          console.log(`Order ${orderId} marked as paid`);
-        }
-      }
+    if (!paymentId) {
+      // Нет id — нечего проверять, но отвечаем 200, чтобы не было ретраев.
+      return NextResponse.json({ success: false, error: "No payment id" });
     }
 
-    // Always return 200 to payment provider
+    // Реагируем только на интересующие события
+    if (event !== "payment.succeeded" && event !== "payment.canceled") {
+      return NextResponse.json({ success: true, ignored: event });
+    }
+
+    // Сверяем статус напрямую с API ЮKassa
+    const payment = await getPayment(paymentId);
+    const orderId = payment.metadata?.order_id;
+
+    if (!orderId) {
+      console.warn(`Webhook: платёж ${paymentId} без order_id в metadata`);
+      return NextResponse.json({ success: false, error: "No order_id" });
+    }
+
+    const orderIdNum = parseInt(orderId, 10);
+
+    if (payment.status === "succeeded" && payment.paid) {
+      await db
+        .update(orders)
+        .set({ status: "paid", paymentId: payment.id })
+        .where(eq(orders.id, orderIdNum));
+      console.log(`Order ${orderIdNum} marked as paid (${payment.id})`);
+    } else if (payment.status === "canceled") {
+      await db
+        .update(orders)
+        .set({ status: "canceled" })
+        .where(eq(orders.id, orderIdNum));
+      console.log(`Order ${orderIdNum} marked as canceled (${payment.id})`);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Webhook processing error:", error);
-    // Still return 200 to avoid retry storms
+    // Возвращаем 200, чтобы ЮKassa не заваливала ретраями. Реальную проблему
+    // увидим в логах; статус всё равно можно сверить вручную в ЛК.
     return NextResponse.json({ success: false, error: "Processing error" });
   }
 }
-
-
-
-

@@ -4,14 +4,15 @@ import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
+import { createPayment, toAmountValue, type Receipt } from "@/lib/yookassa";
 
 const createPaymentSchema = z.object({
   orderId: z.number(),
 });
 
 /**
- * Create payment for an order
- * This is a stub implementation for YooKassa/CloudPayments
+ * Создаёт платёж в ЮKassa для заказа и возвращает confirmation_url,
+ * на который нужно перенаправить покупателя для оплаты.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,23 +23,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = createPaymentSchema.parse(body);
+    const { orderId } = createPaymentSchema.parse(body);
 
-    // Find order
+    // Находим заказ вместе с позициями (нужны для чека)
     const order = await db.query.orders.findFirst({
-      where: eq(orders.id, validatedData.orderId),
+      where: eq(orders.id, orderId),
+      with: { items: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Verify order belongs to user
     if (order.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Check order status
     if (!["pending", "awaiting_payment"].includes(order.status)) {
       return NextResponse.json(
         { error: "Order cannot be paid" },
@@ -46,62 +46,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const provider = process.env.PAYMENT_PROVIDER || "yookassa";
-    const returnUrl =
-      process.env.PAYMENT_RETURN_URL || "http://localhost:3000/";
-
-    // TODO: Implement real payment provider integration
-    if (provider === "yookassa") {
-      // YooKassa stub
-      const paymentId = `payment_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      // Update order with payment_id
-      await db
-        .update(orders)
-        .set({ paymentId })
-        .where(eq(orders.id, order.id));
-
-      // TODO: Call YooKassa API to create payment
-      // const yooKassaResponse = await createYooKassaPayment({
-      //   amount: order.total,
-      //   orderId: order.id,
-      //   returnUrl,
-      // });
-
-      return NextResponse.json({
-        provider: "yookassa",
-        paymentId,
-        confirmationUrl: `${returnUrl}?order_id=${order.id}&payment_success=true`,
-        // In production, this would be the actual YooKassa confirmation URL
-      });
-    } else if (provider === "cloudpayments") {
-      // CloudPayments stub
-      const paymentId = `cp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      await db
-        .update(orders)
-        .set({ paymentId })
-        .where(eq(orders.id, order.id));
-
-      // TODO: Prepare CloudPayments widget data
-      return NextResponse.json({
-        provider: "cloudpayments",
-        paymentId,
-        widgetData: {
-          publicId: process.env.PAYMENT_SHOP_ID,
-          description: `Заказ #${order.id}`,
-          amount: order.total,
-          currency: "RUB",
-          invoiceId: order.id.toString(),
-          accountId: user.id,
-        },
-      });
+    const amount = parseFloat(order.total);
+    if (!(amount > 0)) {
+      return NextResponse.json(
+        { error: "Order total is invalid" },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(
-      { error: "Payment provider not configured" },
-      { status: 500 }
-    );
+    const returnUrl =
+      process.env.PAYMENT_RETURN_URL ||
+      `${process.env.NEXT_PUBLIC_SITE_DOMAIN?.startsWith("http") ? "" : "https://"}${process.env.NEXT_PUBLIC_SITE_DOMAIN || "localhost:3000"}/orders/${order.id}`;
+
+    // Чек по 54-ФЗ — формируем только если включён флаг PAYMENT_SEND_RECEIPT.
+    // Требует контакт покупателя (email) и корректные коды НДС/налогообложения.
+    let receipt: Receipt | undefined;
+    if (process.env.PAYMENT_SEND_RECEIPT === "true") {
+      const vatCode = parseInt(process.env.PAYMENT_VAT_CODE || "1", 10); // 1 = без НДС
+      const taxSystemCode = process.env.PAYMENT_TAX_SYSTEM_CODE
+        ? parseInt(process.env.PAYMENT_TAX_SYSTEM_CODE, 10)
+        : undefined;
+
+      receipt = {
+        customer: { email: user.email ?? undefined },
+        tax_system_code: taxSystemCode,
+        items: order.items.map((item) => ({
+          description: item.name.slice(0, 128),
+          quantity: item.qty.toFixed(2),
+          amount: {
+            value: toAmountValue(parseFloat(item.price) * item.qty),
+            currency: "RUB",
+          },
+          vat_code: vatCode,
+        })),
+      };
+    }
+
+    // Создаём платёж в ЮKassa
+    const payment = await createPayment({
+      amount,
+      description: `Заказ №${order.id} — BroCar`,
+      returnUrl,
+      metadata: { order_id: String(order.id) },
+      receipt,
+    });
+
+    const confirmationUrl = payment.confirmation?.confirmation_url;
+    if (!confirmationUrl) {
+      throw new Error("ЮKassa не вернула confirmation_url");
+    }
+
+    // Сохраняем реальный payment.id и переводим заказ в ожидание оплаты
+    await db
+      .update(orders)
+      .set({ paymentId: payment.id, status: "awaiting_payment" })
+      .where(eq(orders.id, order.id));
+
+    return NextResponse.json({
+      provider: "yookassa",
+      paymentId: payment.id,
+      confirmationUrl,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -117,7 +122,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-

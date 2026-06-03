@@ -57,6 +57,18 @@ NEXT_PUBLIC_SITE_DOMAIN=localhost:3000
 # URL вашего поддомена из ЛК acat.online → Возможности → Виджет на ваш сайт
 NEXT_PUBLIC_ACAT_WIDGET_URL=https://brocarparts.acat.online
 
+# ЮKassa (приём платежей)
+# ShopID и секретный ключ — из ЛК ЮKassa → Интеграция → Ключи API
+PAYMENT_PROVIDER=yookassa
+PAYMENT_SHOP_ID=вставьте_shop_id_сюда
+PAYMENT_SECRET_KEY=вставьте_секретный_ключ_сюда
+# Куда вернуть покупателя после оплаты (на проде — https://brocarparts.ru/cart)
+PAYMENT_RETURN_URL=http://localhost:3000/cart
+# Чеки 54-ФЗ: true — передавать данные чека в платёж (нужна онлайн-касса в ЮKassa)
+PAYMENT_SEND_RECEIPT=false
+# PAYMENT_VAT_CODE=1            # код ставки НДС (1 = без НДС)
+# PAYMENT_TAX_SYSTEM_CODE=2    # система налогообложения (1=ОСН, 2=УСН доход, ...)
+
 # Node Environment
 NODE_ENV=development
 

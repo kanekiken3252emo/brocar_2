@@ -225,6 +225,8 @@ export default function CartPage() {
   const [cart, setCart] = useState<CartData | null>(null);
   const [fetchStatus, setFetchStatus] = useState<"loading" | "ok" | "error">("loading");
   const [mutating, setMutating] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -264,6 +266,46 @@ export default function CartPage() {
       /* ignore */
     } finally {
       setMutating(false);
+    }
+  }
+
+  async function handleCheckout() {
+    setCheckingOut(true);
+    setCheckoutError(null);
+    try {
+      // 1. Создаём заказ из корзины
+      const orderRes = await fetch("/api/orders", { method: "POST" });
+
+      if (orderRes.status === 401) {
+        // Не авторизован — отправляем на вход
+        window.location.href = "/auth/login";
+        return;
+      }
+
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) {
+        throw new Error(orderData?.error || "Не удалось создать заказ");
+      }
+
+      // 2. Создаём платёж в ЮKassa
+      const payRes = await fetch("/api/payments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: orderData.orderId }),
+      });
+
+      const payData = await payRes.json();
+      if (!payRes.ok || !payData?.confirmationUrl) {
+        throw new Error(payData?.error || "Не удалось создать платёж");
+      }
+
+      // 3. Редирект на платёжную форму ЮKassa
+      window.location.href = payData.confirmationUrl;
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error ? err.message : "Ошибка оформления заказа"
+      );
+      setCheckingOut(false);
     }
   }
 
@@ -375,13 +417,34 @@ export default function CartPage() {
                     </div>
                   </div>
 
-                  <Button className="w-full gap-2" size="lg">
-                    Оформить заказ
-                    <ArrowRight className="h-4 w-4" />
+                  <Button
+                    className="w-full gap-2"
+                    size="lg"
+                    onClick={handleCheckout}
+                    disabled={checkingOut || mutating}
+                  >
+                    {checkingOut ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Переходим к оплате…
+                      </>
+                    ) : (
+                      <>
+                        Оформить и оплатить
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
                   </Button>
 
+                  {checkoutError && (
+                    <p className="text-xs text-red-400 text-center mt-3">
+                      {checkoutError}
+                    </p>
+                  )}
+
                   <p className="text-xs text-neutral-500 text-center mt-4 leading-relaxed">
-                    Оформление заказа и оплата — по звонку или в магазине
+                    Оплата онлайн картой или через СБП. Также можно оплатить
+                    наличными при самовывозе — по телефону.
                   </p>
                 </CardContent>
               </Card>

@@ -168,10 +168,10 @@ export function Header({ user }: HeaderProps) {
             {/* Logo */}
             <Link href="/" className="shrink-0 flex items-center min-w-0">
               <Image
-                src="/brocar.webp"
+                src="/Logo_Brocar.webp"
                 alt="BroCar"
-                width={1106}
-                height={1106}
+                width={1200}
+                height={1200}
                 className="h-12 sm:h-14 md:h-20 lg:h-[5.25rem] w-auto max-w-[min(56vw,300px)] md:max-w-none aspect-square object-contain object-left drop-shadow-md"
                 priority
               />

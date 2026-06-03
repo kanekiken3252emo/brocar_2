@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { orders, carts, cartItems } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getPayment } from "@/lib/yookassa";
+import { STATUS_AFTER_PAYMENT } from "@/lib/order-status";
 
 /**
  * Обработчик уведомлений ЮKassa (HTTP-уведомления).
@@ -43,10 +44,10 @@ export async function POST(request: NextRequest) {
     if (payment.status === "succeeded" && payment.paid) {
       const [paidOrder] = await db
         .update(orders)
-        .set({ status: "paid", paymentId: payment.id })
+        .set({ status: STATUS_AFTER_PAYMENT, paymentId: payment.id })
         .where(eq(orders.id, orderIdNum))
         .returning();
-      console.log(`Order ${orderIdNum} marked as paid (${payment.id})`);
+      console.log(`Order ${orderIdNum} paid → ${STATUS_AFTER_PAYMENT} (${payment.id})`);
 
       // Очищаем корзину покупателя только после успешной оплаты.
       if (paidOrder?.userId) {

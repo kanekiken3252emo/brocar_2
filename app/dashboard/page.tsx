@@ -7,7 +7,7 @@ import { eq, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
-import { orderStatusMeta, isInProgress } from "@/lib/order-status";
+import { orderStatusMeta, isInProgress, isShipping } from "@/lib/order-status";
 import { isAdmin } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -47,7 +47,7 @@ export default async function DashboardPage() {
   });
 
   const inProgressCount = orders.filter((o) => isInProgress(o.status)).length;
-  const shippingCount = orders.filter((o) => o.status === "shipped").length;
+  const shippingCount = orders.filter((o) => isShipping(o.status)).length;
   const userIsAdmin = isAdmin(user);
 
   return (

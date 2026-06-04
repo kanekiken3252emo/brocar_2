@@ -66,6 +66,57 @@ export interface SupplierAdapter {
 }
 
 /**
+ * Нормализует артикул для сравнения/группировки: убирает пробелы, дефисы,
+ * точки, слэши и приводит к верхнему регистру. Так «1 457 429 870» и
+ * «1457429870» считаются одним артикулом (стандартная практика для автозапчастей).
+ */
+export function normalizeArticle(article: string): string {
+  return (article || "").replace(/[^0-9A-Za-zА-Яа-я]/g, "").toUpperCase();
+}
+
+/**
+ * Объединяет группы-дубли, у которых совпадает нормализованный артикул + бренд
+ * (например один и тот же товар, пришедший с разным форматом артикула).
+ * Складывает предложения, пересчитывает агрегаты, артикул отдаёт в чистом виде.
+ */
+export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
+  const map = new Map<string, SupplierGroup>();
+
+  for (const g of groups) {
+    const key = `${normalizeArticle(g.article)}|${(g.brand || "").trim().toLowerCase()}`;
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, {
+        ...g,
+        article: normalizeArticle(g.article),
+        offers: [...g.offers],
+      });
+      continue;
+    }
+
+    existing.offers.push(...g.offers);
+    existing.totalStock += g.totalStock;
+    existing.minPrice = Math.min(existing.minPrice, g.minPrice);
+    existing.maxPrice = Math.max(existing.maxPrice, g.maxPrice);
+    if (
+      g.minDeliveryDays != null &&
+      (existing.minDeliveryDays == null ||
+        g.minDeliveryDays < existing.minDeliveryDays)
+    ) {
+      existing.minDeliveryDays = g.minDeliveryDays;
+    }
+    if (!existing.imageUrl && g.imageUrl) existing.imageUrl = g.imageUrl;
+  }
+
+  for (const g of map.values()) {
+    g.offers.sort((a, b) => a.ourPrice - b.ourPrice);
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.minPrice - b.minPrice);
+}
+
+/**
  * Merge and deduplicate supplier items
  * Deduplication logic: same article+brand+name
  * Keep item with best stock or lowest price
@@ -113,7 +164,7 @@ export function groupOffers(
     if (!Number.isFinite(item.stock) || item.stock <= 0) continue;
 
     const brand = (item.brand || "").trim();
-    const key = `${item.article.toLowerCase()}|${brand.toLowerCase()}`;
+    const key = `${normalizeArticle(item.article)}|${brand.toLowerCase()}`;
 
     const offer: SupplierOffer = {
       supplier: item.supplier,
@@ -127,7 +178,7 @@ export function groupOffers(
     const existing = groups.get(key);
     if (!existing) {
       groups.set(key, {
-        article: item.article,
+        article: normalizeArticle(item.article),
         brand,
         name: item.name,
         minPrice: offer.ourPrice,

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, asc, desc, inArray, or, ilike, sql as dsql } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
+import { dedupeGroups } from "@/lib/suppliers/adapter";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 
 /**
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
 
     // Подсеваем картинки из кэша product_images — клиент не будет делать
     // N round-trip'ов к /api/product-image на рендере грида.
-    const enriched = await enrichGroupsWithImages(groups);
+    const enriched = await enrichGroupsWithImages(dedupeGroups(groups));
 
     return NextResponse.json({
       q,

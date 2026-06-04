@@ -162,9 +162,15 @@ function detectCarBrands(name) {
 }
 
 function applyMarkup(price) {
-  const percent = price * 1.15;
-  const fixed = price + 200;
-  return Math.round(Math.max(percent, fixed));
+  // Ступенчатая наценка по диапазонам закупочной цены
+  let mult;
+  if (price < 100) mult = 1.52;
+  else if (price < 500) mult = 1.45;
+  else if (price < 1000) mult = 1.42;
+  else if (price < 10000) mult = 1.4;
+  else if (price < 40000) mult = 1.38;
+  else mult = 1.35;
+  return Math.round(price * mult);
 }
 
 // ── CSV parser (; разделитель, "..." кавычки) ──────────────────────────────

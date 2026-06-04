@@ -8,6 +8,30 @@ interface PricingOptions {
 }
 
 /**
+ * Ступенчатая наценка по диапазонам закупочной (поставщицкой) цены.
+ * Чем дешевле товар — тем выше процент наценки.
+ *   <100 ₽   → 52%
+ *   <500 ₽   → 45%
+ *   <1000 ₽  → 42%
+ *   <10000 ₽ → 40%
+ *   <40000 ₽ → 38%
+ *   ≥40000 ₽ → 35%
+ */
+export function tieredMarkupMultiplier(base: number): number {
+  if (base < 100) return 1.52;
+  if (base < 500) return 1.45;
+  if (base < 1000) return 1.42;
+  if (base < 10000) return 1.4;
+  if (base < 40000) return 1.38;
+  return 1.35;
+}
+
+/** Применяет ступенчатую наценку и округляет до целых рублей. */
+export function applyTieredMarkup(base: number): number {
+  return Math.round(base * tieredMarkupMultiplier(base));
+}
+
+/**
  * Apply pricing rules to a base supplier price
  * Returns the final price after applying markup rules
  */
@@ -53,28 +77,28 @@ export async function applyPricing(
         finalPrice = basePrice + minMargin;
       }
     } else {
-      // Дефолт: 30% к закупке
-      finalPrice = basePrice * 1.30;
+      // Дефолт: ступенчатая наценка по диапазонам цены
+      finalPrice = applyTieredMarkup(basePrice);
     }
 
     // Round to whole rubles
     return Math.round(finalPrice);
   } catch (error) {
     console.error("Error applying pricing rules:", error);
-    // Fallback on error: same default 30%
-    return Math.round(basePrice * 1.30);
+    // Fallback on error: ступенчатая наценка
+    return applyTieredMarkup(basePrice);
   }
 }
 
 /**
- * Synchronous version using cached rules (for bulk operations).
- * Текущая наценка: 30% к закупочной цене поставщика.
+ * Synchronous version (for bulk operations / live supplier search).
+ * Ступенчатая наценка по диапазонам закупочной цены.
  */
 export function applyPricingSync(
   basePrice: number,
   _opts: PricingOptions = {}
 ): number {
-  return Math.round(basePrice * 1.30);
+  return applyTieredMarkup(basePrice);
 }
 
 

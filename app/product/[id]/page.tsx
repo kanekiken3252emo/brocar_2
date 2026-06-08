@@ -114,11 +114,9 @@ export default function ProductPage() {
       setAnalogs(data.analogs || []);
 
       if (resource.offers && resource.offers.length > 0) {
-        const bestOffer = resource.offers.reduce((best, current) => {
-          if (!best) return current;
-          return current.price < best.price ? current : best;
-        });
-        setSelectedOffer(bestOffer);
+        // Офферы уже отсортированы «в наличии → быстрее → дешевле»,
+        // поэтому лучшее предложение — первое в списке.
+        setSelectedOffer(resource.offers[0]);
       }
     } catch (err: any) {
       console.error("Product load error:", err);

@@ -6,6 +6,7 @@ import { ShoppingCart, Package, Clock, MapPin, ChevronDown } from "lucide-react"
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
 import { getVegaName } from "@/lib/vega-names";
+import { formatDeliveryDays } from "@/lib/utils";
 
 interface Props {
   group: SupplierGroup;
@@ -13,13 +14,6 @@ interface Props {
 
 function formatPrice(n: number) {
   return n.toLocaleString("ru-RU");
-}
-
-function formatDelivery(days: number | null) {
-  if (days == null) return "уточн.";
-  if (days === 0) return "сегодня";
-  if (days === 1) return "завтра";
-  return `${days} дн.`;
 }
 
 function OfferRow({
@@ -74,7 +68,7 @@ function OfferRow({
       <td className="px-4 py-3 text-neutral-300 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-neutral-500" />
-          {formatDelivery(offer.deliveryDays)}
+          {formatDeliveryDays(offer.deliveryDays)}
         </span>
       </td>
       <td className="px-4 py-3 text-right text-white font-semibold whitespace-nowrap">

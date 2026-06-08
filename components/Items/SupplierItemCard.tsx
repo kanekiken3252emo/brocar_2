@@ -5,6 +5,7 @@ import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
 import ProductImage from "@/components/Items/ProductImage";
+import { formatDeliveryDays } from "@/lib/utils";
 
 interface SupplierItemCardProps {
   group: SupplierGroup;
@@ -93,7 +94,7 @@ export default function SupplierItemCard({
                 <Clock className="w-3.5 h-3.5" />
                 <span>
                   {group.minDeliveryDays === 0
-                    ? "сегодня"
+                    ? formatDeliveryDays(0)
                     : `от ${group.minDeliveryDays} дн.`}
                 </span>
               </div>

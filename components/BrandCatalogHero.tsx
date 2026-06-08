@@ -97,7 +97,7 @@ export default function BrandCatalogHero() {
                   {/* Brand name */}
                   {brand.isLink ? (
                     <Link
-                      href="/catalog"
+                      href="/automarki"
                       className="text-sm text-orange-500 hover:text-orange-400 font-medium transition-colors"
                     >
                       {brand.name} →

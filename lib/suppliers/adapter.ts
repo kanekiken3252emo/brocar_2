@@ -66,6 +66,26 @@ export interface SupplierAdapter {
 }
 
 /**
+ * Сортировка предложений внутри товара: «в наличии → быстрее → дешевле».
+ *   1) сначала то, что в наличии (остаток > 0);
+ *   2) затем по сроку доставки (быстрее — выше; «уточн.»/null — в конец);
+ *   3) при равном сроке — по возрастанию цены.
+ * Используется и в карточке товара, и в карточках поиска, чтобы порядок
+ * был единым.
+ */
+export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
+  const aInStock = a.stock > 0 ? 1 : 0;
+  const bInStock = b.stock > 0 ? 1 : 0;
+  if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
+
+  const aDays = a.deliveryDays ?? Infinity;
+  const bDays = b.deliveryDays ?? Infinity;
+  if (aDays !== bDays) return aDays - bDays; // быстрее — выше
+
+  return a.ourPrice - b.ourPrice; // потом дешевле
+}
+
+/**
  * Нормализует артикул для сравнения/группировки: убирает пробелы, дефисы,
  * точки, слэши и приводит к верхнему регистру. Так «1 457 429 870» и
  * «1457429870» считаются одним артикулом (стандартная практика для автозапчастей).
@@ -110,7 +130,7 @@ export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
   }
 
   for (const g of map.values()) {
-    g.offers.sort((a, b) => a.ourPrice - b.ourPrice);
+    g.offers.sort(compareOffers);
   }
 
   return Array.from(map.values()).sort((a, b) => a.minPrice - b.minPrice);
@@ -148,7 +168,7 @@ export function mergeAndDeduplicate(items: SupplierItem[]): SupplierItem[] {
 
 /**
  * Группирует предложения по article+brand в SupplierGroup[].
- * Предложения внутри группы сортируются по цене (по возрастанию).
+ * Предложения внутри группы сортируются «в наличии → дешевле» (compareOffers).
  */
 export function groupOffers(
   items: SupplierItem[],
@@ -204,7 +224,7 @@ export function groupOffers(
   }
 
   for (const group of groups.values()) {
-    group.offers.sort((a, b) => a.ourPrice - b.ourPrice);
+    group.offers.sort(compareOffers);
   }
 
   return Array.from(groups.values()).sort((a, b) => a.minPrice - b.minPrice);

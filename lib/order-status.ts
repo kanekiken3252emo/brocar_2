@@ -25,6 +25,7 @@ export const ORDER_STATUS_META: Record<
   in_transit: { label: "В пути", variant: "default" },
   ready: { label: "Готов к получению", variant: "success" },
   partially_ready: { label: "Частично готов к получению", variant: "warning" },
+  issued: { label: "Выдан", variant: "secondary" },
   canceled: { label: "Отменён", variant: "destructive" },
 
   // легаси (старые заказы) — на всякий случай, чтобы корректно отображались
@@ -49,8 +50,20 @@ export const ADMIN_SETTABLE_STATUSES = [
   "in_transit",
   "ready",
   "partially_ready",
+  "issued",
   "canceled",
 ] as const;
+
+/**
+ * Архивные статусы — заказ закрыт и убирается из активного списка в админке.
+ * «Выдан» = заказ отдали клиенту.
+ */
+export const ARCHIVED_STATUSES: readonly string[] = ["issued"];
+
+/** Заказ в архиве (выдан) — не мешает в активном списке. */
+export function isArchived(status: string): boolean {
+  return ARCHIVED_STATUSES.includes(status);
+}
 
 /** «В обработке» — для статистики в личном кабинете. */
 export function isInProgress(status: string): boolean {

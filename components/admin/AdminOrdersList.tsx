@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/utils";
 import {
   orderStatusMeta,
   ADMIN_SETTABLE_STATUSES,
+  isArchived,
 } from "@/lib/order-status";
 import { Package, User, Phone, Mail, Loader2, MessageCircle } from "lucide-react";
 
@@ -41,6 +42,7 @@ interface AdminOrder {
 export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
   const [list, setList] = useState(orders);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [tab, setTab] = useState<"active" | "archive">("active");
 
   async function changeStatus(orderId: number, status: string) {
     setSavingId(orderId);
@@ -64,18 +66,43 @@ export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
     }
   }
 
-  if (list.length === 0) {
-    return (
-      <div className="text-center py-16 text-neutral-500">
-        <Package className="h-10 w-10 mx-auto mb-3 text-neutral-700" />
-        Заказов пока нет
-      </div>
-    );
-  }
+  const activeOrders = list.filter((o) => !isArchived(o.status));
+  const archivedOrders = list.filter((o) => isArchived(o.status));
+  const visible = tab === "active" ? activeOrders : archivedOrders;
 
   return (
     <div className="space-y-4">
-      {list.map((order) => {
+      {/* Вкладки: активные / архив (выданные) */}
+      <div className="flex gap-2 border-b border-neutral-800">
+        <button
+          onClick={() => setTab("active")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === "active"
+              ? "border-orange-500 text-white"
+              : "border-transparent text-neutral-400 hover:text-neutral-200"
+          }`}
+        >
+          Активные ({activeOrders.length})
+        </button>
+        <button
+          onClick={() => setTab("archive")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === "archive"
+              ? "border-orange-500 text-white"
+              : "border-transparent text-neutral-400 hover:text-neutral-200"
+          }`}
+        >
+          Архив ({archivedOrders.length})
+        </button>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="text-center py-16 text-neutral-500">
+          <Package className="h-10 w-10 mx-auto mb-3 text-neutral-700" />
+          {tab === "active" ? "Активных заказов нет" : "В архиве пока пусто"}
+        </div>
+      ) : (
+        visible.map((order) => {
         const meta = orderStatusMeta(order.status);
         return (
           <Card key={order.id} className="border-neutral-800 bg-neutral-900">
@@ -193,7 +220,8 @@ export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
             </CardContent>
           </Card>
         );
-      })}
+        })
+      )}
     </div>
   );
 }

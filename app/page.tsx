@@ -110,7 +110,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <h2 className="text-lg md:text-2xl font-bold text-white">Выберите марку</h2>
-            <Link href="/catalog" className="text-orange-500 hover:text-orange-400 flex items-center gap-1 transition-colors text-sm md:text-base">
+            <Link href="/automarki" className="text-orange-500 hover:text-orange-400 flex items-center gap-1 transition-colors text-sm md:text-base">
               Все марки <ChevronRight className="h-4 w-4" />
             </Link>
           </div>

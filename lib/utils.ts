@@ -19,12 +19,39 @@ export function formatPrice(price: number | string): string {
 }
 
 /**
+ * Граница приёма заказов «на сегодня», час по екатеринбургскому времени
+ * (ЕКБ = МСК+2). Заказ до 12:00 ЕКБ ещё успевает «сегодня», после —
+ * переносится на «завтра».
+ */
+export const SAME_DAY_CUTOFF_HOUR = 12;
+
+/**
+ * Текущий час по Екатеринбургу (0–23). Часовой пояс фиксирован, поэтому
+ * значение одинаково на сервере и на клиенте — без рассинхрона при гидрации.
+ */
+function localHour(): number {
+  // % 24 — на части ICU-версий полночь форматируется как «24», а не «0».
+  return (
+    Number(
+      new Intl.DateTimeFormat("ru-RU", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: "Asia/Yekaterinburg",
+      }).format(new Date())
+    ) % 24
+  );
+}
+
+/**
  * Срок доставки в днях → человекочитаемая строка.
- * 0 → «сегодня», 1 → «завтра», иначе «N дн.», null → «уточн.».
+ * 0 → «сегодня» (до 12:00 ЕКБ) / «завтра» (после), 1 → «завтра»,
+ * иначе «N дн.», null → «уточн.».
  */
 export function formatDeliveryDays(days: number | null | undefined): string {
   if (days == null) return "уточн.";
-  if (days === 0) return "сегодня";
+  if (days === 0) {
+    return localHour() < SAME_DAY_CUTOFF_HOUR ? "сегодня" : "завтра";
+  }
   if (days === 1) return "завтра";
   return `${days} дн.`;
 }

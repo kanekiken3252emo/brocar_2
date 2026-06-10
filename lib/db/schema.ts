@@ -166,6 +166,24 @@ export const orderItems = pgTable("order_items", {
   price: numeric("price").notNull(),
 });
 
+// Vehicles table (гараж пользователя)
+export const vehicles = pgTable("vehicles", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").notNull(),
+  nickname: text("nickname"),
+  brand: text("brand"),
+  model: text("model"),
+  year: integer("year"),
+  vin: text("vin"),
+  mileage: integer("mileage"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // Relations
 export const cartsRelations = relations(carts, ({ many }) => ({
   items: many(cartItems),

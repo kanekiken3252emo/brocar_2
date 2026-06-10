@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, Search, X, Car } from "lucide-react";
+import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, Search, X, Car, ClipboardList } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import BrandCatalogDropdown from "./BrandCatalogDropdown";
@@ -319,13 +319,27 @@ export function Header({ user }: HeaderProps) {
               </Link>
             </nav>
 
-            {/* Garage Button */}
-            <Link href="/garage" className="hidden lg:block">
-              <div className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-6 h-12 flex items-center gap-2 font-semibold text-white transition-all shadow-lg shadow-orange-500/25">
-                ГАРАЖ
-                <ChevronDown className="h-4 w-4" />
+            {/* Garage Dropdown */}
+            <div className="relative group hidden lg:block">
+              <Link href="/garage">
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 group-hover:from-orange-600 group-hover:to-orange-700 px-6 h-12 flex items-center gap-2 font-semibold text-white transition-all shadow-lg shadow-orange-500/25 cursor-pointer">
+                  ГАРАЖ
+                  <ChevronDown className="h-4 w-4 group-hover:rotate-180 transition-transform" />
+                </div>
+              </Link>
+              <div className="absolute right-0 top-full w-56 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+                <div className="py-2">
+                  <Link href="/garage" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-orange-500 transition-colors">
+                    <Car className="h-4 w-4" />
+                    Мой гараж
+                  </Link>
+                  <Link href="/dashboard" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-orange-500 transition-colors">
+                    <ClipboardList className="h-4 w-4" />
+                    Мои заказы
+                  </Link>
+                </div>
               </div>
-            </Link>
+            </div>
           </div>
 
           {/* Mobile Menu */}
@@ -365,9 +379,13 @@ export function Header({ user }: HeaderProps) {
                 <Link href="/contacts" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   Контакты
                 </Link>
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                   <Link href="/garage" className="block px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-center" onClick={() => setIsMenuOpen(false)}>
                     Мой гараж
+                  </Link>
+                  <Link href="/dashboard" className="flex items-center justify-center gap-2 px-4 py-3 border border-neutral-700 text-neutral-200 hover:text-orange-500 hover:border-orange-500/50 rounded-xl font-semibold transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <ClipboardList className="h-4 w-4" />
+                    Мои заказы
                   </Link>
                 </div>
               </nav>

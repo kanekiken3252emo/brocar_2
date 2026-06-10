@@ -65,6 +65,14 @@ export function isArchived(status: string): boolean {
   return ARCHIVED_STATUSES.includes(status);
 }
 
+/** Отменённые статусы — заказ убирается из активного списка в папку «Отменённые». */
+export const CANCELED_STATUSES: readonly string[] = ["canceled"];
+
+/** Заказ отменён — не мешает в активном списке. */
+export function isCanceled(status: string): boolean {
+  return CANCELED_STATUSES.includes(status);
+}
+
 /** «В обработке» — для статистики в личном кабинете. */
 export function isInProgress(status: string): boolean {
   return [

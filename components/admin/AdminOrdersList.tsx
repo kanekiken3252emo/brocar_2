@@ -8,6 +8,7 @@ import {
   orderStatusMeta,
   ADMIN_SETTABLE_STATUSES,
   isArchived,
+  isCanceled,
 } from "@/lib/order-status";
 import { Package, User, Phone, Mail, Loader2, MessageCircle } from "lucide-react";
 
@@ -42,7 +43,7 @@ interface AdminOrder {
 export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
   const [list, setList] = useState(orders);
   const [savingId, setSavingId] = useState<number | null>(null);
-  const [tab, setTab] = useState<"active" | "archive">("active");
+  const [tab, setTab] = useState<"active" | "archive" | "canceled">("active");
 
   async function changeStatus(orderId: number, status: string) {
     setSavingId(orderId);
@@ -66,9 +67,17 @@ export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
     }
   }
 
-  const activeOrders = list.filter((o) => !isArchived(o.status));
+  const activeOrders = list.filter(
+    (o) => !isArchived(o.status) && !isCanceled(o.status)
+  );
   const archivedOrders = list.filter((o) => isArchived(o.status));
-  const visible = tab === "active" ? activeOrders : archivedOrders;
+  const canceledOrders = list.filter((o) => isCanceled(o.status));
+  const visible =
+    tab === "active"
+      ? activeOrders
+      : tab === "archive"
+        ? archivedOrders
+        : canceledOrders;
 
   return (
     <div className="space-y-4">
@@ -94,12 +103,26 @@ export default function AdminOrdersList({ orders }: { orders: AdminOrder[] }) {
         >
           Архив ({archivedOrders.length})
         </button>
+        <button
+          onClick={() => setTab("canceled")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === "canceled"
+              ? "border-orange-500 text-white"
+              : "border-transparent text-neutral-400 hover:text-neutral-200"
+          }`}
+        >
+          Отменённые ({canceledOrders.length})
+        </button>
       </div>
 
       {visible.length === 0 ? (
         <div className="text-center py-16 text-neutral-500">
           <Package className="h-10 w-10 mx-auto mb-3 text-neutral-700" />
-          {tab === "active" ? "Активных заказов нет" : "В архиве пока пусто"}
+          {tab === "active"
+            ? "Активных заказов нет"
+            : tab === "archive"
+              ? "В архиве пока пусто"
+              : "Отменённых заказов нет"}
         </div>
       ) : (
         visible.map((order) => {

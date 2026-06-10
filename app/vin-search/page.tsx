@@ -378,7 +378,7 @@ export default function VinSearchPage() {
                         Telegram
                       </Button>
                     </a>
-                    <a href="https://max.ru/+79326006015" target="_blank" rel="noopener noreferrer">
+                    <a href="https://max.ru/u/f9LHodD0cOJyCM-iI-thSudnwGSQgZEDcoy5mjTAej0FyZns3SJxhRFOZ-4" target="_blank" rel="noopener noreferrer">
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                         Max
                       </Button>
@@ -436,9 +436,10 @@ export default function VinSearchPage() {
                         Заявки обрабатываются в рабочее время:
                       </p>
                       <p className="text-orange-400 text-xs font-medium mt-1">
-                        Пн — Пт: 10:00 — 18:00
+                        Пн — Пт: 10:00 — 19:00
                       </p>
-                      <p className="text-neutral-500 text-xs">Сб — Вс: выходной</p>
+                      <p className="text-orange-400 text-xs font-medium">Сб: 10:00 — 15:00</p>
+                      <p className="text-neutral-500 text-xs">Вс: выходной</p>
                     </div>
                   </div>
                 </CardContent>

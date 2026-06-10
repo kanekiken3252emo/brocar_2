@@ -18,6 +18,14 @@ function TelegramIcon({ className }: { className?: string }) {
   );
 }
 
+function MaxIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M12 2C6.48 2 2 6.27 2 11.54c0 2.88 1.34 5.46 3.46 7.21.3.25.45.64.36 1.02l-.55 2.32c-.13.57.42 1.05.96.84l2.86-1.13c.29-.11.61-.11.9-.03.65.17 1.32.26 2.01.26 5.52 0 10-4.27 10-9.54S17.52 2 12 2zm0 13.77c-2.33 0-4.23-1.89-4.23-4.23S9.67 7.31 12 7.31s4.23 1.89 4.23 4.23-1.9 4.23-4.23 4.23z" />
+    </svg>
+  );
+}
+
 function TwoGisIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -83,8 +91,17 @@ export function Footer() {
               >
                 <TelegramIcon className="h-5 w-5 text-neutral-400 group-hover:text-white" />
               </a>
-              <a 
-                href="https://2gis.ru/ekaterinburg/firm/70000001098987045" 
+              <a
+                href="https://max.ru/u/f9LHodD0cOJyCM-iI-thSudnwGSQgZEDcoy5mjTAej0FyZns3SJxhRFOZ-4"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-neutral-800 hover:bg-[#1F7EFF] rounded-lg flex items-center justify-center transition-colors group"
+                title="MAX"
+              >
+                <MaxIcon className="h-5 w-5 text-neutral-400 group-hover:text-white" />
+              </a>
+              <a
+                href="https://2gis.ru/ekaterinburg/firm/70000001098987045"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-10 bg-neutral-800 hover:bg-neutral-700 rounded-lg flex items-center justify-center transition-colors px-2"
@@ -170,8 +187,9 @@ export function Footer() {
             {/* Contact Info - Hidden on very small screens, shown inline on md+ */}
             <div className="mt-4 md:mt-8 p-3 md:p-4 bg-neutral-900 rounded-lg md:rounded-xl border border-neutral-800">
               <p className="text-orange-500 font-semibold mb-1 md:mb-2 text-sm md:text-base">Режим работы</p>
-              <p className="text-neutral-400 text-xs md:text-sm">Пн — Пт: 10:00 — 18:00</p>
-              <p className="text-neutral-500 text-xs md:text-sm">Сб — Вс: выходной</p>
+              <p className="text-neutral-400 text-xs md:text-sm">Пн — Пт: 10:00 — 19:00</p>
+              <p className="text-neutral-400 text-xs md:text-sm">Сб: 10:00 — 15:00</p>
+              <p className="text-neutral-500 text-xs md:text-sm">Вс: выходной</p>
             </div>
           </div>
         </div>

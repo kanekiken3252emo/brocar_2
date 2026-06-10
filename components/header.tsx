@@ -166,15 +166,21 @@ export function Header({ user }: HeaderProps) {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3 md:py-4 gap-3 md:gap-6">
             {/* Logo */}
-            <Link href="/" className="shrink-0 flex items-center min-w-0">
-              <Image
-                src="/Logo_Brocar.webp"
-                alt="BroCar"
-                width={1200}
-                height={1200}
-                className="h-12 sm:h-14 md:h-20 lg:h-[5.25rem] w-auto max-w-[min(56vw,300px)] md:max-w-none aspect-square object-contain object-left drop-shadow-md"
-                priority
-              />
+            <Link href="/" className="shrink-0 flex items-center min-w-0 group">
+              <div className="relative h-12 w-12 sm:h-14 sm:w-14 md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
+                {/* Оранжевое свечение, чтобы чёрный логотип читался на тёмном фоне */}
+                <div className="absolute inset-0 bg-orange-500/25 rounded-full blur-xl scale-110" />
+                <div className="relative w-full h-full rounded-full bg-black ring-1 ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
+                  <Image
+                    src="/Logo_Brocar.webp"
+                    alt="BroCar"
+                    width={1200}
+                    height={1200}
+                    className="w-full h-full object-contain"
+                    priority
+                  />
+                </div>
+              </div>
             </Link>
 
             {/* Search Bar */}
@@ -319,8 +325,19 @@ export function Header({ user }: HeaderProps) {
               </Link>
             </nav>
 
-            {/* Garage Dropdown */}
-            <div className="relative group hidden lg:block">
+            {/* My Orders + Garage — единый блок справа */}
+            <div className="hidden lg:flex items-center">
+              {/* My Orders */}
+              <Link href="/dashboard" className="group/orders">
+                <div className="relative px-5 h-12 flex items-center gap-2 font-semibold text-neutral-200 bg-neutral-800/70 border border-r-0 border-orange-500/30 hover:border-orange-500/70 hover:text-white transition-all cursor-pointer overflow-hidden">
+                  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/10 to-orange-500/25 opacity-0 group-hover/orders:opacity-100 transition-opacity duration-300" />
+                  <ClipboardList className="h-4 w-4 text-orange-500 relative" />
+                  <span className="relative">МОИ ЗАКАЗЫ</span>
+                </div>
+              </Link>
+
+              {/* Garage Dropdown */}
+              <div className="relative group">
               <Link href="/garage">
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 group-hover:from-orange-600 group-hover:to-orange-700 px-6 h-12 flex items-center gap-2 font-semibold text-white transition-all shadow-lg shadow-orange-500/25 cursor-pointer">
                   ГАРАЖ
@@ -338,6 +355,7 @@ export function Header({ user }: HeaderProps) {
                     Мои заказы
                   </Link>
                 </div>
+              </div>
               </div>
             </div>
           </div>

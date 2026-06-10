@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ChevronDown,
   Package,
+  ScanLine,
 } from "lucide-react";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
@@ -383,41 +384,52 @@ function CatalogContent() {
 
   return (
     <div className="min-h-screen bg-neutral-950">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <div className="container mx-auto px-4 py-5 md:py-6">
+        <div className="mb-5">
           <Link
             href="/"
-            className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-4 transition-colors"
+            className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-3 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Вернуться на главную
           </Link>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-            {getSearchSummary()}
-          </h1>
-          {totalCount > 0 && (
-            <p className="text-neutral-400">
-              Найдено товаров:{" "}
-              <span className="text-white font-semibold">
-                {totalCount}
-              </span>
-            </p>
-          )}
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1.5">
+                {getSearchSummary()}
+              </h1>
+              {totalCount > 0 && (
+                <p className="text-neutral-400">
+                  Найдено товаров:{" "}
+                  <span className="text-white font-semibold">
+                    {totalCount}
+                  </span>
+                </p>
+              )}
+            </div>
+            <Link
+              href="/catalog-vin"
+              className="inline-flex items-center justify-center gap-2 shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm md:text-base px-5 py-3 rounded-xl transition-colors"
+            >
+              <ScanLine className="w-5 h-5" />
+              Поиск по VIN
+            </Link>
+          </div>
         </div>
 
         {groups.length > 0 && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 mb-8">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6">
             <div className="flex flex-wrap items-end gap-4">
               {availableBrands.length > 1 && (
                 <div className="flex-1 min-w-[200px]">
-                  <label className="block text-sm font-medium text-neutral-400 mb-2">
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
                     Производитель
                   </label>
                   <div className="relative">
                     <select
                       value={brandFilter}
                       onChange={(e) => setBrandFilter(e.target.value)}
-                      className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
+                      className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
                     >
                       <option value="">Все производители</option>
                       {availableBrands.map((b) => (
@@ -439,7 +451,7 @@ function CatalogContent() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
+                    className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
                   >
                     <option value="price-asc">Цена: по возрастанию</option>
                     <option value="price-desc">Цена: по убыванию</option>
@@ -453,7 +465,7 @@ function CatalogContent() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`p-3 rounded-xl transition-colors ${
+                  className={`p-2.5 rounded-xl transition-colors ${
                     viewMode === "grid"
                       ? "bg-orange-500 text-white"
                       : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
@@ -464,7 +476,7 @@ function CatalogContent() {
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`p-3 rounded-xl transition-colors ${
+                  className={`p-2.5 rounded-xl transition-colors ${
                     viewMode === "list"
                       ? "bg-orange-500 text-white"
                       : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"

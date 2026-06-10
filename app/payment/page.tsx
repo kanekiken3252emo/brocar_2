@@ -33,7 +33,7 @@ const PAYMENT_METHODS = [
     icon: <Banknote className="h-5 w-5 text-orange-500" />,
     title: "Наличными в офисе",
     desc: "Оплата при самовывозе в нашем офисе по адресу: Екатеринбург, ул. Заводская, 16",
-    detail: "Пн — Пт: 10:00 — 18:00",
+    detail: "Пн — Пт: 10:00 — 19:00, Сб: 10:00 — 15:00",
     badge: "Доступно сейчас",
     badgeColor: "text-neutral-300 bg-neutral-500/10",
   },

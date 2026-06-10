@@ -193,12 +193,14 @@ export default function ProductPage() {
           <div className="grid md:grid-cols-2 gap-8 p-8">
             {/* Image Section */}
             <div className="space-y-4">
+              {/* Высота привязана к вьюпорту, чтобы наличие/гарантия/доставка
+                  оставались видимыми без скролла даже на небольших экранах */}
               <ProductImage
                 brand={product.brand?.name}
                 article={product.article}
                 alt={product.name || "Фото товара"}
-                className="aspect-square w-full rounded-2xl"
-                innerPadding="p-8"
+                className="w-full h-[280px] sm:h-[340px] md:h-[min(48vh,460px)] rounded-2xl"
+                innerPadding="p-6 md:p-8"
                 sizes="(max-width: 768px) 100vw, 50vw"
               />
               

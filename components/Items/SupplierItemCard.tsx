@@ -63,7 +63,7 @@ export default function SupplierItemCard({
           brand={group.brand}
           article={group.article}
           alt={group.name || "Товар"}
-          className="h-48 w-full"
+          className="h-40 md:h-44 w-full"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           priority={priority}
         />

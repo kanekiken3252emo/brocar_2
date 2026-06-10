@@ -33,7 +33,7 @@ function TwoGisIcon({ className }: { className?: string }) {
 function MaxIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 14h-1.8v-5.4l-2.7 3.6-2.7-3.6V16H7.5V8h1.8l3 4 3-4h1.8v8z" />
+      <path d="M12 2C6.48 2 2 6.27 2 11.54c0 2.88 1.34 5.46 3.46 7.21.3.25.45.64.36 1.02l-.55 2.32c-.13.57.42 1.05.96.84l2.86-1.13c.29-.11.61-.11.9-.03.65.17 1.32.26 2.01.26 5.52 0 10-4.27 10-9.54S17.52 2 12 2zm0 13.77c-2.33 0-4.23-1.89-4.23-4.23S9.67 7.31 12 7.31s4.23 1.89 4.23 4.23-1.9 4.23-4.23 4.23z" />
     </svg>
   );
 }
@@ -52,7 +52,7 @@ export default function ContactsPage() {
         <div className="absolute top-10 right-20 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
         
         <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-2xl">
+          <div className="max-w-2xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Контакты</h1>
             <p className="text-xl text-neutral-400">
               Мы всегда на связи и готовы помочь с подбором запчастей
@@ -82,11 +82,15 @@ export default function ContactsPage() {
                 <div className="space-y-2 text-neutral-400">
                   <p className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-orange-500" />
-                    Пн — Пт: 10:00 — 18:00
+                    Пн — Пт: 10:00 — 19:00
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-orange-500" />
+                    Сб: 10:00 — 15:00
                   </p>
                   <p className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-neutral-600" />
-                    <span className="text-neutral-500">Сб — Вс: выходной</span>
+                    <span className="text-neutral-500">Вс: выходной</span>
                   </p>
                 </div>
               </CardContent>
@@ -155,7 +159,7 @@ export default function ContactsPage() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-[#1DAD50] hover:text-[#15983F] transition-colors text-sm font-medium"
                 >
-                  <NextImage src="/2gis-footer-logo.png" alt="2ГИС" width={20} height={20} className="w-5 h-5 object-contain" />
+                  <TwoGisIcon className="h-4 w-4" />
                   Открыть в 2ГИС <ExternalLink className="h-3 w-3" />
                 </a>
                 <a 
@@ -182,12 +186,12 @@ export default function ContactsPage() {
                   <h3 className="font-semibold text-white text-lg mb-4">Режим работы магазина</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-neutral-300">
                     {[
-                      { day: "Пн", time: "10:00 — 18:00" },
-                      { day: "Вт", time: "10:00 — 18:00" },
-                      { day: "Ср", time: "10:00 — 18:00" },
-                      { day: "Чт", time: "10:00 — 18:00" },
-                      { day: "Пт", time: "10:00 — 18:00" },
-                      { day: "Сб", time: "Выходной", off: true },
+                      { day: "Пн", time: "10:00 — 19:00" },
+                      { day: "Вт", time: "10:00 — 19:00" },
+                      { day: "Ср", time: "10:00 — 19:00" },
+                      { day: "Чт", time: "10:00 — 19:00" },
+                      { day: "Пт", time: "10:00 — 19:00" },
+                      { day: "Сб", time: "10:00 — 15:00" },
                       { day: "Вс", time: "Выходной", off: true },
                     ].map((item) => (
                       <div 
@@ -226,7 +230,7 @@ export default function ContactsPage() {
               <p className="text-neutral-400 mb-6">
                 Подписывайтесь, чтобы быть в курсе акций и новинок
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <a
                   href="https://vk.com/brocarparts"
                   target="_blank"
@@ -253,6 +257,21 @@ export default function ContactsPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-white">Telegram</p>
+                    <p className="text-sm text-neutral-400">Написать нам</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://max.ru/u/f9LHodD0cOJyCM-iI-thSudnwGSQgZEDcoy5mjTAej0FyZns3SJxhRFOZ-4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#1F7EFF]/20 border border-neutral-700 hover:border-[#1F7EFF]/50 rounded-xl transition-all group"
+                >
+                  <div className="w-12 h-12 bg-[#1F7EFF]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#1F7EFF]/30">
+                    <MaxIcon className="h-6 w-6 text-[#1F7EFF]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">MAX</p>
                     <p className="text-sm text-neutral-400">Написать нам</p>
                   </div>
                 </a>
@@ -298,7 +317,7 @@ export default function ContactsPage() {
               </p>
               
               <div className="flex flex-wrap gap-3">
-                <a href="https://max.ru/+79326006015" target="_blank" rel="noopener noreferrer">
+                <a href="https://max.ru/u/f9LHodD0cOJyCM-iI-thSudnwGSQgZEDcoy5mjTAej0FyZns3SJxhRFOZ-4" target="_blank" rel="noopener noreferrer">
                   <Button className="gap-2 bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700">
                     <MaxIcon className="h-4 w-4" />
                     Max

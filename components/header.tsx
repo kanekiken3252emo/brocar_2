@@ -167,16 +167,18 @@ export function Header({ user }: HeaderProps) {
           <div className="flex items-center justify-between py-3 md:py-4 gap-3 md:gap-6">
             {/* Logo */}
             <Link href="/" className="shrink-0 flex items-center min-w-0 group">
-              <div className="relative h-12 w-12 sm:h-14 sm:w-14 md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
-                {/* Оранжевое свечение, чтобы чёрный логотип читался на тёмном фоне */}
-                <div className="absolute inset-0 bg-orange-500/25 rounded-full blur-xl scale-110" />
-                <div className="relative w-full h-full rounded-full bg-black ring-1 ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
+              <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
+                {/* Оранжевое свечение, чтобы чёрный логотип читался на тёмном фоне.
+                    На мобильных логотип маленький — свечение и обводка ярче,
+                    на десктопе наоборот деликатнее. */}
+                <div className="absolute inset-0 bg-orange-500/50 md:bg-orange-500/25 rounded-full blur-md md:blur-xl scale-110" />
+                <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
                   <Image
                     src="/Logo_Brocar.webp"
                     alt="BroCar"
                     width={1200}
                     height={1200}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain brightness-125 md:brightness-100"
                     priority
                   />
                 </div>

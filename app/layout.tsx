@@ -35,6 +35,21 @@ export const metadata: Metadata = {
   keywords: ["автозапчасти", "запчасти", "автомобили", "BroCar"],
   authors: [{ name: siteName }],
   metadataBase: new URL(baseUrl),
+  // "./" — Next.js сам подставит canonical с путём текущей страницы
+  // (query-параметры отбрасываются: /catalog?brand=Audi → /catalog)
+  alternates: {
+    canonical: "./",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },

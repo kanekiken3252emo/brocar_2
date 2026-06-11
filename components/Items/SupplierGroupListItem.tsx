@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingCart, Package, Clock, MapPin, ChevronDown } from "lucide-react";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import { formatDeliveryDays } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ function OfferRow({
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    flyToCart(e.currentTarget as HTMLElement);
     try {
       await addSupplierItemToCart({
         article: group.article,

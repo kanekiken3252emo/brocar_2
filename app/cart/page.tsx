@@ -58,6 +58,8 @@ async function apiCart(body: object) {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("cart error");
+  // Бейдж счётчика в хедере слушает это событие
+  window.dispatchEvent(new CustomEvent("cart:updated"));
   return res.json() as Promise<CartData>;
 }
 

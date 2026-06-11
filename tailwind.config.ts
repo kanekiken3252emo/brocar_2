@@ -94,6 +94,7 @@ const config: Config = {
         "slide-up": "slideUp 0.5s ease-out",
         "slide-down": "slideDown 0.3s ease-out",
         glow: "glow 2s ease-in-out infinite alternate",
+        "cart-pop": "cartPop 0.35s cubic-bezier(.3,1.5,.5,1)",
       },
       keyframes: {
         fadeIn: {
@@ -111,6 +112,11 @@ const config: Config = {
         glow: {
           "0%": { boxShadow: "0 0 20px -10px hsl(24 100% 50% / 0.5)" },
           "100%": { boxShadow: "0 0 40px -10px hsl(24 100% 50% / 0.8)" },
+        },
+        cartPop: {
+          "0%": { transform: "scale(0.4)" },
+          "60%": { transform: "scale(1.25)" },
+          "100%": { transform: "scale(1)" },
         },
       },
     },

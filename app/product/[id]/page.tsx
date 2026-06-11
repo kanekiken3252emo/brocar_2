@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 
@@ -126,8 +127,9 @@ export default function ProductPage() {
     }
   };
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     if (!product || !selectedOffer) return;
+    flyToCart(e.currentTarget as HTMLElement);
     try {
       await addSupplierItemToCart({
         article: product.article,

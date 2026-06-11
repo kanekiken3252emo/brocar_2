@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { ShoppingCart, Check, AlertCircle } from "lucide-react";
+import { flyToCart } from "@/lib/cart/fly-to-cart";
 
 interface ProductData {
   article: string;
@@ -32,9 +33,10 @@ export function AddToCartButton({
 }: AddToCartButtonProps) {
   const [state, setState] = useState<State>("idle");
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     if (state === "loading" || state === "success") return;
     setState("loading");
+    flyToCart(e.currentTarget as HTMLElement);
 
     try {
       const res = await fetch("/api/cart", {
@@ -50,6 +52,17 @@ export function AddToCartButton({
       if (!res.ok) throw new Error("cart error");
 
       setState("success");
+      // Обновляет счётчик корзины в хедере (и тост)
+      window.dispatchEvent(
+        new CustomEvent("cart:added", {
+          detail: {
+            article: product?.article || "",
+            brand: product?.brand || "",
+            name: product?.name || "",
+            qty: 1,
+          },
+        })
+      );
       setTimeout(() => setState("idle"), 2000);
     } catch {
       setState("error");

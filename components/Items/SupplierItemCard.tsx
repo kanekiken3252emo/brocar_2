@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { flyToCart } from "@/lib/cart/fly-to-cart";
 import ProductImage from "@/components/Items/ProductImage";
 import { formatDeliveryDays } from "@/lib/utils";
 
@@ -38,6 +39,7 @@ export default function SupplierItemCard({
     e.stopPropagation();
     const bestOffer = group.offers[0];
     if (!bestOffer) return;
+    flyToCart(e.currentTarget as HTMLElement);
     try {
       await addSupplierItemToCart({
         article: group.article,

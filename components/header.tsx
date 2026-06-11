@@ -4,10 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, Search, X, Car, ClipboardList } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BrandCatalogDropdown from "./BrandCatalogDropdown";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface HeaderProps {
   user?: any;
@@ -78,7 +78,62 @@ export function Header({ user }: HeaderProps) {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isBrandCatalogOpen, setIsBrandCatalogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Счётчик товаров в корзине.
+  //  - cart:landed (шарик долетел до корзины) — мгновенный оптимистичный +qty,
+  //    не ждём ответа сервера;
+  //  - cart:added / cart:error — отложенная сверка с сервером (исправляет
+  //    счётчик, если добавление в итоге не удалось);
+  //  - cart:updated (правки на странице корзины) и смена страницы — обычный
+  //    перезапрос.
+  useEffect(() => {
+    let alive = true;
+    let reconcileTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refresh = () => {
+      fetch("/api/cart")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!alive || !data) return;
+          const count = (data.items || []).reduce(
+            (sum: number, item: { qty?: number }) => sum + (item.qty ?? 1),
+            0
+          );
+          setCartCount(count);
+        })
+        .catch(() => {});
+    };
+
+    // Сверяемся после того как анимация полёта точно закончилась, чтобы
+    // ответ сервера не «перетёр» цифру до оптимистичного инкремента.
+    const scheduleReconcile = () => {
+      if (reconcileTimer) clearTimeout(reconcileTimer);
+      reconcileTimer = setTimeout(refresh, 1200);
+    };
+
+    const onLanded = (e: Event) => {
+      const qty = (e as CustomEvent).detail?.qty ?? 1;
+      setCartCount((c) => c + qty);
+    };
+
+    refresh();
+    window.addEventListener("cart:landed", onLanded);
+    window.addEventListener("cart:added", scheduleReconcile);
+    window.addEventListener("cart:error", scheduleReconcile);
+    window.addEventListener("cart:updated", refresh);
+    return () => {
+      alive = false;
+      if (reconcileTimer) clearTimeout(reconcileTimer);
+      window.removeEventListener("cart:landed", onLanded);
+      window.removeEventListener("cart:added", scheduleReconcile);
+      window.removeEventListener("cart:error", scheduleReconcile);
+      window.removeEventListener("cart:updated", refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -221,11 +276,19 @@ export function Header({ user }: HeaderProps) {
                   VIN
                 </Button>
               </Link>
-              <Link href="/cart">
+              <Link href="/cart" className="relative" id="header-cart-target">
                 <Button variant="outline" className="flex items-center gap-2 border-orange-500/50 text-orange-500 hover:bg-orange-500 hover:text-white bg-transparent h-10 md:h-12 px-3 md:px-4 transition-all">
                   <ShoppingCart className="h-5 w-5" />
                   <span className="hidden lg:inline font-semibold">КОРЗИНА</span>
                 </Button>
+                {cartCount > 0 && (
+                  <span
+                    key={cartCount}
+                    className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-orange-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center ring-2 ring-neutral-950 animate-cart-pop pointer-events-none"
+                  >
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
               </Link>
               
               {/* Mobile menu button */}

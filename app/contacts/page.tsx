@@ -171,6 +171,16 @@ export default function ContactsPage() {
                   <MapPin className="h-4 w-4" />
                   Яндекс Карты <ExternalLink className="h-3 w-3" />
                 </a>
+                {/* Рейтинг организации в Яндексе */}
+                <iframe
+                  src="https://yandex.ru/sprav/widget/rating-badge/35950776894?type=rating&theme=dark"
+                  width={150}
+                  height={50}
+                  frameBorder={0}
+                  loading="lazy"
+                  title="Рейтинг BroCar в Яндексе"
+                  className="rounded-lg ml-auto"
+                />
               </div>
             </CardContent>
           </Card>

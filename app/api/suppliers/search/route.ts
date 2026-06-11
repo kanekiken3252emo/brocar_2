@@ -7,6 +7,7 @@ import shateMAdapter from "@/lib/suppliers/shate-m";
 import forumAutoAdapter from "@/lib/suppliers/forum-auto";
 import armtekAdapter from "@/lib/suppliers/armtek";
 import autotradeAdapter from "@/lib/suppliers/autotrade";
+import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
       forumAutoAdapter,
       armtekAdapter,
       autotradeAdapter,
+      partKomAdapter,
     ];
     const items = await searchAllSuppliers(adapters, validatedData);
 

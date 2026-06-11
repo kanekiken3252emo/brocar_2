@@ -14,6 +14,7 @@ import shateMAdapter, {
 import forumAutoAdapter from "@/lib/suppliers/forum-auto";
 import armtekAdapter from "@/lib/suppliers/armtek";
 import autotradeAdapter from "@/lib/suppliers/autotrade";
+import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
 import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
@@ -108,6 +109,7 @@ export async function GET(
       forumAutoAdapter,
       armtekAdapter,
       autotradeAdapter,
+      partKomAdapter,
     ];
 
     // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M

@@ -19,6 +19,9 @@ import postgres from "postgres";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { resolve } from "node:path";
+// Единый источник правил классификации (тот же, что использует рантайм
+// через lib/catalog/classifier.ts). Локальных копий больше нет.
+import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
 
 const CSV_PATH = process.argv[2] || "public/BERG_brocar_20260422_114614.csv";
 // Приоритет: pooler (работает везде) > direct (может блокироваться провайдером)
@@ -29,136 +32,6 @@ if (!DB_URL) {
     "❌ DATABASE_URL / DATABASE_POOLER_URL отсутствует. Запуск: node --env-file=.env.local scripts/import-berg-csv.mjs"
   );
   process.exit(1);
-}
-
-// ── Классификатор (синхронизирован с lib/catalog/classifier.ts) ────────────
-const PATTERNS = [
-  { slug: "engine-oils", keywords: ["масло моторное","моторное масло","5w-30","5w-40","0w-20","0w-30","10w-40","10w-60"] },
-  { slug: "transmission-oils", keywords: ["масло трансмисс","трансмиссионное масло","atf ","dexron","gl-4","gl-5","75w","80w"] },
-  { slug: "industrial-oils", keywords: ["масло гидравлическ","гидравлическое масло","компрессорное","для цепей","цепное масло"] },
-  { slug: "brake-pads", keywords: ["колодки тормозн","тормозные колодки"] },
-  { slug: "brake-discs", keywords: ["диск тормозн","тормозной диск"] },
-  { slug: "brake-fluids", keywords: ["жидкость тормозн","тормозная жидкость","brake fluid","dot 3","dot-3","dot 4","dot-4","dot 5","dot-5"] },
-  { slug: "brake-hoses", keywords: ["шланг тормозн","тормозной шланг"] },
-  { slug: "coolants", keywords: ["антифриз","тосол","coolant","охлаждающая жидкост","жидкость охлаждающ"] },
-  { slug: "thermostats", keywords: ["термостат"] },
-  { slug: "radiators", keywords: ["радиатор охлажд","радиатор системы охлажд"] },
-  { slug: "water-pumps", keywords: ["насос водян","помпа"] },
-  { slug: "oil-filters", keywords: ["фильтр масляный","масляный фильтр"] },
-  { slug: "air-filters", keywords: ["фильтр воздушный","воздушный фильтр"] },
-  { slug: "fuel-filters", keywords: ["фильтр топливный","топливный фильтр"] },
-  { slug: "cabin-filters", keywords: ["фильтр салонный","салонный фильтр"] },
-  { slug: "spark-plugs", keywords: ["свеча зажигания","свечи зажигания","spark plug"] },
-  { slug: "glow-plugs", keywords: ["свеча накаливания","свечи накаливания"] },
-  { slug: "ignition-coils", keywords: ["катушка зажигания"] },
-  { slug: "ignition-wires", keywords: ["провод высоков","провод зажиг"] },
-  { slug: "lamps", keywords: ["лампа ","лампы ","галоген","ксенон"," led ","h1 ","h4 ","h7 ","h11 ","w5w","hb3","hb4"] },
-  { slug: "batteries", keywords: ["аккумулятор","акб "," аккум","battery"] },
-  { slug: "fuses", keywords: ["предохранитель"] },
-  { slug: "alternators", keywords: ["генератор"] },
-  { slug: "starters", keywords: ["стартер"] },
-  { slug: "oxygen-sensors", keywords: ["лямбда-зонд","лямбда зонд","датчик кислород"] },
-  { slug: "sensors", keywords: ["датчик"] },
-  { slug: "shock-absorbers", keywords: ["амортизатор"] },
-  { slug: "struts", keywords: ["стойка амортизатор","опора амортизатор"] },
-  { slug: "stabilizer-links", keywords: ["стойка стабилизатор","тяга стабилизатор"] },
-  { slug: "ball-joints", keywords: ["шаровая опора","шаровой шарнир"] },
-  { slug: "tie-rods", keywords: ["наконечник рулевой","тяга рулевая"] },
-  { slug: "cv-joints", keywords: ["шрус","граната рулевая"] },
-  { slug: "silent-blocks", keywords: ["сайлентблок","сайлент-блок"] },
-  { slug: "bearings", keywords: ["подшипник"] },
-  { slug: "springs", keywords: ["пружина подвески","пружина передней","пружина задней"] },
-  { slug: "clutch", keywords: ["сцепление","диск сцепления","корзина сцепления","выжимной"] },
-  { slug: "belts", keywords: ["ремень привод","ремень грм","ремень поликлин"] },
-  { slug: "chains", keywords: ["цепь грм","цепь привод"] },
-  { slug: "pulleys", keywords: ["ролик натяж","шкив"] },
-  { slug: "engine-mounts", keywords: ["опора двигателя","подушка двигателя","опора двс"] },
-  { slug: "engine-parts", keywords: ["поршень","кольца поршнев","вкладыш","прокладка гбц","прокладка головки","маслосъём"] },
-  { slug: "exhaust", keywords: ["глушитель","резонатор","катализатор","гофра"] },
-  { slug: "hoses", keywords: ["патрубок","шланг"] },
-  { slug: "wipers", keywords: ["щетка стеклоочист","щётка стеклоочист","щетки стеклоочист","щётки стеклоочист"] },
-  { slug: "washer-fluids", keywords: ["жидкость омыват","жидкость стекло","незамерз"] },
-  { slug: "accessories", keywords: ["полироль","шампунь автомоб","герметик","очиститель","размораживатель","смазка"] },
-  { slug: "mirrors", keywords: ["зеркало бок","зеркало зад"] },
-  { slug: "body-parts", keywords: ["крыло","бампер","капот","дверь багаж"] },
-  { slug: "wheels", keywords: ["диск колесн","колёсный диск","колесный диск"] },
-];
-
-function detectCategory(name) {
-  const n = (name || "").toLowerCase();
-  for (const p of PATTERNS) {
-    for (const kw of p.keywords) if (n.includes(kw)) return p.slug;
-  }
-  return "misc";
-}
-
-// ── Детект марок авто (синхронизирован с lib/catalog/classifier.ts) ────────
-const CAR_BRANDS = [
-  { slug: "BMW", patterns: [/\bBMW\b/] },
-  { slug: "AUDI", patterns: [/\bAUDI\b/] },
-  { slug: "MERCEDES", patterns: [/\bMERCEDES\b/, /\bBENZ\b/, /\bMB\b/] },
-  { slug: "VOLKSWAGEN", patterns: [/\bVOLKSWAGEN\b/, /\bVW\b/] },
-  { slug: "SKODA", patterns: [/\bSKODA\b/, /\bШКОДА\b/] },
-  { slug: "SEAT", patterns: [/\bSEAT\b/] },
-  { slug: "PORSCHE", patterns: [/\bPORSCHE\b/] },
-  { slug: "TOYOTA", patterns: [/\bTOYOTA\b/] },
-  { slug: "LEXUS", patterns: [/\bLEXUS\b/] },
-  { slug: "HONDA", patterns: [/\bHONDA\b/] },
-  { slug: "ACURA", patterns: [/\bACURA\b/] },
-  { slug: "NISSAN", patterns: [/\bNISSAN\b/] },
-  { slug: "INFINITI", patterns: [/\bINFINITI\b/] },
-  { slug: "MAZDA", patterns: [/\bMAZDA\b/] },
-  { slug: "MITSUBISHI", patterns: [/\bMITSUBISHI\b/] },
-  { slug: "SUBARU", patterns: [/\bSUBARU\b/] },
-  { slug: "SUZUKI", patterns: [/\bSUZUKI\b/] },
-  { slug: "ISUZU", patterns: [/\bISUZU\b/] },
-  { slug: "DAIHATSU", patterns: [/\bDAIHATSU\b/] },
-  { slug: "SSANGYONG", patterns: [/\bSSANGYONG\b/] },
-  { slug: "HYUNDAI", patterns: [/\bHYUNDAI\b/] },
-  { slug: "KIA", patterns: [/\bKIA\b/] },
-  { slug: "DAEWOO", patterns: [/\bDAEWOO\b/] },
-  { slug: "FORD", patterns: [/\bFORD\b/] },
-  { slug: "CHEVROLET", patterns: [/\bCHEVROLET\b/, /\bCHEVY\b/] },
-  { slug: "OPEL", patterns: [/\bOPEL\b/] },
-  { slug: "RENAULT", patterns: [/\bRENAULT\b/] },
-  { slug: "PEUGEOT", patterns: [/\bPEUGEOT\b/] },
-  { slug: "CITROEN", patterns: [/\bCITROEN\b/] },
-  { slug: "DACIA", patterns: [/\bDACIA\b/] },
-  { slug: "FIAT", patterns: [/\bFIAT\b/] },
-  { slug: "LANCIA", patterns: [/\bLANCIA\b/] },
-  { slug: "ALFA-ROMEO", patterns: [/\bALFA\s+ROMEO\b/, /\bALFA-ROMEO\b/] },
-  { slug: "VOLVO", patterns: [/\bVOLVO\b/] },
-  { slug: "SAAB", patterns: [/\bSAAB\b/] },
-  { slug: "LAND-ROVER", patterns: [/\bLAND\s+ROVER\b/, /\bLAND-ROVER\b/] },
-  { slug: "JAGUAR", patterns: [/\bJAGUAR\b/] },
-  { slug: "MINI", patterns: [/\bMINI\s+COOPER\b/, /\bMINI\b/] },
-  { slug: "JEEP", patterns: [/\bJEEP\b/] },
-  { slug: "DODGE", patterns: [/\bDODGE\b/] },
-  { slug: "CHRYSLER", patterns: [/\bCHRYSLER\b/] },
-  { slug: "CADILLAC", patterns: [/\bCADILLAC\b/] },
-  { slug: "TESLA", patterns: [/\bTESLA\b/] },
-  { slug: "LADA", patterns: [/\bLADA\b/, /\bВАЗ\b/, /\bЛАДА\b/] },
-  { slug: "UAZ", patterns: [/\bUAZ\b/, /\bУАЗ\b/] },
-  { slug: "GAZ", patterns: [/\bGAZ\b/, /\bГАЗ\b/] },
-  { slug: "CHERY", patterns: [/\bCHERY\b/] },
-  { slug: "GEELY", patterns: [/\bGEELY\b/] },
-  { slug: "HAVAL", patterns: [/\bHAVAL\b/] },
-  { slug: "GREAT-WALL", patterns: [/\bGREAT\s+WALL\b/, /\bGREAT-WALL\b/] },
-  { slug: "JAC", patterns: [/\bJAC\b/] },
-  { slug: "CHANGAN", patterns: [/\bCHANGAN\b/] },
-  { slug: "EXEED", patterns: [/\bEXEED\b/] },
-  { slug: "OMODA", patterns: [/\bOMODA\b/] },
-];
-
-function detectCarBrands(name) {
-  const upper = (name || "").toUpperCase();
-  const found = [];
-  for (const b of CAR_BRANDS) {
-    for (const re of b.patterns) {
-      if (re.test(upper)) { found.push(b.slug); break; }
-    }
-  }
-  return found;
 }
 
 function applyMarkup(price) {

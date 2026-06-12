@@ -153,6 +153,22 @@ export async function GET(
     // N round-trip'ов к /api/product-image на рендере грида.
     const enriched = await enrichGroupsWithImages(dedupeGroups(groups));
 
+    // dedupeGroups всегда сортирует по minPrice ASC, затирая SQL ORDER BY.
+    // Возвращаем порядок, соответствующий запрошенному sort, иначе
+    // «сначала дорогое» показывало бы страницу по возрастанию.
+    enriched.sort((a, b) => {
+      switch (sort) {
+        case "price-desc":
+          return b.minPrice - a.minPrice;
+        case "stock":
+          return b.totalStock - a.totalStock;
+        case "name":
+          return a.name.localeCompare(b.name, "ru");
+        default:
+          return a.minPrice - b.minPrice;
+      }
+    });
+
     return NextResponse.json({
       slug,
       title: meta?.title ?? slug,

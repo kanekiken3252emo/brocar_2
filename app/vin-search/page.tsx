@@ -136,7 +136,7 @@ export default function VinSearchPage() {
             <span className="text-neutral-300">Запрос по VIN</span>
           </div>
 
-          <div className="max-w-2xl">
+          <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 rounded-full px-4 py-1.5 mb-5">
               <Car className="h-4 w-4 text-orange-500" />
               <span className="text-orange-400 text-sm font-medium">Точный подбор запчастей</span>
@@ -146,7 +146,7 @@ export default function VinSearchPage() {
               Запрос по{" "}
               <span className="text-orange-500">VIN-коду</span>
             </h1>
-            <p className="text-lg text-neutral-400 max-w-xl">
+            <p className="text-lg text-neutral-400 max-w-xl mx-auto">
               Укажите VIN вашего автомобиля — мы подберём оригинальные и аналоговые запчасти
               по наличию и ценам у всех наших поставщиков.
             </p>

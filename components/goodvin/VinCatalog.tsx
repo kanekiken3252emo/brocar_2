@@ -457,35 +457,26 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
                     key={pos.number}
                     type="button"
                     onClick={() => selectFromImage(pos.number)}
-                    title={`Позиция ${pos.number}`}
+                    title={`Позиция ${pos.number} — нажмите, чтобы найти деталь в списке`}
                     style={{
                       left: `${left}%`,
                       top: `${top}%`,
                       width: `${width}%`,
                       height: `${height}%`,
                     }}
-                    className={`group absolute flex items-start justify-start rounded-sm border transition-colors ${
+                    className={`absolute cursor-pointer rounded-md border transition-all ${
                       isActive
-                        ? "border-orange-500 bg-orange-500/30"
-                        : "border-orange-500/0 bg-orange-500/0 hover:border-orange-500/60 hover:bg-orange-500/15"
+                        ? "border-orange-500 bg-orange-500/40 ring-2 ring-orange-500/30"
+                        : "border-orange-400/70 bg-orange-400/15 hover:border-orange-500 hover:bg-orange-500/30 hover:ring-2 hover:ring-orange-500/25"
                     }`}
-                  >
-                    <span
-                      className={`-mt-2 -ml-2 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shadow transition-opacity ${
-                        isActive
-                          ? "bg-orange-500 text-white"
-                          : "bg-neutral-900/80 text-orange-300 opacity-0 group-hover:opacity-100"
-                      }`}
-                    >
-                      {pos.number}
-                    </span>
-                  </button>
+                  />
                 );
               })}
           </div>
           {hasHotspots && (
-            <p className="text-center text-xs text-neutral-500">
-              Нажмите на номер на схеме — деталь подсветится в списке
+            <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
+              <span className="inline-block h-3 w-4 rounded-[3px] border border-orange-400/70 bg-orange-400/15" />
+              Номера на схеме кликабельны — нажмите, чтобы найти деталь в списке
             </p>
           )}
         </div>

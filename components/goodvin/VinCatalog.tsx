@@ -13,6 +13,16 @@ import {
   Package,
   Home,
   Tag,
+  Cog,
+  Disc3,
+  Zap,
+  Gauge,
+  CircleDot,
+  Droplets,
+  Fuel,
+  Wrench,
+  Snowflake,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +31,28 @@ import type {
   GoodvinGroup,
   GoodvinParts,
 } from "@/types/goodvin";
+
+/**
+ * Иконка раздела по названию. У верхних категорий каталога нет картинок в API
+ * (img: null) — поэтому подбираем осмысленную иконку по ключевым словам.
+ * Картинки-схемы появляются глубже, на уровне самих узлов (hasParts).
+ */
+function categoryIcon(name: string): LucideIcon {
+  const n = name.toLowerCase();
+  if (/двигат|мотор/.test(n)) return Cog;
+  if (/тормоз/.test(n)) return Disc3;
+  if (/электр|провод|датчик|освещ|фар|свет|лампа|аккумул/.test(n)) return Zap;
+  if (/подвеск|рулев|амортиз|рычаг|стабил/.test(n)) return Gauge;
+  if (/колес|шина|диск|ступиц/.test(n)) return CircleDot;
+  if (/кпп|трансмис|сцеплен|передач|привод|коробк/.test(n)) return Cog;
+  if (/масл|гсм|жидкост|химия|смазк|антифриз/.test(n)) return Droplets;
+  if (/топлив/.test(n)) return Fuel;
+  if (/обслуж|детали то|фильтр|ремен/.test(n)) return Wrench;
+  if (/климат|отоплен|кондиц|охлажд|вентил/.test(n)) return Snowflake;
+  if (/кузов|салон|интерьер|сидень|двер/.test(n)) return Car;
+  if (/аксессуар|прочие|разное/.test(n)) return Package;
+  return Layers;
+}
 
 /** Протокол-относительные ссылки картинок GoodVin → https. */
 function img(src?: string): string | undefined {
@@ -357,7 +389,9 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
           {/* Сетка узлов */}
           {!loading && !parts && groups.length > 0 && (
             <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {groups.map((g) => (
+              {groups.map((g) => {
+                const CatIcon = categoryIcon(g.name);
+                return (
                 <button
                   key={g.id}
                   onClick={() => openGroup(g)}
@@ -365,7 +399,9 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
                 >
                   <div
                     className={`flex aspect-[4/3] items-center justify-center p-2 ${
-                      img(g.img) ? "bg-white" : "bg-neutral-800/60"
+                      img(g.img)
+                        ? "bg-white"
+                        : "bg-gradient-to-br from-neutral-800/80 to-neutral-900"
                     }`}
                   >
                     {img(g.img) ? (
@@ -376,10 +412,11 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
                         className="h-full w-full object-contain"
                         loading="lazy"
                       />
-                    ) : g.hasParts ? (
-                      <Package className="h-9 w-9 text-orange-500/70" />
                     ) : (
-                      <Layers className="h-9 w-9 text-neutral-600" />
+                      <CatIcon
+                        className="h-10 w-10 text-orange-500/60 transition-colors group-hover:text-orange-500"
+                        strokeWidth={1.5}
+                      />
                     )}
                   </div>
                   <div className="flex items-center gap-2 p-3">
@@ -393,7 +430,8 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
                     </span>
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 

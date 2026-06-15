@@ -13,9 +13,9 @@
  * использоваться и нормализация запроса разойдётся с нормализацией колонки.
  */
 
-// ё + латинские двойники → кириллица. Порядок символов в FROM/TO соответствует.
-export const FOLD_FROM = "ёabcehkmoptxy";
-export const FOLD_TO = "еавсенкмортху";
+// Единый источник правил сворачивания (тот же .mjs использует SQL-индекс).
+import { FOLD_FROM, FOLD_TO } from "./fold.mjs";
+export { FOLD_FROM, FOLD_TO };
 
 const FOLD_MAP: Record<string, string> = {};
 for (let i = 0; i < FOLD_FROM.length; i++) {

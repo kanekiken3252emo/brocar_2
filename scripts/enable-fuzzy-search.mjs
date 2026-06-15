@@ -21,6 +21,9 @@
  */
 
 import postgres from "postgres";
+// Единый источник правил сворачивания — тот же, что у рантайма (normalize.ts).
+// Импорт исключает расхождение выражения индекса с выражением в SQL-запросе.
+import { FOLD_FROM, FOLD_TO } from "../lib/catalog/fold.mjs";
 
 const DB_URL = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
 
@@ -30,10 +33,6 @@ if (!DB_URL) {
   );
   process.exit(1);
 }
-
-// Должно совпадать с lib/catalog/normalize.ts (FOLD_FROM / FOLD_TO).
-const FOLD_FROM = "ёabcehkmoptxy";
-const FOLD_TO = "еавсенкмортху";
 
 const isPooler = DB_URL.includes("pooler.supabase.com");
 const sql = postgres(DB_URL, {
@@ -66,23 +65,29 @@ async function main() {
   });
 
   if (!ext) {
+    // Без pg_trgm индексы gin_trgm_ops создать нельзя — прекращаем, чтобы не
+    // сыпать непонятными ошибками «operator class does not exist».
     console.error(
-      "\n⚠️  Не удалось создать расширение pg_trgm. Скорее всего у роли нет прав.\n" +
+      "\n⚠️  Не удалось создать расширение pg_trgm (вероятно, у роли нет прав).\n" +
         "   Включите его вручную в Supabase: SQL Editor → CREATE EXTENSION IF NOT EXISTS pg_trgm;\n" +
-        "   затем перезапустите этот скрипт для создания индексов."
+        "   затем перезапустите этот скрипт — он создаст индексы."
     );
+    await sql.end();
+    process.exit(1);
   }
 
+  // CONCURRENTLY — чтобы не блокировать таблицу на проде во время сборки индекса.
+  // Не может выполняться в транзакции; sql.unsafe шлёт простой запрос (autocommit).
   await step("GIN trgm индекс по названию", async () => {
     await sql.unsafe(
-      `CREATE INDEX IF NOT EXISTS idx_products_name_trgm ON products ` +
+      `CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_name_trgm ON products ` +
         `USING gin (translate(lower(name), '${FOLD_FROM}', '${FOLD_TO}') gin_trgm_ops)`
     );
   });
 
   await step("GIN trgm индекс по артикулу", async () => {
     await sql.unsafe(
-      `CREATE INDEX IF NOT EXISTS idx_products_article_trgm ON products ` +
+      `CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_article_trgm ON products ` +
         `USING gin (lower(article) gin_trgm_ops)`
     );
   });

@@ -27,9 +27,22 @@ import {
  * GET /api/catalog/text-search?q=масло+фильтр&limit=200&sort=price-asc
  */
 
-// SQL-нормализация названия — обязана совпадать с normalizeName() в TS.
-const NAME_NORM = dsql`translate(lower(${products.name}), ${FOLD_FROM}, ${FOLD_TO})`;
+// SQL-нормализация названия — обязана совпадать с normalizeName() в TS И с
+// выражением функционального индекса в scripts/enable-fuzzy-search.mjs.
+// FOLD_FROM/FOLD_TO вставляем КАК ЛИТЕРАЛЫ (dsql.raw), а не как bound-параметры:
+// иначе translate(lower(name), $1, $2) не совпадёт с translate(lower(name),
+// 'ё…','е…') в индексе, и GIN-индекс не будет использоваться (seq scan).
+const NAME_NORM = dsql`translate(lower(${products.name}), ${dsql.raw(
+  `'${FOLD_FROM}'`
+)}, ${dsql.raw(`'${FOLD_TO}'`)})`;
 const ART_NORM = dsql`lower(${products.article})`;
+
+// Экранируем спецсимволы LIKE (% _ \) в пользовательском вводе, чтобы они не
+// работали как шаблоны. Сами обрамляющие % добавляем снаружи (это и есть «contains»).
+function likeContains(expr: SQL, value: string): SQL {
+  const esc = value.replace(/[\\%_]/g, "\\$&");
+  return dsql`${expr} LIKE ${"%" + esc + "%"} ESCAPE '\\'`;
+}
 
 type Mode = "exact" | "relaxed" | "fuzzy";
 
@@ -53,13 +66,15 @@ const SELECT = {
   stock: products.stock,
 };
 
-/** Условие на один токен: имя (с синонимами) ИЛИ артикул. */
+/**
+ * Условие на один токен: имя (с синонимами) ИЛИ артикул.
+ * Синонимы применяем только к НАЗВАНИЮ — артикул это SKU, человеческие
+ * синонимы к нему не подходят, ищем по нему как есть.
+ */
 function tokenCondition(token: string): SQL {
   const variants = expandToken(token);
-  const nameConds = variants.map(
-    (v) => dsql`${NAME_NORM} LIKE ${"%" + v + "%"}`
-  );
-  const artCond = dsql`${ART_NORM} LIKE ${"%" + token + "%"}`;
+  const nameConds = variants.map((v) => likeContains(NAME_NORM, v));
+  const artCond = likeContains(ART_NORM, token);
   return or(...nameConds, artCond)!;
 }
 
@@ -71,8 +86,9 @@ function escapeRegex(s: string): string {
 function relevance(nameNorm: string, articleLower: string, tokens: string[]): number {
   let score = 0;
   for (const t of tokens) {
+    // nameNorm уже свёрнут (ё→е), поэтому ё в классе границ не нужен.
     const whole = new RegExp(
-      `(^|[^а-яёa-z0-9])${escapeRegex(t)}([^а-яёa-z0-9]|$)`
+      `(^|[^а-яa-z0-9])${escapeRegex(t)}([^а-яa-z0-9]|$)`
     ).test(nameNorm);
     if (whole) score += 4;
     else if (nameNorm.includes(t)) score += 1;

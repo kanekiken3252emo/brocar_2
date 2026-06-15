@@ -349,7 +349,11 @@ function VinCatalogInner() {
                   onClick={() => openGroup(g)}
                   className="group flex flex-col overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 text-left transition-colors hover:border-orange-500/50"
                 >
-                  <div className="flex aspect-square items-center justify-center bg-white p-2">
+                  <div
+                    className={`flex aspect-[4/3] items-center justify-center p-2 ${
+                      img(g.img) ? "bg-white" : "bg-neutral-800/60"
+                    }`}
+                  >
                     {img(g.img) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -358,8 +362,10 @@ function VinCatalogInner() {
                         className="h-full w-full object-contain"
                         loading="lazy"
                       />
+                    ) : g.hasParts ? (
+                      <Package className="h-9 w-9 text-orange-500/70" />
                     ) : (
-                      <Layers className="h-10 w-10 text-neutral-300" />
+                      <Layers className="h-9 w-9 text-neutral-600" />
                     )}
                   </div>
                   <div className="flex items-center gap-2 p-3">

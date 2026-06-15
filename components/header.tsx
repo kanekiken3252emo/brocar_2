@@ -144,8 +144,15 @@ export function Header({ user }: HeaderProps) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/catalog?article=${encodeURIComponent(searchQuery.trim())}`);
+    const q = searchQuery.trim();
+    if (!q) return;
+    // 17-значный VIN → каталог по VIN; остальное (артикул/наименование) →
+    // обычный поиск по поставщикам. VIN-набор исключает буквы I, O, Q.
+    const compact = q.replace(/\s+/g, "");
+    if (/^[A-HJ-NPR-Z0-9]{17}$/i.test(compact)) {
+      router.push(`/catalog-vin?vin=${encodeURIComponent(compact.toUpperCase())}`);
+    } else {
+      router.push(`/catalog?article=${encodeURIComponent(q)}`);
     }
   };
 
@@ -245,7 +252,7 @@ export function Header({ user }: HeaderProps) {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Поиск по артикулу или наименованию..."
+                  placeholder="Поиск по артикулу, наименованию или VIN..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full px-5 py-3 pr-14 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white placeholder-neutral-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-all"
@@ -308,7 +315,7 @@ export function Header({ user }: HeaderProps) {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Поиск по артикулу или наименованию..."
+                placeholder="Поиск по артикулу, наименованию или VIN..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2.5 pr-11 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white text-sm placeholder-neutral-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-all"

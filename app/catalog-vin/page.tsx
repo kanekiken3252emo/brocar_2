@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AcatCatalogWidget } from "@/components/AcatCatalogWidget";
+import { GoodvinCatalogWidget } from "@/components/GoodvinCatalogWidget";
 
 export const metadata: Metadata = {
   title: "Онлайн-каталог запчастей по VIN — BroCar",
@@ -40,28 +40,11 @@ const FEATURES = [
   },
 ];
 
-const ACAT_BASE =
-  process.env.NEXT_PUBLIC_ACAT_WIDGET_URL || "https://brocarparts.acat.online";
-
-export default async function CatalogVinPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ vin?: string | string[] }>;
-}) {
-  const { vin } = await searchParams;
-  // VIN может прийти из гаража (?vin=...). Чистим до букв/цифр и подставляем
-  // в deep-link каталога ACAT, чтобы поиск открылся сразу по этому VIN.
-  const cleanVin = (Array.isArray(vin) ? vin[0] : vin)
-    ?.replace(/[^A-Za-z0-9]/g, "")
-    .toUpperCase();
-  const acatSrc = cleanVin
-    ? `${ACAT_BASE}/catalogs/search?text=${encodeURIComponent(cleanVin)}`
-    : undefined;
-
+export default function CatalogVinPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
       <div className="mb-8 overflow-hidden max-w-[100vw]">
-        <AcatCatalogWidget src={acatSrc} initialHeight={900} />
+        <GoodvinCatalogWidget />
       </div>
 
       <section className="relative overflow-hidden py-6 md:py-16">

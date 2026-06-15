@@ -123,6 +123,11 @@ function CatalogContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  // Режим текстового поиска: exact — точные совпадения, relaxed — «похожие»,
+  // fuzzy — найдено по сходству («вы имели в виду»). Управляет баннером.
+  const [searchMode, setSearchMode] = useState<"exact" | "relaxed" | "fuzzy">(
+    "exact"
+  );
 
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<
@@ -174,6 +179,7 @@ function CatalogContent() {
     setError(null);
     setCategoryTitle(null);
     setCategoryHub(null);
+    setSearchMode("exact");
 
     try {
       // sort из UI в API: API понимает price-asc/price-desc/name/stock.
@@ -254,18 +260,24 @@ function CatalogContent() {
           // Свободный текст («масляный фильтр») — ищем в Supabase по названию.
           // У API поставщиков поиска по описанию нет.
           const res = await fetch(
-            `/api/catalog/text-search?q=${encodeURIComponent(article)}`,
+            `/api/catalog/text-search?q=${encodeURIComponent(
+              article
+            )}&sort=${sortBy}`,
             { signal }
           );
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || "Ошибка поиска");
           }
-          const data: { groups: SupplierGroup[] } = await res.json();
+          const data: {
+            groups: SupplierGroup[];
+            mode?: "exact" | "relaxed" | "fuzzy";
+          } = await res.json();
           if (signal.aborted) return;
           const groups = data.groups || [];
           seedImagesFromGroups(groups);
           setGroups(groups);
+          setSearchMode(data.mode ?? "exact");
         } else {
           // Мульти-поставщиковый поиск по артикулу (и бренду, если распарсили).
           // brand из URL имеет приоритет — например, при переходе с карточки бренда.
@@ -417,6 +429,25 @@ function CatalogContent() {
           </div>
         </div>
 
+        {groups.length > 0 && searchMode !== "exact" && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
+            <Search className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-neutral-200">
+              {searchMode === "fuzzy" ? (
+                <>
+                  Точных совпадений нет. Возможно, вы искали что-то из
+                  показанного ниже — мы подобрали похожее по написанию.
+                </>
+              ) : (
+                <>
+                  Точных совпадений по запросу не нашлось — показываем похожие
+                  товары. Уточните запрос или проверьте раскладку.
+                </>
+              )}
+            </p>
+          </div>
+        )}
+
         {groups.length > 0 && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6">
             <div className="flex flex-wrap items-end gap-4">
@@ -544,8 +575,8 @@ function CatalogContent() {
               Товары не найдены
             </h3>
             <p className="text-neutral-400 mb-8 max-w-md mx-auto">
-              Попробуйте изменить параметры поиска или использовать другой
-              артикул
+              Проверьте раскладку клавиатуры и написание, попробуйте другое
+              название или артикул — либо подберите деталь по VIN.
             </p>
             <Link href="/">
               <Button size="lg">Вернуться на главную</Button>

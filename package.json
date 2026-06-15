@@ -9,6 +9,7 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:fuzzy": "node --env-file=.env.local scripts/enable-fuzzy-search.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },

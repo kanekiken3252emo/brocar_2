@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -400,17 +400,89 @@ function VinCatalogInner() {
 }
 
 function PartsView({ parts }: { parts: GoodvinParts }) {
+  // Активная позиция (номер выноски). Подсвечивает зону на схеме и деталь(и)
+  // в списке. Меняется кликом по схеме или по строке детали.
+  const [active, setActive] = useState<string | null>(null);
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const positions = parts.positions ?? [];
+  const hasHotspots = Boolean(img(parts.img)) && positions.length > 0;
+
+  const selectFromImage = useCallback((num: string) => {
+    setActive((prev) => (prev === num ? null : num));
+    const el = rowRefs.current[num];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  const selectFromList = useCallback((num: string) => {
+    setActive((prev) => (prev === num ? null : num));
+  }, []);
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {/* Схема */}
+      {/* Схема с кликабельными выносками */}
       {img(parts.img) && (
-        <div className="lg:sticky lg:top-4 self-start rounded-xl border border-neutral-800 bg-white p-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={img(parts.img)}
-            alt={parts.imgDescription || "Схема узла"}
-            className="mx-auto max-h-[70vh] w-full object-contain"
-          />
+        <div className="lg:sticky lg:top-4 self-start space-y-2">
+          <div className="relative overflow-hidden rounded-xl border border-neutral-800 bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={img(parts.img)}
+              alt={parts.imgDescription || "Схема узла"}
+              className="block h-auto w-full select-none"
+              onLoad={(e) =>
+                setDims({
+                  w: e.currentTarget.naturalWidth,
+                  h: e.currentTarget.naturalHeight,
+                })
+              }
+            />
+            {dims &&
+              positions.map((pos) => {
+                const c = pos.coordinates;
+                if (!c || c.length < 4) return null;
+                // coordinates = [x1, y1, x2, y2] в пикселях оригинала.
+                const left = (Math.min(c[0], c[2]) / dims.w) * 100;
+                const top = (Math.min(c[1], c[3]) / dims.h) * 100;
+                const width = (Math.abs(c[2] - c[0]) / dims.w) * 100;
+                const height = (Math.abs(c[3] - c[1]) / dims.h) * 100;
+                const isActive = active === pos.number;
+                return (
+                  <button
+                    key={pos.number}
+                    type="button"
+                    onClick={() => selectFromImage(pos.number)}
+                    title={`Позиция ${pos.number}`}
+                    style={{
+                      left: `${left}%`,
+                      top: `${top}%`,
+                      width: `${width}%`,
+                      height: `${height}%`,
+                    }}
+                    className={`group absolute flex items-start justify-start rounded-sm border transition-colors ${
+                      isActive
+                        ? "border-orange-500 bg-orange-500/30"
+                        : "border-orange-500/0 bg-orange-500/0 hover:border-orange-500/60 hover:bg-orange-500/15"
+                    }`}
+                  >
+                    <span
+                      className={`-mt-2 -ml-2 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shadow transition-opacity ${
+                        isActive
+                          ? "bg-orange-500 text-white"
+                          : "bg-neutral-900/80 text-orange-300 opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      {pos.number}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+          {hasHotspots && (
+            <p className="text-center text-xs text-neutral-500">
+              Нажмите на номер на схеме — деталь подсветится в списке
+            </p>
+          )}
         </div>
       )}
 
@@ -422,42 +494,63 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
               <p className="text-sm font-semibold text-white">{pg.name}</p>
             )}
             <div className="divide-y divide-neutral-800 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
-              {pg.parts.map((part, pi) => (
-                <div
-                  key={`${part.id}-${pi}`}
-                  className="flex items-center gap-3 p-3"
-                >
-                  {part.positionNumber && (
-                    <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md bg-orange-500/15 px-1.5 text-xs font-bold text-orange-400">
-                      {part.positionNumber}
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-neutral-100">
-                      {part.name}
-                    </p>
-                    {part.number && (
-                      <p className="font-mono text-xs text-neutral-400">
-                        {part.number}
-                      </p>
+              {pg.parts.map((part, pi) => {
+                const pos = part.positionNumber || "";
+                const isActive = pos !== "" && active === pos;
+                return (
+                  <div
+                    key={`${part.id}-${pi}`}
+                    ref={(el) => {
+                      if (pos) rowRefs.current[pos] = el;
+                    }}
+                    onClick={() => pos && selectFromList(pos)}
+                    className={`flex items-center gap-3 p-3 transition-colors ${
+                      pos ? "cursor-pointer" : ""
+                    } ${
+                      isActive
+                        ? "bg-orange-500/10 ring-1 ring-inset ring-orange-500/50"
+                        : "hover:bg-neutral-800/40"
+                    }`}
+                  >
+                    {part.positionNumber && (
+                      <span
+                        className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
+                          isActive
+                            ? "bg-orange-500 text-white"
+                            : "bg-orange-500/15 text-orange-400"
+                        }`}
+                      >
+                        {part.positionNumber}
+                      </span>
                     )}
-                    {part.notice && (
-                      <p className="text-xs text-neutral-500">{part.notice}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-neutral-100">
+                        {part.name}
+                      </p>
+                      {part.number && (
+                        <p className="font-mono text-xs text-neutral-400">
+                          {part.number}
+                        </p>
+                      )}
+                      {part.notice && (
+                        <p className="text-xs text-neutral-500">{part.notice}</p>
+                      )}
+                    </div>
+                    {part.number && (
+                      <Link
+                        href={`/catalog?article=${encodeURIComponent(part.number)}`}
+                        className="shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button size="sm" variant="outline" className="gap-1.5">
+                          <Tag className="h-3.5 w-3.5" />
+                          Цены
+                        </Button>
+                      </Link>
                     )}
                   </div>
-                  {part.number && (
-                    <Link
-                      href={`/catalog?article=${encodeURIComponent(part.number)}`}
-                      className="shrink-0"
-                    >
-                      <Button size="sm" variant="outline" className="gap-1.5">
-                        <Tag className="h-3.5 w-3.5" />
-                        Цены
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}

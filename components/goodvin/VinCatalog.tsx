@@ -441,11 +441,16 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
               positions.map((pos) => {
                 const c = pos.coordinates;
                 if (!c || c.length < 4) return null;
-                // coordinates = [x1, y1, x2, y2] в пикселях оригинала.
-                const left = (Math.min(c[0], c[2]) / dims.w) * 100;
-                const top = (Math.min(c[1], c[3]) / dims.h) * 100;
-                const width = (Math.abs(c[2] - c[0]) / dims.w) * 100;
-                const height = (Math.abs(c[3] - c[1]) / dims.h) * 100;
+                // coordinates = [x, y, width, height] в пикселях оригинала —
+                // маленький бокс на месте номера-выноски. Расширяем зону клика
+                // на PAD px вокруг, чтобы по мелкому номеру было легко попасть.
+                const PAD = 7;
+                const x = Math.max(0, c[0] - PAD);
+                const y = Math.max(0, c[1] - PAD);
+                const left = (x / dims.w) * 100;
+                const top = (y / dims.h) * 100;
+                const width = ((c[2] + PAD * 2) / dims.w) * 100;
+                const height = ((c[3] + PAD * 2) / dims.h) * 100;
                 const isActive = active === pos.number;
                 return (
                   <button

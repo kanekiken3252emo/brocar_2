@@ -43,10 +43,6 @@ const FEATURES = [
 export default function CatalogVinPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
-      <div className="mb-8 overflow-hidden max-w-[100vw]">
-        <GoodvinCatalogWidget />
-      </div>
-
       <section className="relative overflow-hidden py-6 md:py-16">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-600/15 via-neutral-950 to-neutral-950" />
         <div className="absolute top-10 right-20 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none hidden md:block" />
@@ -81,6 +77,15 @@ export default function CatalogVinPage() {
           </div>
         </div>
       </section>
+
+      {/* Виджет каталога GoodVin сделан под светлую тему (тёмный текст,
+          белые поля), поэтому сажаем его на светлую панель — иначе на
+          тёмном фоне страницы заголовки виджета не читаются. */}
+      <div className="container mx-auto px-4 -mt-2 md:-mt-6 mb-10 md:mb-14">
+        <div className="rounded-2xl bg-white shadow-lg shadow-black/30 ring-1 ring-white/10 p-3 md:p-6 overflow-hidden">
+          <GoodvinCatalogWidget />
+        </div>
+      </div>
 
       <div className="container mx-auto px-4 pb-16">
 

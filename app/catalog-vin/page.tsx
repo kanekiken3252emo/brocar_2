@@ -40,7 +40,44 @@ const FEATURES = [
   },
 ];
 
-export default function CatalogVinPage() {
+export default async function CatalogVinPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vin?: string | string[] }>;
+}) {
+  const sp = await searchParams;
+  const vinRaw = Array.isArray(sp.vin) ? sp.vin[0] : sp.vin;
+  const vin = vinRaw?.trim() || undefined;
+
+  // Заход с VIN (из верхней строки поиска или гаража) — сразу рабочий каталог
+  // без лендинга: ни заголовка-приглашения, ни блоков-фич, ни дубля поиска.
+  if (vin) {
+    return (
+      <div className="min-h-screen bg-neutral-950">
+        <div className="container mx-auto px-4 py-5 md:py-8">
+          <div className="flex items-center gap-2 text-neutral-500 text-sm mb-4">
+            <Link href="/" className="hover:text-orange-500 transition-colors">
+              Главная
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <Link
+              href="/catalog-vin"
+              className="hover:text-orange-500 transition-colors"
+            >
+              Каталог по VIN
+            </Link>
+          </div>
+          <Card className="border-neutral-800 bg-neutral-900">
+            <CardContent className="p-4 md:p-6">
+              <VinCatalog initialVin={vin} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Прямой заход без VIN — полноценный лендинг с приглашением.
   return (
     <div className="min-h-screen bg-neutral-950">
       <section className="relative overflow-hidden py-6 md:py-16">

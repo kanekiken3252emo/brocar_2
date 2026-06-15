@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -58,9 +57,7 @@ function ErrorBox({ message }: { message: string }) {
   );
 }
 
-function VinCatalogInner() {
-  const searchParams = useSearchParams();
-
+export function VinCatalog({ initialVin }: { initialVin?: string }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState<
     null | "cars" | "groups" | "parts"
@@ -167,12 +164,11 @@ function VinCatalogInner() {
     [selectCar]
   );
 
-  // VIN из гаража: /catalog-vin?vin=...
+  // VIN с верхней строки поиска / из гаража: /catalog-vin?vin=...
   useEffect(() => {
-    const initial = searchParams.get("vin");
-    if (initial) {
-      setQuery(initial);
-      void runSearch(initial);
+    if (initialVin) {
+      setQuery(initialVin);
+      void runSearch(initialVin);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -253,26 +249,44 @@ function VinCatalogInner() {
             Найдено несколько вариантов — выберите свой:
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            {cars.map((c) => (
-              <button
-                key={c.carId}
-                onClick={() => selectCar(c)}
-                className="group flex items-start gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-left transition-colors hover:border-orange-500/50 hover:bg-neutral-800/50"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500">
-                  <Car className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-white">
-                    {c.brand} {c.modelName}
-                  </p>
-                  <p className="text-sm text-neutral-400 line-clamp-2">
-                    {c.description || c.title}
-                  </p>
-                </div>
-                <ChevronRight className="ml-auto h-5 w-5 shrink-0 self-center text-neutral-600 transition-colors group-hover:text-orange-500" />
-              </button>
-            ))}
+            {cars.map((c) => {
+              const params = [...(c.parameters ?? [])].sort(
+                (a, b) => a.sortOrder - b.sortOrder
+              );
+              return (
+                <button
+                  key={c.carId}
+                  onClick={() => selectCar(c)}
+                  className="group flex items-start gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-left transition-colors hover:border-orange-500/50 hover:bg-neutral-800/50"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500">
+                    <Car className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-white">
+                      {c.brand} {c.modelName}
+                    </p>
+                    <p className="text-sm text-neutral-400">
+                      {c.description || c.title}
+                    </p>
+                    {params.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {params.map((p) => (
+                          <span
+                            key={p.idx}
+                            className="rounded-md bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300"
+                          >
+                            <span className="text-neutral-500">{p.name}:</span>{" "}
+                            {p.value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight className="ml-auto h-5 w-5 shrink-0 self-center text-neutral-600 transition-colors group-hover:text-orange-500" />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -552,14 +566,6 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
         ))}
       </div>
     </div>
-  );
-}
-
-export function VinCatalog() {
-  return (
-    <Suspense fallback={<Spinner label="Загрузка каталога…" />}>
-      <VinCatalogInner />
-    </Suspense>
   );
 }
 

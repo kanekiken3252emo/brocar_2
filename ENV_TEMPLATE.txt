@@ -84,6 +84,16 @@ SMTP_PASSWORD=пароль_от_почтового_ящика
 MAIL_FROM=info@вашдомен.ru
 ORDER_NOTIFICATION_EMAIL=info@вашдомен.ru
 
+# IMAP — приём прайс-листа Berg из почты (scripts/import-berg-from-email.mjs).
+# По умолчанию логин/пароль берутся из SMTP_USER/SMTP_PASSWORD, хост — Beget.
+# Переопределяйте только если ящик/сервер отличаются.
+IMAP_HOST=imap.beget.com
+IMAP_PORT=993
+# IMAP_USER=info@вашдомен.ru
+# IMAP_PASSWORD=пароль_от_почтового_ящика
+# BERG_SENDER=berg          # подстрока в адресе отправителя письма Berg
+# BERG_SINCE_DAYS=3         # за сколько последних дней искать письмо
+
 # Администраторы магазина (доступ к /admin/orders) — через запятую
 ADMIN_EMAILS=info@вашдомен.ru
 

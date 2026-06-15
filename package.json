@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:fuzzy": "node --env-file=.env.local scripts/enable-fuzzy-search.mjs",
+    "db:import-berg-email": "node --env-file=.env.local scripts/import-berg-from-email.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },
@@ -24,7 +25,9 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.36.4",
+    "imapflow": "^1.4.0",
     "lucide-react": "^0.460.0",
+    "mailparser": "^3.9.9",
     "next": "^15.5.12",
     "nodemailer": "^6.9.16",
     "postgres": "^3.4.5",

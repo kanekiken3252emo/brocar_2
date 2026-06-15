@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GoodvinCatalogWidget } from "@/components/GoodvinCatalogWidget";
+import { VinCatalog } from "@/components/goodvin/VinCatalog";
 
 export const metadata: Metadata = {
   title: "Онлайн-каталог запчастей по VIN — BroCar",
@@ -78,13 +78,14 @@ export default function CatalogVinPage() {
         </div>
       </section>
 
-      {/* Виджет каталога GoodVin сделан под светлую тему (тёмный текст,
-          белые поля), поэтому сажаем его на светлую панель — иначе на
-          тёмном фоне страницы заголовки виджета не читаются. */}
+      {/* Собственный каталог на Catalogs API GoodVin: VIN → авто → узлы →
+          детали, в дизайне сайта. OEM-номера деталей ведут в наш поиск цен. */}
       <div className="container mx-auto px-4 -mt-2 md:-mt-6 mb-10 md:mb-14">
-        <div className="rounded-2xl bg-white shadow-lg shadow-black/30 ring-1 ring-white/10 p-3 md:p-6 overflow-hidden">
-          <GoodvinCatalogWidget />
-        </div>
+        <Card className="border-neutral-800 bg-neutral-900">
+          <CardContent className="p-4 md:p-6">
+            <VinCatalog />
+          </CardContent>
+        </Card>
       </div>
 
       <div className="container mx-auto px-4 pb-16">

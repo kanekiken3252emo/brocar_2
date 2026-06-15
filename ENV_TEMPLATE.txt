@@ -58,6 +58,12 @@ NEXT_PUBLIC_SITE_DOMAIN=localhost:3000
 # в коде есть значение по умолчанию.
 NEXT_PUBLIC_GOODVIN_KEY=TWS-74EE104F-A08B-45B6-8995-497F5361AD67
 
+# GoodVin Catalogs API (api.goodvin.net) — серверный доступ к данным каталога.
+# Тот же ключ, что у виджета, но используется ТОЛЬКО на сервере (секрет, без
+# префикса NEXT_PUBLIC). Доступ к API закрыт белым списком IP на стороне GoodVin —
+# IP боевого сервера нужно добавить в их поддержке. Проверка: /api/goodvin/ping
+GOODVIN_API_KEY=TWS-74EE104F-A08B-45B6-8995-497F5361AD67
+
 # ЮKassa (приём платежей)
 # ShopID и секретный ключ — из ЛК ЮKassa → Интеграция → Ключи API
 PAYMENT_PROVIDER=yookassa

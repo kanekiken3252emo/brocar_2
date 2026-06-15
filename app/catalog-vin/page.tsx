@@ -40,6 +40,64 @@ const FEATURES = [
   },
 ];
 
+/** Преимущества + блок помощи. Общий низ для lean- и полного режимов. */
+function CatalogExtras() {
+  return (
+    <>
+      <div className="grid lg:grid-cols-3 gap-4">
+        {FEATURES.map((feature) => (
+          <Card key={feature.title} className="border-neutral-800 bg-neutral-900">
+            <CardContent className="p-5 flex gap-4">
+              <div className="shrink-0 w-10 h-10 rounded-xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                {feature.icon}
+              </div>
+              <div>
+                <p className="font-semibold text-white text-sm mb-1">
+                  {feature.title}
+                </p>
+                <p className="text-neutral-400 text-xs leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="border-neutral-800 bg-neutral-900 mt-6">
+        <CardContent className="p-5 md:p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <p className="font-semibold text-white text-base mb-1 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-orange-500" />
+                Не нашли деталь или нужна помощь?
+              </p>
+              <p className="text-neutral-400 text-sm">
+                Оставьте VIN — наш менеджер подберёт запчасть и сообщит наличие и
+                цены у поставщиков.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Link href="/vin-search">
+                <Button className="gap-2">
+                  <Search className="h-4 w-4" />
+                  Запрос менеджеру
+                </Button>
+              </Link>
+              <a href="tel:+79326006015">
+                <Button variant="outline" className="gap-2">
+                  <Phone className="h-4 w-4" />
+                  Позвонить
+                </Button>
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
 export default async function CatalogVinPage({
   searchParams,
 }: {
@@ -72,6 +130,10 @@ export default async function CatalogVinPage({
               <VinCatalog initialVin={vin} />
             </CardContent>
           </Card>
+
+          <div className="mt-8 md:mt-10">
+            <CatalogExtras />
+          </div>
         </div>
       </div>
     );
@@ -126,60 +188,7 @@ export default async function CatalogVinPage({
       </div>
 
       <div className="container mx-auto px-4 pb-16">
-
-        <div className="grid lg:grid-cols-3 gap-4">
-          {FEATURES.map((feature) => (
-            <Card
-              key={feature.title}
-              className="border-neutral-800 bg-neutral-900"
-            >
-              <CardContent className="p-5 flex gap-4">
-                <div className="shrink-0 w-10 h-10 rounded-xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center text-orange-500">
-                  {feature.icon}
-                </div>
-                <div>
-                  <p className="font-semibold text-white text-sm mb-1">
-                    {feature.title}
-                  </p>
-                  <p className="text-neutral-400 text-xs leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="border-neutral-800 bg-neutral-900 mt-6">
-          <CardContent className="p-5 md:p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <p className="font-semibold text-white text-base mb-1 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-orange-500" />
-                  Не нашли деталь или нужна помощь?
-                </p>
-                <p className="text-neutral-400 text-sm">
-                  Оставьте VIN — наш менеджер подберёт запчасть и сообщит
-                  наличие и цены у поставщиков.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 shrink-0">
-                <Link href="/catalog-vin">
-                  <Button className="gap-2">
-                    <Search className="h-4 w-4" />
-                    Запрос менеджеру
-                  </Button>
-                </Link>
-                <a href="tel:+79326006015">
-                  <Button variant="outline" className="gap-2">
-                    <Phone className="h-4 w-4" />
-                    Позвонить
-                  </Button>
-                </a>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CatalogExtras />
       </div>
     </div>
   );

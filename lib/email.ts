@@ -132,3 +132,47 @@ export async function sendOrderNotification(data: OrderEmailData): Promise<void>
     html,
   });
 }
+
+export interface VinRequestEmailData {
+  vin: string;
+  phone: string;
+  comment?: string | null;
+}
+
+/**
+ * Шлёт магазину заявку на подбор запчасти по VIN (форма /vin-search).
+ * Уходит на тот же ящик, что и заказы (ORDER_NOTIFICATION_EMAIL).
+ * Бросает ошибку при сбое — роут сам решит, что вернуть клиенту.
+ */
+export async function sendVinRequestNotification(
+  data: VinRequestEmailData
+): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP не настроен — заявка по VIN не отправлена");
+    throw new Error("SMTP не настроен");
+  }
+
+  const to = process.env.ORDER_NOTIFICATION_EMAIL || process.env.SMTP_USER!;
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER!;
+
+  const commentHtml = data.comment
+    ? `<p style="margin:4px 0"><b>Комментарий:</b><br>${esc(data.comment).replace(/\n/g, "<br>")}</p>`
+    : "";
+
+  const html = `
+  <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#222">
+    <h2 style="color:#ea580c">Новая заявка на подбор по VIN</h2>
+    <p style="margin:4px 0"><b>VIN:</b> <span style="font-family:monospace;font-size:16px">${esc(data.vin)}</span></p>
+    <p style="margin:4px 0"><b>Телефон:</b> ${esc(data.phone)}</p>
+    ${commentHtml}
+    <p style="margin-top:16px;color:#888;font-size:12px">Заявка отправлена с формы «Запрос по VIN» на сайте.</p>
+  </div>`;
+
+  await transporter.sendMail({
+    from: `"BroCar — запрос по VIN" <${from}>`,
+    to,
+    subject: `Заявка по VIN: ${data.vin}`,
+    html,
+  });
+}

@@ -105,9 +105,21 @@ export default function VinSearchPage() {
 
     setStatus("loading");
 
-    // TODO: подключить реальный API когда будет готова база данных
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    setStatus("success");
+    try {
+      const res = await fetch("/api/vin-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vin: normalizedVin,
+          phone: phone.trim(),
+          comment: comment.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error("request failed");
+      setStatus("success");
+    } catch {
+      setStatus("error");
+    }
   }
 
   function handleReset() {
@@ -341,6 +353,14 @@ export default function VinSearchPage() {
                           политикой конфиденциальности
                         </Link>
                       </p>
+
+                      {status === "error" && (
+                        <p className="flex items-start gap-1.5 text-red-400 text-sm">
+                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                          Не удалось отправить заявку. Попробуйте ещё раз или
+                          свяжитесь с нами по телефону.
+                        </p>
+                      )}
 
                       <Button
                         type="submit"

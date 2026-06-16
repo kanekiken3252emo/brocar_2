@@ -1,6 +1,5 @@
 import "server-only";
 import axios from "axios";
-import sharp from "sharp";
 import { createClient } from "@supabase/supabase-js";
 import { eq, and, or } from "drizzle-orm";
 import { db } from "./db";
@@ -70,6 +69,11 @@ async function uploadBufferToStorage(
   let ext = extFromMime(mimeType);
   let contentType = mimeType;
   try {
+    // Загружаем sharp ЛЕНИВО (динамический импорт): если нативный модуль не
+    // доступен в рантайме (сборка/платформа), модуль product-images не падает,
+    // а просто грузим оригинал без сжатия. Раньше статический import sharp
+    // ронял ВСЕ роуты, использующие этот файл (категории/поиск/картинки).
+    const sharp = (await import("sharp")).default;
     outBuffer = await sharp(buffer)
       .resize(300, 300, { fit: "inside", withoutEnlargement: true })
       .webp({ quality: 72 })
@@ -78,7 +82,7 @@ async function uploadBufferToStorage(
     contentType = "image/webp";
   } catch (e) {
     console.warn(
-      "product-images: sharp compress failed, uploading original:",
+      "product-images: sharp недоступен/ошибка — гружу оригинал:",
       (e as Error).message
     );
   }

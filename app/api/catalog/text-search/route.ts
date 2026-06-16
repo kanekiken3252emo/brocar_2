@@ -3,13 +3,12 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, inArray, or, sql as dsql, type SQL } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups } from "@/lib/suppliers/adapter";
+import { dedupeGroups, normalizeArticle as normArticleKey } from "@/lib/suppliers/adapter";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import {
   FOLD_FROM,
   FOLD_TO,
   normalizeName,
-  normalizeArticle,
   tokenize,
   expandToken,
 } from "@/lib/catalog/normalize";
@@ -160,27 +159,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Релевантность считаем в JS (надёжнее и без зависимости от pg_trgm),
-    // затем применяем выбранную пользователем сортировку как вторичную.
-    const ranked = rows
-      .map((p) => ({
-        p,
-        rel: relevance(normalizeName(p.name), p.article.toLowerCase(), tokens),
-      }))
-      .sort((a, b) => {
-        if (b.rel !== a.rel) return b.rel - a.rel;
-        switch (sort) {
-          case "price-desc":
-            return Number(b.p.ourPrice) - Number(a.p.ourPrice);
-          case "stock":
-            return b.p.stock - a.p.stock;
-          case "name":
-            return a.p.name.localeCompare(b.p.name, "ru");
-          default:
-            return Number(a.p.ourPrice) - Number(b.p.ourPrice);
-        }
-      })
-      .map((r) => r.p);
+    // Для fuzzy сохраняем порядок из БД (по триграммному сходству word_similarity):
+    // опечатка не совпадает как подстрока, поэтому JS-релевантность тут = 0 у всех
+    // и перетёрла бы правильный порядок ценой. Для exact/relaxed ранжируем в JS
+    // (целое слово > подстрока, имя > артикул), вторично — выбранная сортировка.
+    const ranked =
+      mode === "fuzzy"
+        ? rows
+        : rows
+            .map((p) => ({
+              p,
+              rel: relevance(
+                normalizeName(p.name),
+                p.article.toLowerCase(),
+                tokens
+              ),
+            }))
+            .sort((a, b) => {
+              if (b.rel !== a.rel) return b.rel - a.rel;
+              switch (sort) {
+                case "price-desc":
+                  return Number(b.p.ourPrice) - Number(a.p.ourPrice);
+                case "stock":
+                  return b.p.stock - a.p.stock;
+                case "name":
+                  return a.p.name.localeCompare(b.p.name, "ru");
+                default:
+                  return Number(a.p.ourPrice) - Number(b.p.ourPrice);
+              }
+            })
+            .map((r) => r.p);
 
     const ids = ranked.map((p) => p.id);
     const stockRows = ids.length
@@ -228,9 +236,19 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // dedupeGroups может переупорядочить — но картинки и порядок релевантности
-    // сохраняем: dedupe не сортирует, только схлопывает дубли article+brand.
-    const enriched = await enrichGroupsWithImages(dedupeGroups(groups));
+    // dedupeGroups схлопывает дубли article+brand, НО сортирует результат по цене —
+    // это перетёрло бы наш порядок (релевантность / триграммное сходство). Поэтому
+    // после дедупликации восстанавливаем порядок из `ranked`.
+    const rank = new Map<string, number>();
+    ranked.forEach((p, i) => {
+      rank.set(`${normArticleKey(p.article)}|${(p.brand ?? "").trim().toLowerCase()}`, i);
+    });
+    const deduped = dedupeGroups(groups).sort((a, b) => {
+      const ra = rank.get(`${a.article}|${a.brand.trim().toLowerCase()}`) ?? Infinity;
+      const rb = rank.get(`${b.article}|${b.brand.trim().toLowerCase()}`) ?? Infinity;
+      return ra - rb;
+    });
+    const enriched = await enrichGroupsWithImages(deduped);
 
     return NextResponse.json({
       q,

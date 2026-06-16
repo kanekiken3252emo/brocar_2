@@ -234,22 +234,37 @@ async function main() {
   await sql`DELETE FROM product_stocks WHERE supplier_code = 'shate-m'`;
 
   console.log("⬆️  Импорт остатков…");
-  const stockRows = [];
+  // Дедупликация по (товар + склад): иначе дубли нарушают уникальный индекс
+  // product_stocks(product_id, supplier_code, warehouse_name).
+  const stocksMap = new Map();
   for (const p of productsArr) {
     const id = idMap.get(`${p.article}|${p.brand}`);
     if (!id) continue;
     for (const s of p.stocks) {
-      stockRows.push({
-        product_id: id,
-        supplier_code: "shate-m",
-        warehouse_name: s.warehouse,
-        quantity: s.qty,
-        supplier_price: String(s.price),
-        our_price: String(applyMarkup(s.price)),
-        delivery_days: null,
-      });
+      const k = `${id}|${s.warehouse}`;
+      const ex = stocksMap.get(k);
+      if (ex) {
+        ex.quantity += s.qty;
+        if (s.price < ex.supplier_price) ex.supplier_price = s.price;
+      } else {
+        stocksMap.set(k, {
+          product_id: id,
+          warehouse_name: s.warehouse,
+          quantity: s.qty,
+          supplier_price: s.price,
+        });
+      }
     }
   }
+  const stockRows = Array.from(stocksMap.values()).map((x) => ({
+    product_id: x.product_id,
+    supplier_code: "shate-m",
+    warehouse_name: x.warehouse_name,
+    quantity: x.quantity,
+    supplier_price: String(x.supplier_price),
+    our_price: String(applyMarkup(x.supplier_price)),
+    delivery_days: null,
+  }));
   for (let i = 0; i < stockRows.length; i += BATCH) {
     await sql`
       INSERT INTO product_stocks ${sql(stockRows.slice(i, i + BATCH), "product_id", "supplier_code", "warehouse_name", "quantity", "supplier_price", "our_price", "delivery_days")}

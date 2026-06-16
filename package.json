@@ -16,6 +16,7 @@
     "db:import-armtek-email": "node --env-file=.env.local scripts/import-armtek-from-email.mjs",
     "db:import-rossko-email": "node --env-file=.env.local scripts/import-rossko-from-email.mjs",
     "db:import-all": "node --env-file=.env.local scripts/import-all-from-email.mjs",
+    "db:warm-images": "node --env-file=.env.local scripts/warm-product-images.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },

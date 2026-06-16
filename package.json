@@ -14,6 +14,7 @@
     "db:import-shatem-email": "node --env-file=.env.local scripts/import-shatem-from-email.mjs",
     "db:import-forum-email": "node --env-file=.env.local scripts/import-forum-from-email.mjs",
     "db:import-armtek-email": "node --env-file=.env.local scripts/import-armtek-from-email.mjs",
+    "db:import-rossko-email": "node --env-file=.env.local scripts/import-rossko-from-email.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },

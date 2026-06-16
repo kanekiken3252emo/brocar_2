@@ -50,6 +50,7 @@ const SUPPLIER_LABELS: Record<string, string> = {
   "shate-m": "ШАТЕ-М",
   "forum-auto": "Форум-Авто",
   armtek: "Армтек",
+  rossko: "Россико",
 };
 
 type Mode = "exact" | "relaxed" | "fuzzy";

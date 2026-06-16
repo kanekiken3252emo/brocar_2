@@ -418,6 +418,12 @@ function CatalogContent() {
                   </span>
                 </p>
               )}
+              {article && isFreeText(article) && totalCount > 0 && (
+                <p className="text-neutral-500 text-xs mt-1.5 max-w-xl">
+                  Не нашли нужное? Введите артикул — поиск по артикулу шире
+                  (все поставщики в реальном времени, включая оригинальные позиции).
+                </p>
+              )}
             </div>
             <Link
               href="/catalog-vin"
@@ -574,10 +580,18 @@ function CatalogContent() {
             <h3 className="text-2xl font-semibold text-white mb-3">
               Товары не найдены
             </h3>
-            <p className="text-neutral-400 mb-8 max-w-md mx-auto">
+            <p className="text-neutral-400 mb-4 max-w-md mx-auto">
               Проверьте раскладку клавиатуры и написание, попробуйте другое
-              название или артикул — либо подберите деталь по VIN.
+              название — либо подберите деталь по VIN.
             </p>
+            {article && isFreeText(article) && (
+              <p className="text-neutral-300 text-sm mb-8 max-w-lg mx-auto bg-neutral-800/50 border border-neutral-700 rounded-xl px-4 py-3">
+                💡 Знаете <span className="text-white font-medium">артикул</span>?
+                Введите его — поиск по артикулу охватывает всех поставщиков в
+                реальном времени, включая оригинальные и заказные позиции,
+                которых нет в поиске по названию.
+              </p>
+            )}
             <Link href="/">
               <Button size="lg">Вернуться на главную</Button>
             </Link>

@@ -78,16 +78,19 @@ async function main() {
 
   let picked = null; // { uid, filename, content, date }
   try {
+    // Берём самое свежее письмо Berg за последние дни, НЕ фильтруя по «прочитано»
+    // (письмо могли открыть вручную). Импорт — полное обновление прайса Berg,
+    // поэтому повторный прогон того же файла безвреден.
     const since = new Date(Date.now() - SINCE_DAYS * 24 * 60 * 60 * 1000);
-    const uids = await client.search(
-      { seen: false, since, from: SENDER },
-      { uid: true }
-    );
+    const uids = await client.search({ since, from: SENDER }, { uid: true });
 
     if (!uids || uids.length === 0) {
-      console.log("   Новых писем от Berg с прайсом не найдено — выходим.");
+      console.log(
+        `   Писем от «${SENDER}» за последние ${SINCE_DAYS} дн. не найдено — выходим.`
+      );
       return;
     }
+    console.log(`   Найдено писем от «${SENDER}»: ${uids.length}`);
 
     // Перебираем от новых к старым, берём первое письмо с вложением BERG_*.csv.
     for (const uid of [...uids].sort((a, b) => b - a)) {

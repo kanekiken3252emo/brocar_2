@@ -44,6 +44,13 @@ function likeContains(expr: SQL, value: string): SQL {
   return dsql`${expr} LIKE ${"%" + esc + "%"} ESCAPE '\\'`;
 }
 
+// Подпись поставщика по supplier_code из product_stocks (локальная БД хранит
+// предложения нескольких поставщиков, не только Berg).
+const SUPPLIER_LABELS: Record<string, string> = {
+  berg: "Berg",
+  "shate-m": "ШАТЕ-М",
+};
+
 type Mode = "exact" | "relaxed" | "fuzzy";
 
 interface Row {
@@ -193,7 +200,7 @@ export async function GET(request: NextRequest) {
     const groups: SupplierGroup[] = ranked.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
       const offers: SupplierOffer[] = stocks.map((s) => ({
-        supplier: `Berg (${s.warehouseName})`,
+        supplier: `${SUPPLIER_LABELS[s.supplierCode] ?? "Поставщик"} (${s.warehouseName})`,
         supplierCode: s.supplierCode,
         price: Number(s.supplierPrice),
         ourPrice: Number(s.ourPrice),

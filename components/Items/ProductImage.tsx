@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProductImage } from "@/lib/hooks/useProductImage";
 
 interface Props {
@@ -33,56 +33,82 @@ export default function ProductImage({
   innerPadding = "p-3",
   priority = false,
 }: Props) {
-  const { url, loading } = useProductImage(brand, article);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Видна ли карточка: priority — сразу true; иначе включаем по IntersectionObserver
+  // (с запасом 200px), чтобы «холодные» картинки грузились только при подходе к
+  // зоне видимости, а не все 20 разом на старте.
+  const [inView, setInView] = useState<boolean>(priority);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  // 1. Запрос URL картинки ещё идёт — пульсирующий скелетон.
-  if (loading) {
-    return (
-      <div
-        className={`bg-neutral-800 animate-pulse ${className || ""}`}
-        aria-label="Загрузка изображения"
-      />
+  useEffect(() => {
+    if (priority || inView) return;
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
     );
-  }
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [priority, inView]);
 
-  // 2. Картинки у этого товара нет — тёмный плейсхолдер с иконкой.
-  if (!url) {
-    return (
-      <div
-        className={`bg-neutral-800 flex items-center justify-center ${className || ""}`}
-      >
-        <Image
-          src={PLACEHOLDER}
-          alt={alt}
-          width={160}
-          height={160}
-          className="max-w-[60%] max-h-[60%] object-contain opacity-80"
-        />
-      </div>
-    );
-  }
+  const { url, loading } = useProductImage(brand, article, inView);
 
-  // 3. Настоящая картинка — белый фон + плавное появление + промежуточный
-  //    скелетон пока next/image её не подгрузит.
   return (
     <div
-      className={`relative bg-white overflow-hidden ${className || ""}`}
+      ref={containerRef}
+      className={`relative overflow-hidden ${url ? "bg-white" : "bg-neutral-800"} ${
+        className || ""
+      }`}
     >
-      {!imgLoaded && (
-        <div className="absolute inset-0 bg-neutral-200 animate-pulse" />
+      {/* 1. URL картинки ещё резолвится (или ждём появления в зоне видимости). */}
+      {loading && (
+        <div
+          className="absolute inset-0 bg-neutral-800 animate-pulse"
+          aria-label="Загрузка изображения"
+        />
       )}
-      <Image
-        src={url}
-        alt={alt}
-        fill
-        sizes={sizes || "(max-width: 768px) 50vw, 33vw"}
-        className={`object-contain ${innerPadding} transition-opacity duration-300 ${
-          imgLoaded ? "opacity-100" : "opacity-0"
-        }`}
-        onLoad={() => setImgLoaded(true)}
-        priority={priority}
-      />
+
+      {/* 2. Картинки у товара нет — плейсхолдер. */}
+      {!loading && !url && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Image
+            src={PLACEHOLDER}
+            alt={alt}
+            width={160}
+            height={160}
+            className="max-w-[60%] max-h-[60%] object-contain opacity-80"
+          />
+        </div>
+      )}
+
+      {/* 3. Настоящая картинка — плавное появление поверх скелетона. */}
+      {!loading && url && (
+        <>
+          {!imgLoaded && (
+            <div className="absolute inset-0 bg-neutral-200 animate-pulse" />
+          )}
+          <Image
+            src={url}
+            alt={alt}
+            fill
+            sizes={sizes || "(max-width: 768px) 50vw, 33vw"}
+            className={`object-contain ${innerPadding} transition-opacity duration-300 ${
+              imgLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            onLoad={() => setImgLoaded(true)}
+            priority={priority}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -7,6 +7,31 @@ import { useEffect, useState } from "react";
 const memoryCache = new Map<string, string | null>();
 const inflight = new Map<string, Promise<string | null>>();
 
+// Ограничитель одновременных запросов к /api/product-image: «холодная»
+// картинка резолвится 3-4с (опрос API поставщиков), и без лимита грид из 20
+// карточек запускал 20 запросов разом и забивал rate-limit поставщиков.
+// Держим не больше MAX_CONCURRENT в полёте, остальные ждут в очереди.
+const MAX_CONCURRENT = 5;
+let activeCount = 0;
+const waitQueue: Array<() => void> = [];
+
+function acquireSlot(): Promise<void> {
+  if (activeCount < MAX_CONCURRENT) {
+    activeCount++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => waitQueue.push(resolve));
+}
+
+function releaseSlot(): void {
+  activeCount--;
+  const next = waitQueue.shift();
+  if (next) {
+    activeCount++;
+    next();
+  }
+}
+
 function cacheKey(brand: string, article: string): string {
   return `${brand.trim().toLowerCase()}|${article.trim().toLowerCase()}`;
 }
@@ -41,6 +66,7 @@ async function fetchProductImage(
   if (existing) return existing;
 
   const promise = (async () => {
+    await acquireSlot();
     try {
       const res = await fetch(
         `/api/product-image?brand=${encodeURIComponent(brand)}&article=${encodeURIComponent(article)}`
@@ -56,6 +82,7 @@ async function fetchProductImage(
       memoryCache.set(key, null);
       return null;
     } finally {
+      releaseSlot();
       inflight.delete(key);
     }
   })();
@@ -66,7 +93,10 @@ async function fetchProductImage(
 
 export function useProductImage(
   brand: string | undefined | null,
-  article: string | undefined | null
+  article: string | undefined | null,
+  // enabled=false → не запрашиваем «холодную» картинку (карточка ещё вне зоны
+  // видимости). Засеянные/кэшированные URL отдаются сразу независимо от флага.
+  enabled: boolean = true
 ): { url: string | null; loading: boolean } {
   const [url, setUrl] = useState<string | null>(() => {
     if (!brand || !article) return null;
@@ -91,6 +121,12 @@ export function useProductImage(
       return;
     }
 
+    // Картинки нет в кэше и карточка ещё не видна — ждём (скелетон), не грузим.
+    if (!enabled) {
+      setLoading(true);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     fetchProductImage(brand, article).then((result) => {
@@ -102,7 +138,7 @@ export function useProductImage(
     return () => {
       cancelled = true;
     };
-  }, [brand, article]);
+  }, [brand, article, enabled]);
 
   return { url, loading };
 }

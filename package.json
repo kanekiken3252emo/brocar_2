@@ -13,6 +13,7 @@
     "db:import-berg-email": "node --env-file=.env.local scripts/import-berg-from-email.mjs",
     "db:import-shatem-email": "node --env-file=.env.local scripts/import-shatem-from-email.mjs",
     "db:import-forum-email": "node --env-file=.env.local scripts/import-forum-from-email.mjs",
+    "db:import-armtek-email": "node --env-file=.env.local scripts/import-armtek-from-email.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },
@@ -28,6 +29,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.36.4",
+    "exceljs": "^4.4.0",
     "imapflow": "^1.4.0",
     "lucide-react": "^0.460.0",
     "mailparser": "^3.9.9",

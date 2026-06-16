@@ -1,5 +1,6 @@
 import "server-only";
 import axios from "axios";
+import sharp from "sharp";
 import { createClient } from "@supabase/supabase-js";
 import { eq, and, or } from "drizzle-orm";
 import { db } from "./db";
@@ -61,12 +62,32 @@ async function uploadBufferToStorage(
 ): Promise<string | null> {
   if (buffer.length === 0) return null;
 
-  const ext = extFromMime(mimeType);
+  // Сжимаем перед сохранением: ужимаем до 300px (по большей стороне) и
+  // переводим в webp. Это ~4-5× экономии места (важно на Free-тарифе Supabase,
+  // лимит 1 ГБ) и более лёгкая, быстрая отдача картинки. Если формат необычный
+  // и sharp не справился — грузим оригинал.
+  let outBuffer = buffer;
+  let ext = extFromMime(mimeType);
+  let contentType = mimeType;
+  try {
+    outBuffer = await sharp(buffer)
+      .resize(300, 300, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer();
+    ext = "webp";
+    contentType = "image/webp";
+  } catch (e) {
+    console.warn(
+      "product-images: sharp compress failed, uploading original:",
+      (e as Error).message
+    );
+  }
+
   const path = `${safeSegment(brand) || "_"}/${safeSegment(article) || "_"}.${ext}`;
 
   const storage = getStorageClient();
-  const { error } = await storage.storage.from(BUCKET).upload(path, buffer, {
-    contentType: mimeType,
+  const { error } = await storage.storage.from(BUCKET).upload(path, outBuffer, {
+    contentType,
     upsert: true,
   });
   if (error) {

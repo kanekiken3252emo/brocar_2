@@ -48,6 +48,7 @@ function likeContains(expr: SQL, value: string): SQL {
 const SUPPLIER_LABELS: Record<string, string> = {
   berg: "Berg",
   "shate-m": "ШАТЕ-М",
+  "forum-auto": "Форум-Авто",
 };
 
 type Mode = "exact" | "relaxed" | "fuzzy";

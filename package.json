@@ -12,6 +12,7 @@
     "db:fuzzy": "node --env-file=.env.local scripts/enable-fuzzy-search.mjs",
     "db:import-berg-email": "node --env-file=.env.local scripts/import-berg-from-email.mjs",
     "db:import-shatem-email": "node --env-file=.env.local scripts/import-shatem-from-email.mjs",
+    "db:import-forum-email": "node --env-file=.env.local scripts/import-forum-from-email.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },

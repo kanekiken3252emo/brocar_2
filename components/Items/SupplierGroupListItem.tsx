@@ -8,6 +8,7 @@ import { addSupplierItemToCart } from "@/lib/cart/client";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import { formatDeliveryDays } from "@/lib/utils";
+import ProductImage from "@/components/Items/ProductImage";
 
 interface Props {
   group: SupplierGroup;
@@ -17,6 +18,44 @@ function formatPrice(n: number) {
   return n.toLocaleString("ru-RU");
 }
 
+/** Общий обработчик «в корзину» для десктоп-строки и мобильной карточки. */
+async function addOfferToCart(
+  e: React.MouseEvent,
+  offer: SupplierOffer,
+  group: SupplierGroup
+) {
+  e.preventDefault();
+  e.stopPropagation();
+  flyToCart(e.currentTarget as HTMLElement);
+  try {
+    await addSupplierItemToCart({
+      article: group.article,
+      brand: group.brand,
+      name: group.name,
+      ourPrice: offer.ourPrice,
+      supplierPrice: offer.price,
+      stock: offer.stock,
+    });
+  } catch (err: any) {
+    window.dispatchEvent(
+      new CustomEvent("cart:error", {
+        detail: { message: err?.message || "Не удалось добавить" },
+      })
+    );
+  }
+}
+
+function StockDot({ stock }: { stock: number }) {
+  return (
+    <span
+      className={`w-2 h-2 rounded-full ${
+        stock > 5 ? "bg-green-500" : stock > 0 ? "bg-yellow-500" : "bg-neutral-600"
+      }`}
+    />
+  );
+}
+
+/** Десктоп: строка таблицы предложений. */
 function OfferRow({
   offer,
   group,
@@ -24,40 +63,11 @@ function OfferRow({
   offer: SupplierOffer;
   group: SupplierGroup;
 }) {
-  const handleAdd = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    flyToCart(e.currentTarget as HTMLElement);
-    try {
-      await addSupplierItemToCart({
-        article: group.article,
-        brand: group.brand,
-        name: group.name,
-        ourPrice: offer.ourPrice,
-        supplierPrice: offer.price,
-        stock: offer.stock,
-      });
-    } catch (err: any) {
-      window.dispatchEvent(
-        new CustomEvent("cart:error", {
-          detail: { message: err?.message || "Не удалось добавить" },
-        })
-      );
-    }
-  };
   return (
     <tr className="hover:bg-neutral-800/40 transition-colors">
       <td className="px-4 py-3 whitespace-nowrap">
         <span className="inline-flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              offer.stock > 5
-                ? "bg-green-500"
-                : offer.stock > 0
-                ? "bg-yellow-500"
-                : "bg-neutral-600"
-            }`}
-          />
+          <StockDot stock={offer.stock} />
           <span className="text-white font-medium">{offer.stock} шт.</span>
         </span>
       </td>
@@ -78,7 +88,7 @@ function OfferRow({
       </td>
       <td className="px-4 py-3 w-12 text-right">
         <button
-          onClick={handleAdd}
+          onClick={(e) => addOfferToCart(e, offer, group)}
           className="p-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors shadow-md shadow-orange-500/20"
           title="Добавить в корзину"
         >
@@ -86,6 +96,46 @@ function OfferRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/** Мобайл: предложение карточкой со складом/ценой и большой кнопкой «В корзину». */
+function OfferMobileCard({
+  offer,
+  group,
+}: {
+  offer: SupplierOffer;
+  group: SupplierGroup;
+}) {
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="inline-flex items-center gap-1.5 text-sm text-neutral-300">
+          <MapPin className="w-3.5 h-3.5 text-neutral-500" />
+          {getVegaName(offer.supplierCode)}
+        </span>
+        <span className="text-base font-bold text-white whitespace-nowrap">
+          {formatPrice(offer.ourPrice)} <span className="text-neutral-500">₽</span>
+        </span>
+      </div>
+      <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
+        <span className="inline-flex items-center gap-1.5">
+          <StockDot stock={offer.stock} />
+          {offer.stock} шт.
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-neutral-500" />
+          {formatDeliveryDays(offer.deliveryDays)}
+        </span>
+      </div>
+      <button
+        onClick={(e) => addOfferToCart(e, offer, group)}
+        className="w-full py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-600 text-white rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 transition-colors"
+      >
+        <ShoppingCart className="w-4 h-4" />
+        В корзину
+      </button>
+    </div>
   );
 }
 
@@ -100,37 +150,56 @@ export default function SupplierGroupListItem({ group }: Props) {
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-orange-500/40 transition-colors">
-      {/* Заголовок карточки — бренд / артикул / название */}
+      {/* Заголовок карточки — миниатюра + бренд / артикул / название */}
       <Link href={href}>
-        <div className="group p-4 md:p-5 border-b border-neutral-800 hover:bg-neutral-800/30 transition-colors cursor-pointer">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1.5">
-            <span className="text-orange-500 font-bold text-sm uppercase tracking-wide">
-              {group.brand || "Без бренда"}
-            </span>
-            <span className="font-mono text-white font-bold text-base bg-neutral-800 px-2 py-0.5 rounded-md">
-              {group.article}
-            </span>
-          </div>
-          <h3 className="text-base text-neutral-100 group-hover:text-orange-400 transition-colors line-clamp-2">
-            {group.name}
-          </h3>
-          <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-neutral-500">
-            <span className="inline-flex items-center gap-1">
-              <Package className="w-3.5 h-3.5" />
-              Всего: {group.totalStock} шт.
-            </span>
-            <span>
-              {group.offers.length} предл. / {uniqueSuppliers} скл.
-            </span>
-            <span>
-              от <span className="text-white font-semibold">{formatPrice(group.minPrice)} ₽</span>
-            </span>
+        <div className="group p-4 md:p-5 border-b border-neutral-800 hover:bg-neutral-800/30 transition-colors cursor-pointer flex items-start gap-4">
+          <ProductImage
+            brand={group.brand}
+            article={group.article}
+            alt={group.name || "Товар"}
+            className="w-20 h-20 md:w-24 md:h-24 rounded-xl shrink-0"
+            innerPadding="p-2"
+            sizes="96px"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1.5">
+              <span className="text-orange-500 font-bold text-sm uppercase tracking-wide">
+                {group.brand || "Без бренда"}
+              </span>
+              <span className="font-mono text-white font-bold text-base bg-neutral-800 px-2 py-0.5 rounded-md">
+                {group.article}
+              </span>
+            </div>
+            <h3 className="text-base text-neutral-100 group-hover:text-orange-400 transition-colors line-clamp-2">
+              {group.name}
+            </h3>
+            <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-neutral-500">
+              <span className="inline-flex items-center gap-1">
+                <Package className="w-3.5 h-3.5" />
+                Всего: {group.totalStock} шт.
+              </span>
+              <span>
+                {group.offers.length} предл. / {uniqueSuppliers} скл.
+              </span>
+            </div>
           </div>
         </div>
       </Link>
 
-      {/* Таблица предложений по складам */}
-      <div className="overflow-x-auto">
+      {/* Мобайл: предложения карточками — кнопка корзины видна сразу,
+          без горизонтального скролла. */}
+      <div className="md:hidden divide-y divide-neutral-800">
+        {visibleOffers.map((offer, i) => (
+          <OfferMobileCard
+            key={`${offer.supplierCode}-${i}`}
+            offer={offer}
+            group={group}
+          />
+        ))}
+      </div>
+
+      {/* Десктоп: таблица предложений по складам */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-neutral-800/50 border-b border-neutral-800">

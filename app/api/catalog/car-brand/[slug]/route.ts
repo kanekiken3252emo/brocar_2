@@ -6,6 +6,7 @@ import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { dedupeGroups } from "@/lib/suppliers/adapter";
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { enrichGroupsWithImages } from "@/lib/product-images";
+import { getVegaName } from "@/lib/vega-names";
 
 /**
  * Товары, совместимые с указанной маркой авто.
@@ -51,8 +52,9 @@ export async function GET(
       }
     })();
 
+    // Без фильтра source='berg' — показываем товары всех поставщиков
+    // (forum-auto/rossko/shate-m/armtek/berg), как и в роуте категории.
     const baseConditions = [
-      eq(products.source, "berg"),
       dsql`${products.stock} > 0`,
       dsql`${carBrand} = ANY(${products.carBrands})`,
     ];
@@ -97,7 +99,7 @@ export async function GET(
     const groups: SupplierGroup[] = productRows.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
       const offers: SupplierOffer[] = stocks.map((s) => ({
-        supplier: `Berg (${s.warehouseName})`,
+        supplier: getVegaName(s.supplierCode),
         supplierCode: s.supplierCode,
         price: Number(s.supplierPrice),
         ourPrice: Number(s.ourPrice),

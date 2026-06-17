@@ -5,7 +5,28 @@ import { eq, desc, asc, and, sql as dsql, inArray } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { dedupeGroups } from "@/lib/suppliers/adapter";
 import { getCategoryMeta } from "@/lib/catalog/classifier";
+import {
+  ATTRIBUTE_META,
+  makeFacetComparator,
+  type AttributeMeta,
+} from "@/lib/catalog/attributes";
 import { enrichGroupsWithImages } from "@/lib/product-images";
+import { getVegaName } from "@/lib/vega-names";
+
+interface FacetOption {
+  value: string;
+  count: number;
+}
+interface Facet {
+  key: string;
+  label: string;
+  options: FacetOption[];
+}
+
+/** Условие containment: товар с attributes, содержащим {key: value}. */
+function attrContains(key: string, value: string) {
+  return dsql`${products.attributes} @> ${JSON.stringify({ [key]: value })}::jsonb`;
+}
 
 /**
  * Читает категорию напрямую из импортированного каталога Supabase.
@@ -41,6 +62,16 @@ export async function GET(
     const sort = url.searchParams.get("sort") || "price-asc";
     const brandFilter = url.searchParams.get("brand")?.trim() || "";
 
+    // Фасетные атрибуты этой категории (если описаны в ATTRIBUTE_META).
+    // Активные значения берём из query-параметров вида attr_<key>=значение.
+    const attrMeta: AttributeMeta[] = ATTRIBUTE_META[slug] ?? [];
+    const activeAttrs = attrMeta
+      .map((m) => ({
+        meta: m,
+        value: url.searchParams.get(`attr_${m.key}`)?.trim() || "",
+      }))
+      .filter((a) => a.value);
+
     const orderBy = (() => {
       switch (sort) {
         case "price-desc":
@@ -55,16 +86,25 @@ export async function GET(
     })();
 
     // Базовые условия выборки (категория + только что в наличии).
+    // Раньше тут был фильтр source='berg' — он прятал ~88% каталога, т.к.
+    // теперь по cron импортируются ещё forum-auto/rossko/shate-m/armtek.
+    // Показываем товары всех поставщиков: предложения собираются из
+    // product_stocks (есть у всех), а dedupeGroups склеивает один артикул от
+    // разных поставщиков в одну карточку с несколькими офферами.
     const baseConditions = [
       eq(products.categorySlug, slug),
-      eq(products.source, "berg"),
       dsql`${products.stock} > 0`,
     ];
-    // Условия с учётом фильтра по бренду — используем для productRows
+    // Условия с учётом фильтров (бренд + атрибуты) — используем для productRows
     // и для count'а, чтобы пагинация и числа совпадали.
-    const conditionsWithFilter = brandFilter
-      ? [...baseConditions, eq(products.brand, brandFilter)]
-      : baseConditions;
+    const attrConditions = activeAttrs.map((a) =>
+      attrContains(a.meta.key, a.value)
+    );
+    const conditionsWithFilter = [
+      ...baseConditions,
+      ...(brandFilter ? [eq(products.brand, brandFilter)] : []),
+      ...attrConditions,
+    ];
 
     const productRows = await db
       .select({
@@ -102,7 +142,9 @@ export async function GET(
     const groups: SupplierGroup[] = productRows.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
       const offers: SupplierOffer[] = stocks.map((s) => ({
-        supplier: `Berg (${s.warehouseName})`,
+        // Анонимизированное имя склада (VEGA N) — реальные warehouse_name
+        // (напр. «BERG EKB») наружу не отдаём.
+        supplier: getVegaName(s.supplierCode),
         supplierCode: s.supplierCode,
         price: Number(s.supplierPrice),
         ourPrice: Number(s.ourPrice),
@@ -138,16 +180,50 @@ export async function GET(
       .where(and(...conditionsWithFilter));
 
     // 5. Список всех брендов в категории — для выпадашки фильтра.
-    //    БЕЗ учёта brand-фильтра, иначе после выбора бренда в селекте
-    //    остался бы только один вариант. Берём только бренды где есть остаток.
+    //    БЕЗ учёта самого brand-фильтра (иначе остался бы один вариант), но
+    //    С учётом выбранных атрибутов — чтобы список брендов сужался под них.
     const brandRows = await db
       .selectDistinct({ brand: products.brand })
       .from(products)
-      .where(and(...baseConditions));
+      .where(and(...baseConditions, ...attrConditions));
     const availableBrands = brandRows
       .map((r) => r.brand)
       .filter((b): b is string => Boolean(b))
       .sort();
+
+    // 6. Фасеты: для каждого атрибута категории — доступные значения и счётчики.
+    //    Каждый фасет считается по выборке, отфильтрованной всеми ДРУГИМИ
+    //    активными фильтрами (бренд + прочие атрибуты), но не собственным —
+    //    чтобы внутри фасета всегда можно было переключить значение.
+    const facets: Facet[] = await Promise.all(
+      attrMeta.map(async (m) => {
+        const otherAttrConds = activeAttrs
+          .filter((a) => a.meta.key !== m.key)
+          .map((a) => attrContains(a.meta.key, a.value));
+        const valueExpr = dsql<string>`(${products.attributes} ->> ${m.key})`;
+        const rows = await db
+          .select({ value: valueExpr, count: dsql<number>`COUNT(*)::int` })
+          .from(products)
+          .where(
+            and(
+              ...baseConditions,
+              ...(brandFilter ? [eq(products.brand, brandFilter)] : []),
+              ...otherAttrConds,
+              dsql`(${products.attributes} ->> ${m.key}) IS NOT NULL`
+            )
+          )
+          // GROUP BY по порядковому номеру: повторное встраивание valueExpr
+          // создало бы другой bind-параметр для того же выражения, и Postgres
+          // не считал бы его тем же (ошибка "must appear in GROUP BY").
+          .groupBy(dsql`1`);
+        const cmp = makeFacetComparator(m);
+        const options: FacetOption[] = rows
+          .map((r) => ({ value: String(r.value), count: Number(r.count) }))
+          .filter((o) => o.value)
+          .sort((a, b) => cmp(a.value, b.value));
+        return { key: m.key, label: m.label, options };
+      })
+    );
 
     // Подсеваем картинки из кэша product_images — клиент не будет делать
     // N round-trip'ов к /api/product-image на рендере грида.
@@ -179,6 +255,7 @@ export async function GET(
       offset,
       page: Math.floor(offset / limit) + 1,
       availableBrands,
+      facets,
     });
   } catch (error) {
     console.error("Catalog category route error:", error);

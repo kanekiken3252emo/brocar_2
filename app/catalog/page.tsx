@@ -16,6 +16,7 @@ import {
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
+import CategoryFacets, { type Facet } from "@/components/catalog/CategoryFacets";
 import { Button } from "@/components/ui/button";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import type { BergResource } from "@/types/berg-api";
@@ -134,6 +135,20 @@ function CatalogContent() {
     "price-asc" | "price-desc" | "name" | "delivery"
   >("price-asc");
 
+  // Фасетные фильтры по характеристикам (приходят с сервера для категории).
+  // facets — доступные значения, attrFilters — что выбрал пользователь.
+  const [facets, setFacets] = useState<Facet[]>([]);
+  const [attrFilters, setAttrFilters] = useState<Record<string, string>>({});
+
+  const handleAttrChange = (key: string, value: string) => {
+    setAttrFilters((prev) => {
+      const next = { ...prev };
+      if (value) next[key] = value;
+      else delete next[key];
+      return next;
+    });
+  };
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -159,12 +174,19 @@ function CatalogContent() {
   useEffect(() => {
     setCurrentPage((p) => (p === 1 ? p : 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vin, article, brand, model, category, brandFilter, sortBy]);
+  }, [vin, article, brand, model, category, brandFilter, sortBy, attrFilters]);
+
+  // Смена категории/поиска сбрасывает выбранные характеристики — иначе фильтр
+  // «вязкость 5W-40» утёк бы из масел в чужую категорию.
+  useEffect(() => {
+    setAttrFilters({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vin, article, brand, model, category]);
 
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vin, article, brand, model, category, currentPage, brandFilter, sortBy]);
+  }, [vin, article, brand, model, category, currentPage, brandFilter, sortBy, attrFilters]);
 
   const loadProducts = async () => {
     // Отменяем предыдущий запрос если он ещё в полёте — иначе его поздний
@@ -180,6 +202,7 @@ function CatalogContent() {
     setCategoryTitle(null);
     setCategoryHub(null);
     setSearchMode("exact");
+    setFacets([]);
 
     try {
       // sort из UI в API: API понимает price-asc/price-desc/name/stock.
@@ -202,6 +225,9 @@ function CatalogContent() {
           sort: apiSort,
         });
         if (brandFilter) params.set("brand", brandFilter);
+        for (const [k, v] of Object.entries(attrFilters)) {
+          if (v) params.set(`attr_${k}`, v);
+        }
         const res = await fetch(
           `/api/catalog/category/${encodeURIComponent(category)}?${params.toString()}`,
           { signal }
@@ -215,6 +241,7 @@ function CatalogContent() {
           title: string;
           count?: number;
           availableBrands?: string[];
+          facets?: Facet[];
         } = await res.json();
         if (signal.aborted) return;
         const groups = data.groups || [];
@@ -222,6 +249,7 @@ function CatalogContent() {
         setGroups(groups);
         setServerTotalCount(data.count ?? groups.length);
         setServerBrands(data.availableBrands ?? []);
+        setFacets(data.facets ?? []);
         setCategoryTitle(data.title || null);
       } else if (brand && !model && !article) {
         // Страница марки авто: товары из БД с этой маркой в car_brands. Серверная пагинация.
@@ -382,6 +410,10 @@ function CatalogContent() {
     ? sorted
     : sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  // Сайдбар характеристик показываем только в режиме категории и только если
+  // у неё есть фасеты (сервер их вернул). Для поиска по артикулу/VIN — нет.
+  const showFacetSidebar = Boolean(category) && facets.length > 0;
+
   const getSearchSummary = () => {
     if (categoryTitle) return categoryTitle;
     if (vin) return `Поиск по VIN: ${vin}`;
@@ -435,6 +467,24 @@ function CatalogContent() {
           </div>
         </div>
 
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {showFacetSidebar && (
+            <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-4">
+              <CategoryFacets
+                facets={facets}
+                values={attrFilters}
+                onChange={handleAttrChange}
+                onReset={() => {
+                  setAttrFilters({});
+                  setBrandFilter("");
+                }}
+                brandOptions={availableBrands}
+                brandValue={brandFilter}
+                onBrandChange={setBrandFilter}
+              />
+            </aside>
+          )}
+          <div className="flex-1 min-w-0 w-full">
         {groups.length > 0 && searchMode !== "exact" && (
           <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
             <Search className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
@@ -457,7 +507,7 @@ function CatalogContent() {
         {groups.length > 0 && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6">
             <div className="flex flex-wrap items-end gap-4">
-              {availableBrands.length > 1 && (
+              {availableBrands.length > 1 && !showFacetSidebar && (
                 <div className="flex-1 min-w-[200px]">
                   <label className="block text-sm font-medium text-neutral-400 mb-1.5">
                     Производитель
@@ -683,6 +733,8 @@ function CatalogContent() {
             )}
           </>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ import { addSupplierItemToCart } from "@/lib/cart/client";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
+import { seedProductImageCache } from "@/lib/hooks/useProductImage";
 
 interface Characteristic {
   key: string;
@@ -112,7 +113,17 @@ export default function ProductPage() {
       setProduct(resource);
       setCharacteristics(data.characteristics || []);
       setOriginals(data.originals || []);
-      setAnalogs(data.analogs || []);
+
+      // Сервер уже подмешал готовые URL картинок в аналоги (enrichGroupsWithImages).
+      // Засеваем in-memory cache до монтирования карточек — тогда ProductImage
+      // в каждом аналоге найдёт URL мгновенно и не пойдёт в /api/product-image.
+      const analogGroups = data.analogs || [];
+      for (const g of analogGroups) {
+        if (g.imageUrl !== undefined) {
+          seedProductImageCache(g.brand, g.article, g.imageUrl);
+        }
+      }
+      setAnalogs(analogGroups);
 
       if (resource.offers && resource.offers.length > 0) {
         // Офферы уже отсортированы «в наличии → быстрее → дешевле»,

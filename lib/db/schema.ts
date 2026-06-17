@@ -9,6 +9,7 @@ import {
   boolean,
   timestamp,
   bigint,
+  jsonb,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -70,6 +71,10 @@ export const products = pgTable("products", {
   categorySlug: text("category_slug"),
   source: text("source").default("manual"), // 'berg' | 'rossko' | 'shate-m' | 'manual'
   carBrands: text("car_brands").array(), // ['BMW','AUDI',...] — марки авто из наименования
+  // Характеристики для фасетных фильтров, извлечённые из наименования
+  // (см. lib/catalog/attributes). Ключи зависят от категории, например для
+  // engine-oils: { viscosity: "5W-40", oil_type: "Синтетическое", volume: "4 л" }.
+  attributes: jsonb("attributes").$type<Record<string, string>>(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AboutGallery } from "@/components/about-gallery";
+import { ReviewsSection } from "@/components/reviews-section";
 
 export const metadata: Metadata = {
   title: "О нас",
@@ -165,6 +166,9 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+
+      {/* Reviews Section — отзывы из Яндекс.Бизнес */}
+      <ReviewsSection />
 
       {/* CTA Section */}
       <section className="py-20">

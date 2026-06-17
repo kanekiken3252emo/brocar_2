@@ -6,7 +6,6 @@ import { ArrowRight, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BrandCatalogHero from "@/components/BrandCatalogHero";
 import { NewsSection } from "@/components/news-section";
-import { ReviewsSection } from "@/components/reviews-section";
 
 const FEATURES = [
   {
@@ -474,9 +473,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Reviews Section — отзывы из Яндекс.Бизнес */}
-      <ReviewsSection />
 
       {/* Stats Section */}
       <section className="py-10 md:py-20 border-t border-neutral-800/50">

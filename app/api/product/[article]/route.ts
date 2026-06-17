@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   searchAllSuppliers,
   groupOffers,
+  compareGroupsByDelivery,
   type SupplierGroup,
   type SupplierItem,
 } from "@/lib/suppliers/adapter";
@@ -16,6 +17,7 @@ import armtekAdapter from "@/lib/suppliers/armtek";
 import autotradeAdapter from "@/lib/suppliers/autotrade";
 import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
+import { enrichGroupsWithImages } from "@/lib/product-images";
 import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, eq, ilike, inArray } from "drizzle-orm";
@@ -154,14 +156,23 @@ export async function GET(
       // Группируем все полученные item'ы (основной + аналоги)
       const analogGroups = groupOffers(analogItems, pricing);
 
-      // Исключаем группу самого искомого товара — она уже в mainGroup
+      // Исключаем группу самого искомого товара — она уже в mainGroup.
+      // Сортируем «в наличии → быстрее → дешевле» (срок в приоритете), чтобы
+      // самые быстрые позиции (сегодня/завтра) были вверху, и берём топ-20
+      // именно по скорости, а не по цене.
       const mainKey = `${decoded.toLowerCase()}|${brand.toLowerCase()}`;
       analogs = analogGroups
         .filter(
           (g) =>
             `${g.article.toLowerCase()}|${g.brand.toLowerCase()}` !== mainKey
         )
+        .sort(compareGroupsByDelivery)
         .slice(0, 20);
+
+      // Подмешиваем готовые URL картинок из кэша product_images, чтобы клиент
+      // засеял in-memory cache и не делал N запросов к /api/product-image на
+      // карточках аналогов (см. enrichGroupsWithImages / seedProductImageCache).
+      analogs = await enrichGroupsWithImages(analogs);
     }
 
     const response: ProductDetailResponse = {

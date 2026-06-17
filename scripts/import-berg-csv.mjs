@@ -22,6 +22,8 @@ import { resolve } from "node:path";
 // Единый источник правил классификации (тот же, что использует рантайм
 // через lib/catalog/classifier.ts). Локальных копий больше нет.
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
+// Извлечение характеристик для фасетных фильтров (см. backfill-attributes.mjs).
+import { extractAttributes } from "../lib/catalog/attributes.mjs";
 
 const CSV_PATH = process.argv[2] || "public/BERG_brocar_20260422_114614.csv";
 // Приоритет: pooler (работает везде) > direct (может блокироваться провайдером)
@@ -93,6 +95,8 @@ async function main() {
   await sql`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_slug)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_products_source ON products(source)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_products_car_brands ON products USING gin(car_brands)`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_products_attributes ON products USING gin(attributes)`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS uniq_products_article_brand ON products(article, brand)`;
   await sql`
     CREATE TABLE IF NOT EXISTS product_stocks (
@@ -145,12 +149,14 @@ async function main() {
     const key = `${article}|${brand}`;
     let p = products.get(key);
     if (!p) {
+      const category = detectCategory(name);
       p = {
         article,
         brand,
         name,
-        category: detectCategory(name),
+        category,
         carBrands: detectCarBrands(name),
+        attributes: extractAttributes(category, name),
         stocks: [],
       };
       products.set(key, p);
@@ -181,12 +187,13 @@ async function main() {
         stock: totalStock,
         category_slug: p.category,
         car_brands: p.carBrands,
+        attributes: sql.json(p.attributes ?? {}),
         source: "berg",
       };
     });
 
     await sql`
-      INSERT INTO products ${sql(rows, "article","brand","name","supplier_price","our_price","stock","category_slug","car_brands","source")}
+      INSERT INTO products ${sql(rows, "article","brand","name","supplier_price","our_price","stock","category_slug","car_brands","attributes","source")}
       ON CONFLICT (article, brand) DO UPDATE SET
         name = EXCLUDED.name,
         supplier_price = EXCLUDED.supplier_price,
@@ -194,6 +201,7 @@ async function main() {
         stock = EXCLUDED.stock,
         category_slug = EXCLUDED.category_slug,
         car_brands = EXCLUDED.car_brands,
+        attributes = EXCLUDED.attributes,
         source = EXCLUDED.source,
         updated_at = NOW()
     `;

@@ -86,6 +86,27 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
 }
 
 /**
+ * Сортировка ТОВАРОВ (групп) по той же логике, что и предложения:
+ * «в наличии → быстрее → дешевле». Самые быстрые позиции (сегодня/завтра)
+ * оказываются наверху. Используется для списка аналогов в карточке товара,
+ * чтобы приоритет был у быстрых покупок (срок → цена).
+ */
+export function compareGroupsByDelivery(
+  a: SupplierGroup,
+  b: SupplierGroup
+): number {
+  const aInStock = a.totalStock > 0 ? 1 : 0;
+  const bInStock = b.totalStock > 0 ? 1 : 0;
+  if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
+
+  const aDays = a.minDeliveryDays ?? Infinity;
+  const bDays = b.minDeliveryDays ?? Infinity;
+  if (aDays !== bDays) return aDays - bDays; // быстрее — выше
+
+  return a.minPrice - b.minPrice; // потом дешевле
+}
+
+/**
  * Нормализует артикул для сравнения/группировки: убирает пробелы, дефисы,
  * точки, слэши и приводит к верхнему регистру. Так «1 457 429 870» и
  * «1457429870» считаются одним артикулом (стандартная практика для автозапчастей).

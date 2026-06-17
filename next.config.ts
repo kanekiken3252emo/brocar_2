@@ -37,6 +37,10 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Сколько next/image держит оптимизированную картинку в своём кэше, даже
+    // если у источника короткий/отсутствует Cache-Control. 31 день — чтобы
+    // не передёргивать VK Storage и не «подмаргивать» картинками на повторах.
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       ...(storageHost
         ? ([

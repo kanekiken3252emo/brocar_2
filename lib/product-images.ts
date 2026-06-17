@@ -83,6 +83,11 @@ async function uploadBufferToS3(
         // Публичное чтение: у VK Cloud нет «публичного бакета» в один тумблер —
         // доступность задаётся ACL на объект.
         ACL: "public-read",
+        // Длинный неизменяемый кэш: путь детерминирован (brand/article.webp),
+        // при обновлении мы перезаписываем тот же ключ. Без этого заголовка
+        // next/image перекэшировал бы картинку каждые 60 сек (minimumCacheTTL),
+        // а браузер не держал бы её — отсюда «подтормаживания» на повторных показах.
+        CacheControl: "public, max-age=31536000, immutable",
       })
     );
   } catch (error) {
@@ -437,19 +442,57 @@ async function tryAutotrade(
 }
 
 /**
+ * Запускает источники картинки параллельно и резолвится ПЕРВЫМ ненулевым
+ * результатом (картинка найдена) — не дожидаясь самого медленного. Если никто
+ * не нашёл — { url: null }. Проигравшие промисы доигрывают в фоне (отменить их
+ * нельзя), но это безвредно: ключ один и тот же (brand/article.webp).
+ */
+function firstImageHit(
+  sources: Array<{ source: string; run: () => Promise<string | null> }>
+): Promise<{ url: string | null; source: string }> {
+  return new Promise((resolve) => {
+    let remaining = sources.length;
+    let done = false;
+    if (remaining === 0) {
+      resolve({ url: null, source: "none" });
+      return;
+    }
+    for (const { source, run } of sources) {
+      run()
+        .then((url) => {
+          if (done) return;
+          if (url) {
+            done = true;
+            resolve({ url, source });
+            return;
+          }
+          remaining -= 1;
+          if (remaining === 0) resolve({ url: null, source: "none" });
+        })
+        .catch((err) => {
+          console.error(`product-images: источник ${source} упал:`, err);
+          remaining -= 1;
+          if (remaining === 0 && !done) resolve({ url: null, source: "none" });
+        });
+    }
+  });
+}
+
+/**
  * Получить URL картинки товара по (brand, article).
  *
  * Алгоритм:
  *  1. Проверяет кэш в product_images.
- *  2. Если кэша нет — пробует ВСЕХ поставщиков параллельно через Promise.all
- *     и берёт первый успешный (Armtek приоритетнее: у него обычно лучше
- *     качество и быстрее CDN, затем ShATE-M, затем Autotrade).
+ *  2. Если кэша нет — пробует всех поставщиков параллельно и возвращает
+ *     картинку, КАК ТОЛЬКО её нашёл первый из них (firstImageHit), не
+ *     дожидаясь самого медленного. Все грузят файл по одному ключу
+ *     (brand/article.webp), поэтому URL одинаковый.
  *  3. Результат (даже null) кэшируется чтобы не дёргать API повторно.
  *
- * Параллельный запуск важен: для холодного товара кейс «armtek впустую → потом
- * shate-m → потом autotrade» давал суммарно 10+с. Параллельно — max ≈ 3-4с.
+ * Раньше тут был Promise.all (ждали ВСЕХ) → срок = время самого тормозного
+ * поставщика. Теперь срок = время самого быстрого, у кого картинка есть.
  *
- * Поле product_images.source отражает кто реально предоставил картинку.
+ * Поле product_images.source отражает кто первым предоставил картинку.
  */
 export async function getOrFetchProductImage(
   brandRaw: string,
@@ -462,31 +505,16 @@ export async function getOrFetchProductImage(
   const cached = await lookupCached(brand, article);
   if (cached.found) return cached.url;
 
-  const [armtekUrl, shateMUrl, autotradeUrl] = await Promise.all([
-    tryArmtek(brand, article).catch((err) => {
-      console.error("tryArmtek rejected:", err);
-      return null;
-    }),
-    tryShateM(brand, article).catch((err) => {
-      console.error("tryShateM rejected:", err);
-      return null;
-    }),
-    tryAutotrade(brand, article).catch((err) => {
-      console.error("tryAutotrade rejected:", err);
-      return null;
-    }),
+  // Опрашиваем поставщиков параллельно и возвращаем картинку, КАК ТОЛЬКО её
+  // нашёл первый из них — не дожидаясь самого медленного (раньше тут был
+  // Promise.all, и общий срок = время самого тормозного поставщика).
+  // Все они грузят файл по одному и тому же ключу (brand/article.webp),
+  // поэтому URL одинаковый независимо от источника-победителя.
+  const { url, source } = await firstImageHit([
+    { source: "armtek", run: () => tryArmtek(brand, article) },
+    { source: "shate-m", run: () => tryShateM(brand, article) },
+    { source: "autotrade", run: () => tryAutotrade(brand, article) },
   ]);
-
-  const url: string | null = armtekUrl ?? shateMUrl ?? autotradeUrl;
-  // Кто реально дал картинку. Negative cache (никто не дал) помечаем
-  // autotrade'ом — это последний из опробованных, маркер «прошли всю цепочку».
-  const source = armtekUrl
-    ? "armtek"
-    : shateMUrl
-      ? "shate-m"
-      : autotradeUrl
-        ? "autotrade"
-        : "autotrade";
 
   await persistCache(brand, article, url, source);
   return url;

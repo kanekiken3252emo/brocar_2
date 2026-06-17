@@ -1,6 +1,7 @@
 import "server-only";
 import axios from "axios";
 import { createClient } from "@supabase/supabase-js";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { eq, and, or } from "drizzle-orm";
 import { db } from "./db";
 import { productImages } from "./db/schema";
@@ -31,6 +32,68 @@ function getStorageClient() {
     auth: { persistSession: false },
   });
   return cachedStorage;
+}
+
+// ── S3-хранилище (VK Cloud Object Storage, S3-совместимое) ───────────────────
+// Если заданы S3_* переменные — картинки грузятся в S3 вместо Supabase Storage.
+// Так переезд бесшовный: пока ключи не прописаны, всё работает на Supabase.
+
+let cachedS3: S3Client | null = null;
+
+/** Настроено ли S3-хранилище (заданы endpoint + ключи + бакет). */
+function s3Configured(): boolean {
+  return Boolean(
+    process.env.S3_ENDPOINT &&
+      process.env.S3_ACCESS_KEY &&
+      process.env.S3_SECRET_KEY &&
+      process.env.S3_BUCKET
+  );
+}
+
+function getS3Client(): S3Client {
+  if (cachedS3) return cachedS3;
+  cachedS3 = new S3Client({
+    region: process.env.S3_REGION || "ru-msk",
+    endpoint: process.env.S3_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY as string,
+      secretAccessKey: process.env.S3_SECRET_KEY as string,
+    },
+    // VK Cloud адресует бакет как поддомен (bucket.hb.ru-msk...), это
+    // virtual-hosted style → forcePathStyle=false.
+    forcePathStyle: false,
+  });
+  return cachedS3;
+}
+
+/** Загрузить буфер в S3 и вернуть публичный URL (объект помечается public-read). */
+async function uploadBufferToS3(
+  path: string,
+  buffer: Buffer,
+  contentType: string
+): Promise<string | null> {
+  const bucket = process.env.S3_BUCKET as string;
+  try {
+    await getS3Client().send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: path,
+        Body: buffer,
+        ContentType: contentType,
+        // Публичное чтение: у VK Cloud нет «публичного бакета» в один тумблер —
+        // доступность задаётся ACL на объект.
+        ACL: "public-read",
+      })
+    );
+  } catch (error) {
+    console.error("product-images S3 upload error:", (error as Error).message);
+    return null;
+  }
+
+  const base = (
+    process.env.S3_PUBLIC_BASE || `${process.env.S3_ENDPOINT}/${bucket}`
+  ).replace(/\/+$/, "");
+  return `${base}/${path}`;
 }
 
 function normalize(value: string): string {
@@ -88,6 +151,11 @@ async function uploadBufferToStorage(
   }
 
   const path = `${safeSegment(brand) || "_"}/${safeSegment(article) || "_"}.${ext}`;
+
+  // Новое хранилище: S3 (VK Cloud), если заданы ключи. Иначе — Supabase Storage.
+  if (s3Configured()) {
+    return uploadBufferToS3(path, outBuffer, contentType);
+  }
 
   const storage = getStorageClient();
   const { error } = await storage.storage.from(BUCKET).upload(path, outBuffer, {

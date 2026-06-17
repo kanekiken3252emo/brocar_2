@@ -4,6 +4,14 @@ declare global {
       SUPABASE_URL: string;
       SUPABASE_ANON_KEY: string;
       SUPABASE_SERVICE_ROLE_KEY: string;
+      // S3-хранилище картинок (VK Cloud Object Storage). Если заданы — картинки
+      // грузятся в S3; иначе fallback на Supabase Storage.
+      S3_ENDPOINT?: string;
+      S3_REGION?: string;
+      S3_BUCKET?: string;
+      S3_ACCESS_KEY?: string;
+      S3_SECRET_KEY?: string;
+      S3_PUBLIC_BASE?: string;
       DATABASE_URL: string;
       VENDOR_A_URL: string;
       VENDOR_A_KEY: string;

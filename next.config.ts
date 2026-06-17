@@ -14,6 +14,21 @@ function supabaseStorageHost(): string {
 
 const storageHost = supabaseStorageHost();
 
+// Хост S3-хранилища картинок (VK Cloud Object Storage) — берём из S3_PUBLIC_BASE,
+// чтобы next/image мог оптимизировать картинки оттуда. Supabase-хост оставляем
+// тоже: старые картинки ещё ссылаются на него (переходный период).
+function s3PublicHost(): string {
+  const url = process.env.S3_PUBLIC_BASE;
+  if (!url) return "";
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+const s3Host = s3PublicHost();
+
 const nextConfig: NextConfig = {
   output: "standalone", // Важно для Docker!
   experimental: {
@@ -29,6 +44,15 @@ const nextConfig: NextConfig = {
               protocol: "https" as const,
               hostname: storageHost,
               pathname: "/storage/v1/object/public/**",
+            },
+          ])
+        : []),
+      ...(s3Host
+        ? ([
+            {
+              protocol: "https" as const,
+              hostname: s3Host,
+              pathname: "/**",
             },
           ])
         : []),

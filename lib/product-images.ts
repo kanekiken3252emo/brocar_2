@@ -483,16 +483,19 @@ function firstImageHit(
  *
  * Алгоритм:
  *  1. Проверяет кэш в product_images.
- *  2. Если кэша нет — пробует всех поставщиков параллельно и возвращает
- *     картинку, КАК ТОЛЬКО её нашёл первый из них (firstImageHit), не
- *     дожидаясь самого медленного. Все грузят файл по одному ключу
- *     (brand/article.webp), поэтому URL одинаковый.
+ *  2. Если кэша нет — двухуровневый опрос поставщиков:
+ *     • Тир 1: Armtek + ShATE-M параллельно, возвращаем первую найденную
+ *       картинку (firstImageHit) — у обоих на методы картинок нет
+ *       документированных лимитов (у ShATE-M лимит только на «проценку»).
+ *     • Тир 2: Autotrade — ТОЛЬКО если первые два промахнулись. У него жёсткий
+ *       лимит 1 req/sec на аккаунт (см. throttle в suppliers/autotrade.ts), и
+ *       тот же ключ обслуживает живой каталог. При массовом прогреве (сотни
+ *       тысяч товаров) дёргать его на каждый товар = упереться в лимит; на
+ *       горячем наборе Armtek/ShATE-M и так находят ~99%, поэтому Autotrade
+ *       нужен лишь для редкого хвоста.
  *  3. Результат (даже null) кэшируется чтобы не дёргать API повторно.
  *
- * Раньше тут был Promise.all (ждали ВСЕХ) → срок = время самого тормозного
- * поставщика. Теперь срок = время самого быстрого, у кого картинка есть.
- *
- * Поле product_images.source отражает кто первым предоставил картинку.
+ * Поле product_images.source отражает, кто предоставил картинку.
  */
 export async function getOrFetchProductImage(
   brandRaw: string,
@@ -505,16 +508,23 @@ export async function getOrFetchProductImage(
   const cached = await lookupCached(brand, article);
   if (cached.found) return cached.url;
 
-  // Опрашиваем поставщиков параллельно и возвращаем картинку, КАК ТОЛЬКО её
-  // нашёл первый из них — не дожидаясь самого медленного (раньше тут был
-  // Promise.all, и общий срок = время самого тормозного поставщика).
-  // Все они грузят файл по одному и тому же ключу (brand/article.webp),
-  // поэтому URL одинаковый независимо от источника-победителя.
-  const { url, source } = await firstImageHit([
+  // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
+  // быстрые. Возвращаем картинку, КАК ТОЛЬКО её нашёл первый из них. Все грузят
+  // файл по одному ключу (brand/article.*), поэтому URL одинаковый.
+  let { url, source } = await firstImageHit([
     { source: "armtek", run: () => tryArmtek(brand, article) },
     { source: "shate-m", run: () => tryShateM(brand, article) },
-    { source: "autotrade", run: () => tryAutotrade(brand, article) },
   ]);
+
+  // Тир 2: Autotrade — резерв, только если первые два не нашли. Бережём его
+  // лимит 1 req/sec (иначе массовый прогрев упрётся в него и заденет каталог).
+  if (!url) {
+    const autotradeUrl = await tryAutotrade(brand, article);
+    if (autotradeUrl) {
+      url = autotradeUrl;
+      source = "autotrade";
+    }
+  }
 
   await persistCache(brand, article, url, source);
   return url;

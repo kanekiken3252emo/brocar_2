@@ -31,6 +31,19 @@ const s3Host = s3PublicHost();
 
 const nextConfig: NextConfig = {
   output: "standalone", // Важно для Docker!
+  // sharp — нативный модуль. В standalone-трейсинг его платформенные бинарники
+  // (@img/*, .node) не всегда попадают: JS-часть есть, а бинаря нет — и на проде
+  // падает и наш import("sharp") (картинки сохранялись оригиналами вместо webp),
+  // и оптимизатор next/image (отдаёт неоптимизированный оригинал в браузер).
+  // Принудительно включаем sharp и его бинарники в бандл. См.
+  // https://nextjs.org/docs/messages/sharp-missing-in-production
+  outputFileTracingIncludes: {
+    "/api/product-image": [
+      "./node_modules/sharp/**/*",
+      "./node_modules/@img/**/*",
+    ],
+    "/api/**": ["./node_modules/sharp/**/*", "./node_modules/@img/**/*"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",

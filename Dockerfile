@@ -25,6 +25,9 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
+# sharp (нативный модуль для сжатия картинок) на Alpine надёжнее с libc6-compat.
+RUN apk add --no-cache libc6-compat
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 

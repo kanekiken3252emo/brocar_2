@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { orders, orderItems, profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { ADMIN_SETTABLE_STATUSES } from "@/lib/order-status";
+import { sendOrderReadyToCustomer } from "@/lib/email";
 
 const patchSchema = z.object({
   status: z.enum(ADMIN_SETTABLE_STATUSES),
@@ -42,6 +43,37 @@ export async function PATCH(
 
     if (!updated) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // Письмо покупателю, когда заказ готов к получению. Сбой письма не должен
+    // ломать смену статуса — только логируем.
+    if (status === "ready") {
+      try {
+        const [items, customer] = await Promise.all([
+          db.query.orderItems.findMany({
+            where: eq(orderItems.orderId, orderId),
+          }),
+          updated.userId
+            ? db.query.profiles.findFirst({
+                where: eq(profiles.id, updated.userId),
+              })
+            : Promise.resolve(null),
+        ]);
+        await sendOrderReadyToCustomer({
+          to: customer?.contactEmail || customer?.email || "",
+          orderId: updated.id,
+          total: Number(updated.total),
+          items: items.map((i) => ({
+            name: i.name,
+            article: i.article,
+            brand: i.brand,
+            qty: i.qty,
+            price: i.price,
+          })),
+        });
+      } catch (mailError) {
+        console.error("Order ready email failed:", mailError);
+      }
     }
 
     return NextResponse.json({ order: updated });

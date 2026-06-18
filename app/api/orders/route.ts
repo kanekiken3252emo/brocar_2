@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { carts, orders, orderItems, profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
-import { sendOrderNotification } from "@/lib/email";
+import { sendOrderNotification, sendOrderPlacedToCustomer } from "@/lib/email";
 
 /**
  * Создаёт заказ из корзины текущего пользователя.
@@ -73,13 +73,20 @@ export async function POST() {
     // останется с пустой корзиной и не сможет повторить. Чистим её в вебхуке
     // после успешной оплаты (status = paid).
 
-    // Уведомление магазину на почту. Сбой отправки не должен ломать заказ —
-    // заказ уже создан, поэтому ошибки письма только логируем.
-    try {
-      const profile = await db.query.profiles.findFirst({
-        where: eq(profiles.id, user.id),
-      });
+    // Письма: магазину (новый заказ) и покупателю (подтверждение). Сбой отправки
+    // не должен ломать заказ — он уже создан, ошибки писем только логируем.
+    const profile = await db.query.profiles
+      .findFirst({ where: eq(profiles.id, user.id) })
+      .catch(() => null);
+    const emailItems = cart.items.map((item) => ({
+      name: item.product.name,
+      article: item.product.article,
+      brand: item.product.brand,
+      qty: item.qty,
+      price: item.product.ourPrice,
+    }));
 
+    try {
       await sendOrderNotification({
         orderId: order.id,
         total,
@@ -91,16 +98,22 @@ export async function POST() {
         whatsapp: profile?.whatsapp,
         vk: profile?.vk,
         maxMessenger: profile?.maxMessenger,
-        items: cart.items.map((item) => ({
-          name: item.product.name,
-          article: item.product.article,
-          brand: item.product.brand,
-          qty: item.qty,
-          price: item.product.ourPrice,
-        })),
+        items: emailItems,
       });
     } catch (mailError) {
-      console.error("Order notification email failed:", mailError);
+      console.error("Shop order notification email failed:", mailError);
+    }
+
+    // Подтверждение покупателю на его почту (contactEmail приоритетнее).
+    try {
+      await sendOrderPlacedToCustomer({
+        to: profile?.contactEmail || user.email || profile?.email || "",
+        orderId: order.id,
+        total,
+        items: emailItems,
+      });
+    } catch (mailError) {
+      console.error("Customer order confirmation email failed:", mailError);
     }
 
     return NextResponse.json({ orderId: order.id, total });

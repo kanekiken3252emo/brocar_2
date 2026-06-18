@@ -176,3 +176,142 @@ export async function sendVinRequestNotification(
     html,
   });
 }
+
+// ── Письма ПОКУПАТЕЛЮ ────────────────────────────────────────────────────────
+
+export interface CustomerOrderEmailData {
+  to: string; // почта покупателя (contactEmail || email аккаунта)
+  orderId: number;
+  total: number;
+  items: OrderEmailItem[];
+}
+
+/** Простой email-валидатор — чтобы не дёргать SMTP с пустым/битым адресом. */
+function isEmail(v: string | null | undefined): v is string {
+  return !!v && /.+@.+\..+/.test(v);
+}
+
+/** Таблица позиций для писем покупателю (наименование/артикул/кол-во/сумма). */
+function customerItemsTable(items: OrderEmailItem[], total: number): string {
+  const rows = items
+    .map(
+      (i) => `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.name)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-family:monospace">${esc(i.article)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.qty}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatRub(parseFloat(i.price) * i.qty)}</td>
+      </tr>`
+    )
+    .join("");
+  return `
+    <table style="border-collapse:collapse;width:100%;margin-top:16px;font-size:14px">
+      <thead>
+        <tr style="background:#f5f5f5;text-align:left">
+          <th style="padding:8px">Наименование</th>
+          <th style="padding:8px">Артикул</th>
+          <th style="padding:8px;text-align:center">Кол-во</th>
+          <th style="padding:8px;text-align:right">Сумма</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin-top:16px;font-size:18px"><b>Итого: ${formatRub(total)}</b></p>`;
+}
+
+/**
+ * Фирменная обёртка письма покупателю: тёмная шапка с логотипом BroCar +
+ * светлая карточка с содержимым. intro — доверенный HTML (без пользовательского
+ * ввода), остальное экранируется.
+ */
+function customerEmailShell(opts: {
+  headingColor: string;
+  heading: string;
+  intro: string;
+  items: OrderEmailItem[];
+  total: number;
+}): string {
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
+  const logoUrl = "https://brocarparts.ru/brocar-logo-medium.jpg";
+  return `
+  <div style="background:#f4f4f5;padding:24px 12px;font-family:Arial,sans-serif">
+    <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #eee;border-radius:12px;overflow:hidden">
+      <div style="background:#0d0d0d;padding:20px;text-align:center">
+        <img src="${logoUrl}" alt="${esc(siteName)}" width="84" height="84" style="display:inline-block;border-radius:8px" />
+      </div>
+      <div style="padding:24px;color:#222">
+        <h2 style="color:${opts.headingColor};margin:0 0 8px">${esc(opts.heading)}</h2>
+        <p style="margin:8px 0;line-height:1.5">${opts.intro}</p>
+        ${customerItemsTable(opts.items, opts.total)}
+      </div>
+      <div style="background:#f4f4f5;padding:14px 24px;color:#888;font-size:12px;text-align:center;border-top:1px solid #eee">
+        ${esc(siteName)} · автозапчасти · brocarparts.ru
+      </div>
+    </div>
+  </div>`;
+}
+
+/**
+ * Письмо ПОКУПАТЕЛЮ: заказ оформлен (подтверждение «мы приняли ваш заказ»).
+ * Тихо выходит, если SMTP не настроен или нет валидной почты — заказ важнее письма.
+ */
+export async function sendOrderPlacedToCustomer(
+  data: CustomerOrderEmailData
+): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP не настроен — подтверждение покупателю не отправлено");
+    return;
+  }
+  if (!isEmail(data.to)) return;
+
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER!;
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
+
+  const html = customerEmailShell({
+    headingColor: "#ea580c",
+    heading: "Спасибо за заказ!",
+    intro: `Ваш заказ <b>№${data.orderId}</b> принят. Мы свяжемся с вами по поводу оплаты и получения.`,
+    items: data.items,
+    total: data.total,
+  });
+
+  await transporter.sendMail({
+    from: `"${siteName}" <${from}>`,
+    to: data.to,
+    subject: `Ваш заказ №${data.orderId} принят`,
+    html,
+  });
+}
+
+/**
+ * Письмо ПОКУПАТЕЛЮ: заказ готов к получению.
+ */
+export async function sendOrderReadyToCustomer(
+  data: CustomerOrderEmailData
+): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP не настроен — письмо о готовности не отправлено");
+    return;
+  }
+  if (!isEmail(data.to)) return;
+
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER!;
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
+
+  const html = customerEmailShell({
+    headingColor: "#16a34a",
+    heading: `Заказ №${data.orderId} готов к получению`,
+    intro: "Ваш заказ собран и ждёт вас. Свяжитесь с нами или приезжайте, чтобы забрать.",
+    items: data.items,
+    total: data.total,
+  });
+
+  await transporter.sendMail({
+    from: `"${siteName}" <${from}>`,
+    to: data.to,
+    subject: `Заказ №${data.orderId} готов к получению`,
+    html,
+  });
+}

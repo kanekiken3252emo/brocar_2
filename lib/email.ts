@@ -246,8 +246,12 @@ function customerEmailShell(opts: {
         <p style="margin:8px 0;line-height:1.5">${opts.intro}</p>
         ${customerItemsTable(opts.items, opts.total)}
       </div>
-      <div style="background:#f4f4f5;padding:14px 24px;color:#888;font-size:12px;text-align:center;border-top:1px solid #eee">
-        ${esc(siteName)} · автозапчасти · brocarparts.ru
+      <div style="background:#f4f4f5;padding:20px 24px;color:#666;font-size:13px;text-align:center;border-top:1px solid #eee;line-height:1.7">
+        <div style="font-weight:bold;color:#333;margin-bottom:6px">${esc(siteName)} — автозапчасти, г. Екатеринбург</div>
+        Телефон: <a href="tel:+79326006015" style="color:#ea580c;text-decoration:none">+7 (932) 600-60-15</a><br>
+        Адрес: ул. Заводская, 16 (1 этаж, район ВИЗ)<br>
+        Часы работы: Пн–Пт 10:00–19:00 · Сб 10:00–15:00 · Вс выходной<br>
+        <a href="mailto:info@brocar.ru" style="color:#ea580c;text-decoration:none">info@brocar.ru</a> · <a href="https://brocarparts.ru" style="color:#ea580c;text-decoration:none">brocarparts.ru</a>
       </div>
     </div>
   </div>`;
@@ -273,7 +277,7 @@ export async function sendOrderPlacedToCustomer(
   const html = customerEmailShell({
     headingColor: "#ea580c",
     heading: "Спасибо за заказ!",
-    intro: `Ваш заказ <b>№${data.orderId}</b> принят, мы уже занимаемся им. Свяжемся с вами в ближайшее время.`,
+    intro: `Ваш заказ <b>№${data.orderId}</b> принят, мы уже занимаемся им! Следите за статусом заказа в <a href="https://brocarparts.ru/dashboard" style="color:#ea580c">личном кабинете</a>. По готовности заказа дополнительно оповестим вас.`,
     items: data.items,
     total: data.total,
   });

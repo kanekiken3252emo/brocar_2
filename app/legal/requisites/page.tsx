@@ -101,6 +101,13 @@ export default function RequisitesPage() {
                   +7 932 600 60 15
                 </a>
                 <a
+                  href="tel:+73433822062"
+                  className="inline-flex items-center gap-2 text-neutral-200 hover:text-orange-400 transition-colors"
+                >
+                  <Phone className="h-4 w-4 text-orange-500 shrink-0" />
+                  8 343 382 20 62
+                </a>
+                <a
                   href="mailto:brocarparts@yandex.ru"
                   className="inline-flex items-center gap-2 text-neutral-200 hover:text-orange-400 transition-colors"
                 >

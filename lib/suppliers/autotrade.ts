@@ -123,6 +123,30 @@ interface AutotradeItemsByQueryResponse {
   message?: string;
 }
 
+// ── Транзит со склада Автотрейда до нас (Екатеринбург), дней ──────────────────
+// API отдаёт delivery_period = только «готовность к отгрузке со склада», БЕЗ
+// пути до нас. Из-за этого товар из Москвы/Владивостока показывался как «завтра».
+// Здесь задаём реальный транзит по складам. days = null → склад скрываем совсем
+// (слишком далеко). Неизвестные склады получают AUTOTRADE_DEFAULT_TRANSIT_DAYS.
+const AUTOTRADE_TRANSIT_RULES: Array<{ match: RegExp; days: number | null }> = [
+  { match: /владивосток/i, days: null }, // скрыть
+  { match: /новосибирск/i, days: null }, // скрыть
+  { match: /лукиных/i, days: 1 }, // Екатеринбург (Лукиных)
+  { match: /бер[её]зовский/i, days: 2 }, // Екатеринбург (Берёзовский)
+  { match: /тюмень/i, days: 2 }, // 1-2 дня → берём верх
+  { match: /москва/i, days: 7 }, // 5-7 дней → берём верх
+  { match: /рязань/i, days: 7 }, // 5-7 дней → берём верх
+];
+const AUTOTRADE_DEFAULT_TRANSIT_DAYS = 10; // СПб, Ростов, Краснодар и прочие склады
+
+/** Транзит со склада до нас (дней) или null, если склад надо скрыть. */
+function autotradeTransitDays(warehouseName: string): number | null {
+  for (const rule of AUTOTRADE_TRANSIT_RULES) {
+    if (rule.match.test(warehouseName)) return rule.days;
+  }
+  return AUTOTRADE_DEFAULT_TRANSIT_DAYS;
+}
+
 export class AutotradeAdapter implements SupplierAdapter {
   private baseUrl: string;
   private apiKey: string;
@@ -297,7 +321,13 @@ export class AutotradeAdapter implements SupplierAdapter {
         const stock = unpacked + packed;
         if (stock <= 0) continue;
 
-        const deliveryDays = s.delivery_period != null ? Number(s.delivery_period) : null;
+        // Срок = реальный транзит со склада до нас. API delivery_period отдаёт
+        // только «готовность к отгрузке», без пути склад→Екб, поэтому товар из
+        // Москвы показывался как «завтра». Дальние склады (Владивосток,
+        // Новосибирск) скрываем совсем (transitDays === null).
+        const warehouseName = String(s.name ?? s.legend ?? "");
+        const transitDays = autotradeTransitDays(warehouseName);
+        if (transitDays === null) continue;
 
         results.push({
           article,
@@ -307,7 +337,7 @@ export class AutotradeAdapter implements SupplierAdapter {
           stock,
           supplier: `Autotrade (${s.name ?? s.legend ?? "склад"})`,
           supplierCode: "autotrade",
-          deliveryDays: Number.isFinite(deliveryDays ?? NaN) ? deliveryDays : null,
+          deliveryDays: transitDays,
           raw: {
             inside_id_in: item.inside_id_in,
             stock_id: s.id,

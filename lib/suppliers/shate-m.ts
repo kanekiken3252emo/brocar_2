@@ -505,8 +505,12 @@ export class ShateMAdapter implements SupplierAdapter {
         const avail = offer.quantity?.available ?? 0;
         if (avail <= 0) continue;
 
+        // Базой для НАШЕЙ наценки берём ЗАКУПОЧНУЮ цену (value), а не
+        // valueWithMargin: последняя уже включает маржу ШАТЕ-М, и наша наценка
+        // поверх неё давала двойную накрутку (закупка 707 → на сайте 1401
+        // вместо корректных ~1004 = 707 × ступенчатая наценка).
         const priceValue =
-          offer.price?.valueWithMargin ?? offer.price?.value ?? 0;
+          offer.price?.value ?? offer.price?.valueWithMargin ?? 0;
 
         const deliveryDate = offer.deliveryDateTimes?.[0]?.deliveryDateTime;
         const deliveryDays = deliveryDate

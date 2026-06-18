@@ -20,6 +20,27 @@ interface CartData {
   total: number;
 }
 
+/**
+ * Маска российского номера → «+7 (XXX) XXX-XX-XX».
+ * Нормализует ведущую 8/7, режет до 11 цифр, форматирует по мере ввода.
+ * Если человек опечатался (не 11 цифр) — на сабмите подскажем поправить.
+ */
+function formatRuPhone(raw: string): string {
+  let d = raw.replace(/\D/g, "");
+  if (!d) return "";
+  if (d[0] === "8") d = "7" + d.slice(1);
+  if (d[0] !== "7") d = "7" + d;
+  d = d.slice(0, 11);
+  const p = d.slice(1);
+  let out = "+7";
+  if (p.length) out += " (" + p.slice(0, 3);
+  if (p.length >= 3) out += ")";
+  if (p.length > 3) out += " " + p.slice(3, 6);
+  if (p.length > 6) out += "-" + p.slice(6, 8);
+  if (p.length > 8) out += "-" + p.slice(8, 10);
+  return out;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -49,7 +70,7 @@ export default function CheckoutPage() {
         const profData = await profRes.json();
         const p = profData.profile || {};
         setFullName(p.full_name || "");
-        setPhone(p.phone || "");
+        setPhone(formatRuPhone(p.phone || ""));
         setContactEmail(p.contact_email || p.email || "");
         setTelegram(p.telegram || "");
         setWhatsapp(p.whatsapp || "");
@@ -74,6 +95,8 @@ export default function CheckoutPage() {
 
     if (!fullName.trim()) return setError("Укажите имя и фамилию");
     if (!phone.trim()) return setError("Укажите телефон для связи");
+    if (phone.replace(/\D/g, "").length !== 11)
+      return setError("Проверьте номер телефона: нужно +7 и 10 цифр");
 
     setSubmitting(true);
     try {
@@ -176,7 +199,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Телефон *</Label>
-                      <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 (900) 123-45-67" disabled={submitting} />
+                      <Input id="phone" type="tel" inputMode="tel" maxLength={18} value={phone} onChange={(e) => setPhone(formatRuPhone(e.target.value))} placeholder="+7 (900) 123-45-67" disabled={submitting} />
                     </div>
                   </div>
 

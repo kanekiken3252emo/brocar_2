@@ -232,12 +232,14 @@ function customerEmailShell(opts: {
   total: number;
 }): string {
   const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
-  const logoUrl = "https://brocarparts.ru/brocar-logo-medium.jpg";
+  // Текущий логотип сайта (тот же, что в шапке). PNG — webp в письмах не везде
+  // показывается. Логотип круглый → border-radius:50%.
+  const logoUrl = "https://brocarparts.ru/Logo_Brocar.png";
   return `
   <div style="background:#f4f4f5;padding:24px 12px;font-family:Arial,sans-serif">
     <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #eee;border-radius:12px;overflow:hidden">
       <div style="background:#0d0d0d;padding:20px;text-align:center">
-        <img src="${logoUrl}" alt="${esc(siteName)}" width="84" height="84" style="display:inline-block;border-radius:8px" />
+        <img src="${logoUrl}" alt="${esc(siteName)}" width="96" height="96" style="display:inline-block;border-radius:50%" />
       </div>
       <div style="padding:24px;color:#222">
         <h2 style="color:${opts.headingColor};margin:0 0 8px">${esc(opts.heading)}</h2>

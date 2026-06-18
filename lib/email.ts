@@ -273,7 +273,7 @@ export async function sendOrderPlacedToCustomer(
   const html = customerEmailShell({
     headingColor: "#ea580c",
     heading: "Спасибо за заказ!",
-    intro: `Ваш заказ <b>№${data.orderId}</b> принят. Мы свяжемся с вами по поводу оплаты и получения.`,
+    intro: `Ваш заказ <b>№${data.orderId}</b> принят, мы уже занимаемся им. Свяжемся с вами в ближайшее время.`,
     items: data.items,
     total: data.total,
   });

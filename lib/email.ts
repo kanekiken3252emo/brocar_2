@@ -254,7 +254,7 @@ function customerEmailShell(opts: {
       </div>
       <div style="background:#f4f4f5;padding:20px 24px;color:#666;font-size:13px;text-align:center;border-top:1px solid #eee;line-height:1.7">
         <div style="font-weight:bold;color:#333;margin-bottom:6px">${esc(siteName)} — автозапчасти, г. Екатеринбург</div>
-        Телефон: <a href="tel:+79326006015" style="color:#ea580c;text-decoration:none">+7 (932) 600-60-15</a><br>
+        Телефон: <a href="tel:+79326006015" style="color:#ea580c;text-decoration:none">+7 (932) 600-60-15</a> · <a href="tel:+73433822062" style="color:#ea580c;text-decoration:none">8 (343) 382-20-62</a><br>
         Адрес: ул. Заводская, 16 (1 этаж, район ВИЗ)<br>
         Часы работы: Пн–Пт 10:00–19:00 · Сб 10:00–15:00 · Вс выходной<br>
         <a href="mailto:info@brocar.ru" style="color:#ea580c;text-decoration:none">info@brocar.ru</a> · <a href="https://brocarparts.ru" style="color:#ea580c;text-decoration:none">brocarparts.ru</a>

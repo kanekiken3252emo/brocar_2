@@ -149,6 +149,7 @@ export default function ProductPage() {
         ourPrice: selectedOffer.price,
         supplierPrice: selectedOffer.price,
         stock: selectedOffer.quantity,
+        deliveryDays: selectedOffer.average_period,
       });
     } catch (err: any) {
       window.dispatchEvent(

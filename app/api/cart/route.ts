@@ -22,6 +22,7 @@ const addFromSupplierSchema = z.object({
   supplierPrice: z.number().nonnegative().optional(),
   stock: z.number().int().nonnegative().optional().default(0),
   qty: z.number().int().min(1).optional().default(1),
+  deliveryDays: z.number().int().nullable().optional(),
 });
 
 async function upsertProductByArticle(input: {
@@ -113,6 +114,7 @@ async function getCartWithItems(cartId: number) {
     id: item.id,
     productId: item.productId,
     qty: item.qty,
+    deliveryDays: item.deliveryDays,
     product: {
       id: item.product.id,
       article: item.product.article,
@@ -214,13 +216,17 @@ export async function POST(request: NextRequest) {
       if (existingItem) {
         await db
           .update(cartItems)
-          .set({ qty: existingItem.qty + data.qty })
+          .set({
+            qty: existingItem.qty + data.qty,
+            deliveryDays: data.deliveryDays ?? existingItem.deliveryDays,
+          })
           .where(eq(cartItems.id, existingItem.id));
       } else {
         await db.insert(cartItems).values({
           cartId: cart.id,
           productId,
           qty: data.qty,
+          deliveryDays: data.deliveryDays ?? null,
         });
       }
 

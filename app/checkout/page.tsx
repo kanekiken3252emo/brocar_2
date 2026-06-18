@@ -13,6 +13,7 @@ import { ArrowLeft, Loader2, ShoppingBag } from "lucide-react";
 interface CartItem {
   id: number;
   qty: number;
+  deliveryDays?: number | null;
   product: { name: string; article: string; price: number };
 }
 interface CartData {
@@ -57,6 +58,7 @@ export default function CheckoutPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -97,6 +99,11 @@ export default function CheckoutPage() {
     if (!phone.trim()) return setError("Укажите телефон для связи");
     if (phone.replace(/\D/g, "").length !== 11)
       return setError("Проверьте номер телефона: нужно +7 и 10 цифр");
+    const hasNonStockNow = (cart?.items ?? []).some(
+      (it) => (it.deliveryDays ?? 0) >= 2
+    );
+    if (hasNonStockNow && !agreed)
+      return setError("Подтвердите согласие с условиями заказа товара под заказ");
 
     setSubmitting(true);
     try {
@@ -152,6 +159,9 @@ export default function CheckoutPage() {
   }
 
   const items = cart?.items ?? [];
+  // Есть ли в заказе товар «под заказ» (срок ≥ 2 дней) — тогда перед оплатой
+  // показываем согласие с условиями и блокируем кнопку до отметки.
+  const hasNonStock = items.some((it) => (it.deliveryDays ?? 0) >= 2);
 
   if (items.length === 0) {
     return (
@@ -265,11 +275,49 @@ export default function CheckoutPage() {
                       {formatPrice(cart?.total ?? 0)}
                     </span>
                   </div>
+                  {hasNonStock && (
+                    <div className="mb-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4">
+                      <p className="text-sm font-semibold text-yellow-400 mb-2">
+                        В заказе есть товар под заказ (срок от 2 дней)
+                      </p>
+                      <p className="text-xs text-neutral-300 mb-2">
+                        Оформляя заказ, вы соглашаетесь со следующим:
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1 text-xs text-neutral-400 mb-3">
+                        <li>от этого товара нельзя отказаться;</li>
+                        <li>качественный товар возврату не подлежит;</li>
+                        <li>вы обязуетесь принять и оплатить товар;</li>
+                        <li>вы согласны со сроками доставки (срок указан в рабочих днях);</li>
+                        <li>
+                          описание товара и информация об аналогах носит
+                          справочный характер и не является причиной для отказа
+                          или возврата;
+                        </li>
+                        <li>
+                          товар, ввезённый по параллельному импорту, может
+                          отличаться упаковкой и надписями на ней.
+                        </li>
+                      </ul>
+                      <label className="flex items-start gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={agreed}
+                          onChange={(e) => setAgreed(e.target.checked)}
+                          disabled={submitting}
+                          className="mt-0.5 h-4 w-4 accent-orange-500 shrink-0"
+                        />
+                        <span className="text-sm text-white font-medium">
+                          Я согласен с условиями заказа товара под заказ
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
                   <Button
                     onClick={handleSubmit}
                     className="w-full gap-2"
                     size="lg"
-                    disabled={submitting}
+                    disabled={submitting || (hasNonStock && !agreed)}
                   >
                     {submitting ? (
                       <>

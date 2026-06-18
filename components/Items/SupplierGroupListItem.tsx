@@ -35,6 +35,7 @@ async function addOfferToCart(
       ourPrice: offer.ourPrice,
       supplierPrice: offer.price,
       stock: offer.stock,
+      deliveryDays: offer.deliveryDays,
     });
   } catch (err: any) {
     window.dispatchEvent(

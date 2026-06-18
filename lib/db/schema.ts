@@ -141,6 +141,10 @@ export const cartItems = pgTable("cart_items", {
     .references(() => products.id)
     .notNull(),
   qty: integer("qty").default(1).notNull(),
+  // Срок доставки позиции (дней) на момент добавления — нужен на оформлении,
+  // чтобы для товаров «под заказ» (≥2 дней) показать согласие перед оплатой.
+  // null = не задан (трактуем как «из наличия»).
+  deliveryDays: integer("delivery_days"),
 });
 
 // Orders table

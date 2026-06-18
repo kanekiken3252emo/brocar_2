@@ -6,6 +6,8 @@ export interface AddSupplierItemParams {
   supplierPrice: number;
   stock: number;
   qty?: number;
+  /** Срок доставки позиции (дней). Нужен на оформлении для товаров «под заказ». */
+  deliveryDays?: number | null;
 }
 
 export async function addSupplierItemToCart(
@@ -23,6 +25,7 @@ export async function addSupplierItemToCart(
       supplierPrice: params.supplierPrice,
       stock: params.stock,
       qty: params.qty ?? 1,
+      deliveryDays: params.deliveryDays ?? null,
     }),
   });
 

@@ -221,20 +221,51 @@ export default function ProductPage() {
 
         {/* Product Details */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
-          <div className="grid md:grid-cols-2 gap-8 p-8">
-            {/* Image Section */}
-            <div className="space-y-4">
-              {/* Высота привязана к вьюпорту, чтобы наличие/гарантия/доставка
-                  оставались видимыми без скролла даже на небольших экранах */}
-              <ProductImage
-                brand={product.brand?.name}
-                article={product.article}
-                alt={product.name || "Фото товара"}
-                className="w-full h-[280px] sm:h-[340px] md:h-[min(48vh,460px)] rounded-2xl"
-                innerPadding="p-6 md:p-8"
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
+          {/* Заголовок: бренд + название — сразу видно (особенно на мобилке) */}
+          <div className="px-6 pt-6 md:px-8 md:pt-8">
+            <div className="inline-block px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-lg mb-3">
+              <span className="text-sm text-orange-400 font-semibold">
+                {product.brand?.name || "Неизвестный бренд"}
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+              {product.name}
+            </h1>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8 p-6 md:p-8 md:pt-5">
+            {/* Картинка */}
+            <ProductImage
+              brand={product.brand?.name}
+              article={product.article}
+              alt={product.name || "Фото товара"}
+              className="w-full h-[220px] sm:h-[320px] md:h-[min(46vh,440px)] rounded-2xl"
+              innerPadding="p-4 md:p-8"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
               
+            {/* Покупка: цена + кнопка сразу, ниже — наличие/гарантия/описание */}
+            <div className="space-y-5">
+              {/* Price */}
+              {minPrice && (
+                <div className="bg-gradient-to-r from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-5 md:p-6">
+                  <div className="text-sm text-neutral-400 mb-1">Цена от</div>
+                  <div className="text-4xl font-bold text-white">
+                    {minPrice.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Add to Cart */}
+              <Button
+                onClick={handleAddToCart}
+                disabled={!selectedOffer || totalStock === 0}
+                size="xl"
+                className="w-full"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Добавить в корзину
+              </Button>
+
               {/* Stock Status */}
               <div className="flex items-center gap-4">
                 {totalStock > 0 ? (
@@ -261,19 +292,6 @@ export default function ProductPage() {
                   <span className="text-sm text-neutral-400">Доставка</span>
                 </div>
               </div>
-            </div>
-
-            {/* Info Section */}
-            <div className="space-y-6">
-              {/* Brand */}
-              <div className="inline-block px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-lg">
-                <span className="text-sm text-orange-400 font-semibold">
-                  {product.brand?.name || "Неизвестный бренд"}
-                </span>
-              </div>
-
-              {/* Name */}
-              <h1 className="text-3xl font-bold text-white">{product.name}</h1>
 
               {/* Article */}
               <div className="flex items-center gap-2">
@@ -283,29 +301,8 @@ export default function ProductPage() {
                 </span>
               </div>
 
-              {/* Price */}
-              {minPrice && (
-                <div className="bg-gradient-to-r from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-6">
-                  <div className="text-sm text-neutral-400 mb-1">Цена от</div>
-                  <div className="text-4xl font-bold text-white">
-                    {minPrice.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Add to Cart */}
-              <Button
-                onClick={handleAddToCart}
-                disabled={!selectedOffer || totalStock === 0}
-                size="xl"
-                className="w-full"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Добавить в корзину
-              </Button>
-
               {/* Description */}
-              <div className="border-t border-neutral-800 pt-6">
+              <div className="border-t border-neutral-800 pt-5">
                 <h3 className="font-semibold text-white mb-2">Описание</h3>
                 <p className="text-neutral-400">{product.name}</p>
               </div>

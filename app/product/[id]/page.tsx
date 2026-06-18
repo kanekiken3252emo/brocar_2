@@ -50,6 +50,7 @@ function groupToBergResource(g: SupplierGroup): BergResource {
     delivery_type: 1,
     is_transit: false,
     warehouse: { id: 0, name: getVegaName(o.supplierCode), type: 1 },
+    supplier: o.supplier,
   }));
   return {
     id: 0,
@@ -150,6 +151,7 @@ export default function ProductPage() {
         supplierPrice: selectedOffer.price,
         stock: selectedOffer.quantity,
         deliveryDays: selectedOffer.average_period,
+        supplier: selectedOffer.supplier,
       });
     } catch (err: any) {
       window.dispatchEvent(

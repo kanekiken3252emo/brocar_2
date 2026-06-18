@@ -49,6 +49,7 @@ export default function SupplierItemCard({
         supplierPrice: bestOffer.price,
         stock: group.totalStock,
         deliveryDays: bestOffer.deliveryDays,
+        supplier: bestOffer.supplier,
       });
     } catch (err: any) {
       window.dispatchEvent(

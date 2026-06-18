@@ -145,6 +145,9 @@ export const cartItems = pgTable("cart_items", {
   // чтобы для товаров «под заказ» (≥2 дней) показать согласие перед оплатой.
   // null = не задан (трактуем как «из наличия»).
   deliveryDays: integer("delivery_days"),
+  // Реальный поставщик/склад позиции (напр. «Autotrade (Москва)»). Хранится
+  // СЕРВЕРНО для письма магазину — покупателю не отдаётся (у него VEGA-имена).
+  supplier: text("supplier"),
 });
 
 // Orders table

@@ -14,6 +14,8 @@ export interface OrderEmailItem {
   brand: string | null;
   qty: number;
   price: string; // цена за единицу
+  supplier?: string | null; // реальный поставщик/склад (только письмо магазину)
+  deliveryDays?: number | null; // срок доставки, дней
 }
 
 export interface OrderEmailData {
@@ -80,7 +82,9 @@ export async function sendOrderNotification(data: OrderEmailData): Promise<void>
         <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.name)}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-family:monospace">${esc(i.article)}</td>
         <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.brand ?? "—")}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.supplier ?? "—")}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.qty}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.deliveryDays != null ? esc(String(i.deliveryDays)) + " дн." : "—"}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatRub(parseFloat(i.price))}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatRub(parseFloat(i.price) * i.qty)}</td>
       </tr>`
@@ -113,7 +117,9 @@ export async function sendOrderNotification(data: OrderEmailData): Promise<void>
           <th style="padding:8px">Наименование</th>
           <th style="padding:8px">Артикул</th>
           <th style="padding:8px">Бренд</th>
+          <th style="padding:8px">Поставщик</th>
           <th style="padding:8px;text-align:center">Кол-во</th>
+          <th style="padding:8px;text-align:center">Срок</th>
           <th style="padding:8px;text-align:right">Цена</th>
           <th style="padding:8px;text-align:right">Сумма</th>
         </tr>

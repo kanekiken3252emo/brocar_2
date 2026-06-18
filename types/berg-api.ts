@@ -54,6 +54,9 @@ export interface BergOffer {
   is_transit: boolean;
   warehouse: BergWarehouse;
   address_timetable?: BergAddressTimetable;
+  // Реальное имя поставщика/склада (этот тип переиспользуется как общий оффер
+  // для всех поставщиков). Нужно для письма магазину; покупателю не показывается.
+  supplier?: string;
 }
 
 // Search Request

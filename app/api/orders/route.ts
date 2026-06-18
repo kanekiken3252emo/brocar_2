@@ -84,6 +84,8 @@ export async function POST() {
       brand: item.product.brand,
       qty: item.qty,
       price: item.product.ourPrice,
+      supplier: item.supplier,
+      deliveryDays: item.deliveryDays,
     }));
 
     try {

@@ -8,6 +8,8 @@ export interface AddSupplierItemParams {
   qty?: number;
   /** Срок доставки позиции (дней). Нужен на оформлении для товаров «под заказ». */
   deliveryDays?: number | null;
+  /** Реальный поставщик/склад (для письма магазину). Покупателю не показывается. */
+  supplier?: string | null;
 }
 
 export async function addSupplierItemToCart(
@@ -26,6 +28,7 @@ export async function addSupplierItemToCart(
       stock: params.stock,
       qty: params.qty ?? 1,
       deliveryDays: params.deliveryDays ?? null,
+      supplier: params.supplier ?? null,
     }),
   });
 

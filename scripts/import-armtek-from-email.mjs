@@ -29,6 +29,14 @@ const SENDER = process.env.ARMTEK_SENDER || "armtek";
 const SINCE_DAYS = parseInt(process.env.ARMTEK_SINCE_DAYS || "2", 10);
 const DB_URL = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
 
+// Армтек иногда присылает остаток-«заглушку» (≈3 млрд = «очень много в наличии»),
+// что не влезает в integer-колонку stock (потолок ~2,1 млрд) и роняет всю вставку.
+// Обрезаем до разумного потолка — для автозапчасти 99999 шт. это «есть в избытке».
+const MAX_STOCK = 99999;
+function clampStock(n) {
+  return Number.isFinite(n) && n > MAX_STOCK ? MAX_STOCK : n;
+}
+
 if (!USER || !PASS) {
   console.error("❌ Нет IMAP-доступа (IMAP_USER/PASSWORD или SMTP_USER/PASSWORD).");
   process.exit(1);
@@ -69,7 +77,7 @@ async function parseXlsx(buf) {
     const brand = String(row.getCell(1).text || "").trim();
     const article = String(row.getCell(2).text || "").trim();
     const name = String(row.getCell(3).text || "").trim();
-    const stock = parseInt(String(row.getCell(6).text || "0").replace(/\s/g, ""), 10);
+    const stock = clampStock(parseInt(String(row.getCell(6).text || "0").replace(/\s/g, ""), 10));
     const price = parseFloat(
       String(row.getCell(7).text || "0").replace(",", ".").replace(/\s/g, "")
     );
@@ -126,7 +134,7 @@ async function main() {
           const f = lines[i].split(";");
           if (f.length < 7) continue;
           const price = parseFloat((f[6] || "").replace(",", "."));
-          const stock = parseInt(f[5] || "0", 10);
+          const stock = clampStock(parseInt(f[5] || "0", 10));
           if (f[0] && f[1] && f[2] && price > 0 && stock > 0)
             rows.push({ brand: f[0].trim(), article: f[1].trim(), name: f[2].trim(), price, stock });
         }
@@ -192,7 +200,7 @@ async function main() {
   for (let i = 0; i < productsArr.length; i += BATCH) {
     const rows = productsArr.slice(i, i + BATCH).map((p) => {
       const minPrice = Math.min(...p.stocks.map((s) => s.price));
-      const totalStock = p.stocks.reduce((a, s) => a + s.qty, 0);
+      const totalStock = clampStock(p.stocks.reduce((a, s) => a + s.qty, 0));
       return {
         article: p.article, brand: p.brand, name: p.name,
         supplier_price: String(minPrice), our_price: String(applyMarkup(minPrice)),
@@ -239,7 +247,7 @@ async function main() {
   }
   const stockRows = Array.from(stocksMap.values()).map((x) => ({
     product_id: x.product_id, supplier_code: "armtek", warehouse_name: x.warehouse_name,
-    quantity: x.quantity, supplier_price: String(x.supplier_price),
+    quantity: clampStock(x.quantity), supplier_price: String(x.supplier_price),
     our_price: String(applyMarkup(x.supplier_price)), delivery_days: null,
   }));
   for (let i = 0; i < stockRows.length; i += BATCH) {

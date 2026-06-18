@@ -190,6 +190,21 @@ export default function ProductPage() {
     ? Math.min(...product.offers.map((o) => o.price))
     : null;
 
+  // Самый дешёвый оффер — на него указывает «Цена от». Список отсортирован
+  // «в наличии → быстрее → дешевле», поэтому дешёвый может оказаться вне топ-3.
+  // Чтобы «Цена от X» не расходилась с видимыми строками, всегда показываем
+  // самый дешёвый оффер рядом с тремя лучшими (если он не попал в топ-3).
+  const cheapestOffer = product.offers?.length
+    ? product.offers.reduce((m, o) => (o.price < m.price ? o : m), product.offers[0])
+    : null;
+  let visibleOffers = product.offers ?? [];
+  if (!showAllOffers && product.offers) {
+    visibleOffers = product.offers.slice(0, 3);
+    if (cheapestOffer && !visibleOffers.includes(cheapestOffer)) {
+      visibleOffers = [...visibleOffers, cheapestOffer];
+    }
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950">
       <div className="container mx-auto px-4 py-8">
@@ -317,7 +332,7 @@ export default function ProductPage() {
             <>
               {/* Mobile cards */}
               <div className="md:hidden divide-y divide-neutral-800">
-                {(showAllOffers ? product.offers : product.offers.slice(0, 3)).map((offer, index) => (
+                {visibleOffers.map((offer, index) => (
                   <div
                     key={index}
                     className={`p-4 ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
@@ -381,7 +396,7 @@ export default function ProductPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800">
-                    {(showAllOffers ? product.offers : product.offers.slice(0, 3)).map((offer, index) => (
+                    {visibleOffers.map((offer, index) => (
                       <tr
                         key={index}
                         className={`hover:bg-neutral-800/50 transition-colors ${

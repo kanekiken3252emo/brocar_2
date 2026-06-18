@@ -72,7 +72,7 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-semibold text-white mb-4">5. Контакты</h2>
               <p className="text-neutral-400">
                 По вопросам, связанным с обработкой персональных данных, 
-                вы можете связаться с нами по email: <a href="mailto:privacy@brocar.ru" className="text-orange-500 hover:text-orange-400">privacy@brocar.ru</a>
+                вы можете связаться с нами по email: <a href="mailto:info@brocarparts.ru" className="text-orange-500 hover:text-orange-400">info@brocarparts.ru</a>
               </p>
             </CardContent>
           </Card>

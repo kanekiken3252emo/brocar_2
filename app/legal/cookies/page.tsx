@@ -69,7 +69,7 @@ export default function CookiesPage() {
 
               <h2 className="text-xl font-semibold text-white mb-4">Контакты</h2>
               <p className="text-neutral-400">
-                По вопросам, связанным с Cookie, обращайтесь: <a href="mailto:privacy@brocar.ru" className="text-orange-500 hover:text-orange-400">privacy@brocar.ru</a>
+                По вопросам, связанным с Cookie, обращайтесь: <a href="mailto:info@brocarparts.ru" className="text-orange-500 hover:text-orange-400">info@brocarparts.ru</a>
               </p>
             </CardContent>
           </Card>

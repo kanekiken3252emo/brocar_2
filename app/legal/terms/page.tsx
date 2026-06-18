@@ -73,7 +73,7 @@ export default function TermsPage() {
 
               <h2 className="text-xl font-semibold text-white mb-4">7. Контакты</h2>
               <p className="text-neutral-400">
-                По всем вопросам обращайтесь: <a href="mailto:info@brocar.ru" className="text-orange-500 hover:text-orange-400">info@brocar.ru</a>
+                По всем вопросам обращайтесь: <a href="mailto:info@brocarparts.ru" className="text-orange-500 hover:text-orange-400">info@brocarparts.ru</a>
               </p>
             </CardContent>
           </Card>

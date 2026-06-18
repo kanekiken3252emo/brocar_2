@@ -110,8 +110,8 @@ export default function ContactsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <a href="mailto:info@brocar.ru" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
-                  info@brocar.ru
+                <a href="mailto:info@brocarparts.ru" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
+                  info@brocarparts.ru
                 </a>
                 <p className="text-neutral-400">
                   Ответим в течение 24 часов в рабочие дни
@@ -348,7 +348,7 @@ export default function ContactsPage() {
                     Позвонить
                   </Button>
                 </a>
-                <a href="mailto:info@brocar.ru">
+                <a href="mailto:info@brocarparts.ru">
                   <Button variant="outline" className="gap-2">
                     <Send className="h-4 w-4" />
                     Email

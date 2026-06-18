@@ -257,7 +257,7 @@ function customerEmailShell(opts: {
         Телефон: <a href="tel:+79326006015" style="color:#ea580c;text-decoration:none">+7 (932) 600-60-15</a> · <a href="tel:+73433822062" style="color:#ea580c;text-decoration:none">8 (343) 382-20-62</a><br>
         Адрес: ул. Заводская, 16 (1 этаж, район ВИЗ)<br>
         Часы работы: Пн–Пт 10:00–19:00 · Сб 10:00–15:00 · Вс выходной<br>
-        <a href="mailto:info@brocar.ru" style="color:#ea580c;text-decoration:none">info@brocar.ru</a> · <a href="https://brocarparts.ru" style="color:#ea580c;text-decoration:none">brocarparts.ru</a>
+        <a href="mailto:info@brocarparts.ru" style="color:#ea580c;text-decoration:none">info@brocarparts.ru</a> · <a href="https://brocarparts.ru" style="color:#ea580c;text-decoration:none">brocarparts.ru</a>
       </div>
     </div>
   </div>`;

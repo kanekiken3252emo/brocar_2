@@ -108,11 +108,11 @@ export default function RequisitesPage() {
                   8 343 382 20 62
                 </a>
                 <a
-                  href="mailto:brocarparts@yandex.ru"
+                  href="mailto:info@brocarparts.ru"
                   className="inline-flex items-center gap-2 text-neutral-200 hover:text-orange-400 transition-colors"
                 >
                   <Mail className="h-4 w-4 text-orange-500 shrink-0" />
-                  brocarparts@yandex.ru
+                  info@brocarparts.ru
                 </a>
                 <span className="inline-flex items-start gap-2 text-neutral-400">
                   <MapPin className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />

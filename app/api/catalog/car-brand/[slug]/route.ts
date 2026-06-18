@@ -56,7 +56,11 @@ export async function GET(
     // (forum-auto/rossko/shate-m/armtek/berg), как и в роуте категории.
     const baseConditions = [
       dsql`${products.stock} > 0`,
-      dsql`${carBrand} = ANY(${products.carBrands})`,
+      // Используем `car_brands @> ARRAY[...]`, а НЕ `'X' = ANY(car_brands)`:
+      // только форма `@>` задействует GIN-индекс idx_products_car_brands.
+      // `= ANY(array)` его игнорирует и даёт seq scan по всей таблице (748к
+      // строк) — отсюда долгая первая загрузка страницы бренда.
+      dsql`${products.carBrands} @> ARRAY[${carBrand}]::text[]`,
     ];
     if (category) baseConditions.push(eq(products.categorySlug, category));
 

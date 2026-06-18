@@ -67,12 +67,12 @@ async function apiCart(body: object) {
 
 function EmptyCart() {
   return (
-    <div className="flex flex-col items-center text-center py-20 px-4">
-      <div className="w-24 h-24 bg-neutral-900 border border-neutral-800 rounded-3xl flex items-center justify-center mb-6">
-        <PackageOpen className="h-10 w-10 text-neutral-600" />
+    <div className="flex flex-col items-center text-center py-8 px-4">
+      <div className="w-20 h-20 bg-neutral-900 border border-neutral-800 rounded-3xl flex items-center justify-center mb-5">
+        <PackageOpen className="h-9 w-9 text-neutral-600" />
       </div>
-      <h2 className="text-2xl font-bold text-white mb-3">Корзина пуста</h2>
-      <p className="text-neutral-400 max-w-sm mb-8 leading-relaxed">
+      <h2 className="text-2xl font-bold text-white mb-2">Корзина пуста</h2>
+      <p className="text-neutral-400 max-w-sm mb-6 leading-relaxed">
         Добавьте запчасти из каталога или оформите запрос по VIN‑коду —
         мы подберём нужные детали.
       </p>
@@ -93,7 +93,7 @@ function EmptyCart() {
       </div>
 
       {/* Hints */}
-      <div className="grid sm:grid-cols-3 gap-4 mt-14 w-full max-w-2xl">
+      <div className="grid sm:grid-cols-3 gap-4 mt-8 w-full max-w-2xl">
         {[
           {
             icon: <Tag className="h-5 w-5 text-orange-500" />,
@@ -292,7 +292,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
       {/* Hero */}
-      <section className="relative overflow-hidden py-12 md:py-16">
+      <section className="relative overflow-hidden py-7 md:py-10">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-neutral-950 to-neutral-950" />
         <div className="absolute top-10 right-20 w-64 h-64 bg-orange-500/8 rounded-full blur-3xl pointer-events-none" />
 

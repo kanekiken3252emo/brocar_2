@@ -67,7 +67,7 @@ async function apiCart(body: object) {
 
 function EmptyCart() {
   return (
-    <div className="flex flex-col items-center text-center py-8 px-4">
+    <div className="flex flex-col items-center text-center pt-2 pb-10 sm:pt-6 px-4">
       <div className="w-20 h-20 bg-neutral-900 border border-neutral-800 rounded-3xl flex items-center justify-center mb-5">
         <PackageOpen className="h-9 w-9 text-neutral-600" />
       </div>

@@ -174,6 +174,14 @@ export function Header({ user }: HeaderProps) {
                 <span className="font-semibold text-white">8 (343) 382-20-62</span>
               </div>
             </div>
+            {/* Мобильный номер слева на мобилке (десктоп — в блоке слева выше) */}
+            <a
+              href="tel:+79326006015"
+              className="md:hidden flex items-center gap-1.5 text-white font-semibold whitespace-nowrap"
+            >
+              <Phone className="h-4 w-4 text-orange-500" />
+              +7 (932) 600-60-15
+            </a>
             <div className="flex items-center gap-3 ml-auto">
               {!user ? (
                 <>

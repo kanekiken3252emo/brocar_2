@@ -5,6 +5,7 @@ import { asc, desc } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { safeLinkUrl } from "@/lib/utils";
+import { setStoryMediaPublic } from "@/lib/stories-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,6 +69,9 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  // Делаем загруженный объект публичным (ACL ставим серверно, не в браузере).
+  await setStoryMediaPublic(mediaUrl);
 
   const title =
     typeof body.title === "string" ? body.title.trim() || null : null;

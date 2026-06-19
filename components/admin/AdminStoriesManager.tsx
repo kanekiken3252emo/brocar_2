@@ -157,7 +157,7 @@ export default function AdminStoriesManager({
       // 2) Заливаем файл напрямую в S3 (мимо сервера/прокси — без лимита тела)
       const putRes = await fetch(urlData.uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": contentType, "x-amz-acl": "public-read" },
+        headers: { "Content-Type": contentType },
         body: blob,
       });
       if (!putRes.ok)

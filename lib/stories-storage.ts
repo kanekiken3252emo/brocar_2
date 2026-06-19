@@ -1,6 +1,7 @@
 import {
   S3Client,
   PutObjectCommand,
+  PutObjectAclCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -93,16 +94,42 @@ export async function createStoryUploadUrl(
   const rand = Math.random().toString(36).slice(2, 10);
   const safeExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
   const key = `stories/${Date.now()}-${rand}.${safeExt}`;
+  // ACL в presigned-ссылку НЕ кладём: заголовок x-amz-acl в браузерном PUT
+  // ломает CORS-префлайт на VK Cloud. Публичным делаем серверно после загрузки.
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
-    ACL: "public-read",
   });
   const uploadUrl = await getSignedUrl(getS3Client(), command, {
     expiresIn: 600, // 10 минут на загрузку
   });
   return { uploadUrl, publicUrl: `${publicBase()}/${key}`, key };
+}
+
+/**
+ * Делает уже загруженный объект публично читаемым (ACL public-read) серверно.
+ * Так браузерному PUT не нужен заголовок x-amz-acl (упрощает CORS).
+ */
+export async function setStoryMediaPublic(
+  url: string | null | undefined
+): Promise<void> {
+  if (!url || !s3Configured()) return;
+  const base = publicBase();
+  if (!url.startsWith(base)) return;
+  const key = url.slice(base.length).replace(/^\/+/, "");
+  if (!key) return;
+  try {
+    await getS3Client().send(
+      new PutObjectAclCommand({
+        Bucket: process.env.S3_BUCKET as string,
+        Key: key,
+        ACL: "public-read",
+      })
+    );
+  } catch (e) {
+    console.warn("setStoryMediaPublic failed:", e);
+  }
 }
 
 /** Удаляет объект истории из S3 по его публичному URL (best-effort). */

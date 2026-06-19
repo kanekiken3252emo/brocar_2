@@ -175,6 +175,16 @@ export default function StoryLogo() {
 
       {menuOpen && (
         <div className="absolute left-0 top-full mt-2 z-50 w-56 rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl p-1.5 animate-in fade-in slide-in-from-top-1">
+          <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-white hover:bg-neutral-800 transition-colors"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 shrink-0">
+              <Home className="h-4 w-4 text-neutral-300" />
+            </span>
+            <span className="flex-1 font-medium">На главную</span>
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -193,16 +203,6 @@ export default function StoryLogo() {
               </span>
             )}
           </button>
-          <Link
-            href="/"
-            onClick={() => setMenuOpen(false)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-white hover:bg-neutral-800 transition-colors"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 shrink-0">
-              <Home className="h-4 w-4 text-neutral-300" />
-            </span>
-            <span className="flex-1 font-medium">На главную</span>
-          </Link>
         </div>
       )}
 

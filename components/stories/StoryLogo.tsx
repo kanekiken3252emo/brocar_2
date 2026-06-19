@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import StoryViewer, { type Story } from "./StoryViewer";
 
 const SEEN_KEY = "brocar:storiesSeen";
@@ -19,9 +18,10 @@ function loadSeen(): number[] {
 }
 
 /**
- * Логотип BroCar с «кольцом историй». Если есть активные истории — логотип
- * получает градиентное кольцо и по тапу открывает полноэкранный просмотрщик.
- * Если историй нет — обычная ссылка на главную.
+ * Логотип BroCar с «кольцом историй» как в Telegram: кольцо разбито на отсеки
+ * (по одному на историю). Непросмотренные — цветной градиент, просмотренные —
+ * серые. По тапу открывается полноэкранный просмотрщик. Если историй нет —
+ * обычная ссылка на главную.
  */
 export default function StoryLogo() {
   const [stories, setStories] = useState<Story[]>([]);
@@ -43,7 +43,6 @@ export default function StoryLogo() {
   }, []);
 
   const hasStories = stories.length > 0;
-  const hasUnseen = hasStories && stories.some((s) => !seen.includes(s.id));
 
   const markSeen = (id: number) => {
     setSeen((prev) => {
@@ -68,23 +67,60 @@ export default function StoryLogo() {
     />
   );
 
+  // Геометрия сегментного кольца (viewBox 100×100, масштабируется к размеру лого).
+  const n = stories.length;
+  const STROKE = 4;
+  const R = 50 - STROKE / 2;
+  const C = 2 * Math.PI * R;
+  const GAP = n > 1 ? 7 : 0; // зазор между отсеками
+  const SEG = n > 0 ? C / n : C; // длина одного отсека
+  const DASH = Math.max(SEG - GAP, 0.1);
+
   const logoInner = (
     <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
-      {/* Оранжевое свечение, чтобы чёрный логотип читался на тёмном фоне. */}
-      <div className="absolute inset-0 bg-orange-500/50 md:bg-orange-500/25 rounded-full blur-md md:blur-xl scale-110" />
+      {/* Свечение, чтобы чёрный логотип читался на тёмном фоне. */}
+      <div className="absolute inset-0 bg-orange-500/30 rounded-full blur-md scale-110" />
       {hasStories ? (
-        <div
-          className={cn(
-            "relative w-full h-full rounded-full p-[3px] transition-all",
-            hasUnseen
-              ? "bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400"
-              : "bg-neutral-600"
-          )}
-        >
-          <div className="w-full h-full rounded-full bg-black overflow-hidden ring-2 ring-black">
+        <>
+          {/* Сегментное кольцо историй (как в Telegram) */}
+          <svg
+            viewBox="0 0 100 100"
+            className="absolute inset-0 w-full h-full -rotate-90"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient
+                id="bcStoryGrad"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#f97316" />
+                <stop offset="50%" stopColor="#ec4899" />
+                <stop offset="100%" stopColor="#fbbf24" />
+              </linearGradient>
+            </defs>
+            {stories.map((s, i) => (
+              <circle
+                key={s.id}
+                cx="50"
+                cy="50"
+                r={R}
+                fill="none"
+                stroke={seen.includes(s.id) ? "#3f3f46" : "url(#bcStoryGrad)"}
+                strokeWidth={STROKE}
+                strokeLinecap={n > 1 ? "round" : "butt"}
+                strokeDasharray={`${DASH} ${C - DASH}`}
+                strokeDashoffset={-i * SEG}
+              />
+            ))}
+          </svg>
+          {/* Логотип внутри кольца */}
+          <div className="absolute inset-[5px] rounded-full bg-black overflow-hidden ring-1 ring-black/50">
             {img}
           </div>
-        </div>
+        </>
       ) : (
         <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
           {img}

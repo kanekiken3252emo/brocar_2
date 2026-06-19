@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { User, Phone, Mail, Shield, ArrowLeft, CheckCircle, Save } from "lucide-react";
+import { User, Phone, Mail, ArrowLeft, CheckCircle, Save } from "lucide-react";
 import Link from "next/link";
 
 interface Profile {
@@ -279,33 +279,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Security Card */}
-          <Card className="border-neutral-800 bg-neutral-900">
-            <CardHeader className="border-b border-neutral-800">
-              <CardTitle className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-green-500" />
-                </div>
-                Безопасность
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-neutral-800/50 border border-neutral-700 rounded-xl">
-                  <div>
-                    <p className="font-medium text-white">JWT Токен</p>
-                    <p className="text-sm text-neutral-500">
-                      Ваша сессия защищена JWT токеном
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Активен
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

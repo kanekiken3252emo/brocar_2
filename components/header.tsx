@@ -210,13 +210,6 @@ export function Header({ user }: HeaderProps) {
                         Личный кабинет
                       </Link>
                       <div className="border-t border-neutral-800 my-1"></div>
-                      <div className="px-4 py-2">
-                        <span className="text-xs text-neutral-500 flex items-center gap-1.5">
-                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                          JWT авторизован
-                        </span>
-                      </div>
-                      <div className="border-t border-neutral-800 my-1"></div>
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"

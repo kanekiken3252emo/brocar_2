@@ -219,19 +219,6 @@ export default async function DashboardPage() {
                 <CardTitle className="text-white">Безопасность</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-neutral-800/50 border border-neutral-700 rounded-xl">
-                  <div>
-                    <p className="font-medium text-white">JWT Токен</p>
-                    <p className="text-sm text-neutral-500">
-                      Ваша сессия защищена
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Активен
-                  </div>
-                </div>
-                
                 <LogoutButton />
               </CardContent>
             </Card>

@@ -98,7 +98,14 @@ export default function AdminStoriesManager({
         body: fd,
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error(
+            "Файл режет сервер (обратный прокси). Нужно поднять client_max_body_size в nginx до 64M и перезагрузить nginx."
+          );
+        }
+        throw new Error(data.error || `Ошибка загрузки (HTTP ${res.status})`);
+      }
       setList((p) => [...p, data.story as AdminStory]);
       setFile(null);
       setTitle("");

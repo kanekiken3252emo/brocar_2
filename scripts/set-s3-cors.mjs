@@ -1,6 +1,10 @@
 // Настраивает CORS бакета S3, чтобы браузер мог грузить истории напрямую (PUT).
 // Запуск:  npm run s3:cors   (или node scripts/set-s3-cors.mjs)
-import { S3Client, PutBucketCorsCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutBucketCorsCommand,
+  GetBucketCorsCommand,
+} from "@aws-sdk/client-s3";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -68,6 +72,12 @@ try {
     })
   );
   console.log("✅ CORS бакета настроен — браузер может грузить истории напрямую");
+
+  // Читаем обратно — чтобы убедиться, что VK Cloud реально сохранил правила.
+  const check = await client.send(
+    new GetBucketCorsCommand({ Bucket: process.env.S3_BUCKET })
+  );
+  console.log("📋 Сохранённый CORS:", JSON.stringify(check.CORSRules, null, 2));
 } catch (e) {
   console.error("❌ Ошибка настройки CORS:", e);
   process.exitCode = 1;

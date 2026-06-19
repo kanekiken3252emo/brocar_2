@@ -31,6 +31,10 @@ function getS3Client(): S3Client {
     },
     // VK Cloud адресует бакет как поддомен → virtual-hosted style.
     forcePathStyle: false,
+    // Новые AWS SDK по умолчанию добавляют CRC32-checksum к PUT. Для presigned-
+    // ссылки её нельзя посчитать заранее, и VK Cloud её не принимает (запрос
+    // падает ещё на CORS-префлайте). Отключаем — считаем только когда обязательно.
+    requestChecksumCalculation: "WHEN_REQUIRED",
   });
   return cachedS3;
 }

@@ -57,6 +57,11 @@ export default function RegisterPage() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          // Куда вести из письма-подтверждения: наш callback обменяет код на
+          // сессию и пустит на главную уже залогиненным.
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (signUpError) {

@@ -19,6 +19,22 @@ export default function FlashToast() {
       m = sessionStorage.getItem(FLASH_KEY);
       if (m) sessionStorage.removeItem(FLASH_KEY);
     } catch {}
+
+    // Приветствие после подтверждения email (?welcome=1) — чистим параметр из URL.
+    if (!m && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("welcome") === "1") {
+        m = "Email подтверждён! Добро пожаловать 🎉";
+        params.delete("welcome");
+        const qs = params.toString();
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash
+        );
+      }
+    }
+
     if (!m) return;
     setMsg(m);
     const t = setTimeout(() => setMsg(null), 4000);

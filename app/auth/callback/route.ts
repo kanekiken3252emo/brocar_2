@@ -1,0 +1,26 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Callback после подтверждения email (или OAuth): Supabase редиректит сюда с
+ * ?code=... Мы обмениваем код на сессию (ставим куки) и ведём на главную —
+ * пользователь оказывается уже залогиненным.
+ */
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
+
+  if (code) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      return NextResponse.redirect(`${origin}/?welcome=1`);
+    }
+  }
+
+  // Не удалось (например, ссылку открыли в другом браузере, где нет PKCE-куки) —
+  // email всё равно подтверждён, просто просим войти.
+  return NextResponse.redirect(`${origin}/auth/login?confirmed=1`);
+}

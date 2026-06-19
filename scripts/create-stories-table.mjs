@@ -29,16 +29,23 @@ function loadEnv() {
 }
 loadEnv();
 
-const url = process.env.DATABASE_URL || process.env.DATABASE_POOLER_URL;
+// Пуллер (порт 6543) надёжнее прямого соединения (5432): работает по IPv4 и не
+// режется домашними сетями/провайдерами. Тот же приоритет, что и в приложении.
+const url = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
 if (!url) {
-  console.error("❌ Нет DATABASE_URL в .env.local");
+  console.error("❌ Нет DATABASE_POOLER_URL / DATABASE_URL в .env.local");
   process.exit(1);
 }
 
+const isPooler = url.includes("pooler.supabase.com");
+console.log(`⏳ Подключаюсь к БД (${isPooler ? "pooler :6543" : "direct :5432"})…`);
+
 const sql = postgres(url, {
   ssl: url.includes("supabase.com") ? "require" : undefined,
-  prepare: !url.includes("pooler.supabase.com"),
+  // Transaction pooler не поддерживает prepared statements — отключаем.
+  prepare: !isPooler,
   max: 1,
+  connect_timeout: 15, // не висим вечно — падаем с понятной ошибкой
 });
 
 try {

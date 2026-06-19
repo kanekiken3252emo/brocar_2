@@ -44,6 +44,18 @@ const sql = postgres(url, {
 
 // CONCURRENTLY нельзя в транзакции — выполняем отдельными запросами.
 const indexes = [
+  // ★ ГЛАВНЫЙ ФИКС скорости каталога. На КАЖДУЮ загрузку категории (а также
+  // карточки товара и поиска) идёт запрос остатков:
+  //     SELECT * FROM product_stocks WHERE product_id IN (…)
+  // Под внешний ключ product_id Postgres индекс НЕ создаёт автоматически, а
+  // таблица product_stocks огромная (строка на товар×склад×поставщик, миллионы
+  // строк). Без индекса это полный перебор всей таблицы при каждом открытии
+  // ЛЮБОЙ категории → отсюда «тормозят все». С индексом — мгновенная выборка
+  // по 20 id текущей страницы.
+  {
+    name: "idx_product_stocks_product_id",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_product_stocks_product_id ON product_stocks (product_id)",
+  },
   // Главный запрос страницы: WHERE category_slug=… ORDER BY our_price → индекс
   // отдаёт сразу нужные строки без сортировки всей категории.
   {
@@ -55,6 +67,13 @@ const indexes = [
   {
     name: "idx_products_cat_brand",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_brand ON products (category_slug, brand)",
+  },
+  // COUNT(*) и DISTINCT brand считаются ТОЛЬКО по товарам в наличии (stock>0).
+  // Частичный индекс с предикатом WHERE stock>0 делает и подсчёт, и список
+  // брендов index-only — без heap-проверки stock по каждой строке категории.
+  {
+    name: "idx_products_cat_brand_instock",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_brand_instock ON products (category_slug, brand) WHERE stock > 0",
   },
 ];
 

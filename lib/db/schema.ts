@@ -242,6 +242,24 @@ export const productStocksRelations = relations(productStocks, ({ one }) => ({
   }),
 }));
 
+// Истории (как в ВК/ТГ): кольцо на логотипе → полноэкранный просмотрщик.
+// Медиа (видео/фото) лежит в S3 (VK Cloud); в БД — только ссылка и метаданные,
+// чтобы не раздувать Supabase (он близок к лимиту 1 ГБ).
+export const stories = pgTable("stories", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  title: text("title"),
+  mediaUrl: text("media_url").notNull(),
+  mediaType: text("media_type").notNull(), // 'image' | 'video'
+  linkUrl: text("link_url"), // куда ведёт кнопка «Подробнее»
+  durationMs: integer("duration_ms").default(5000).notNull(), // длительность показа фото
+  sortOrder: integer("sort_order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }), // опц. срок жизни
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 
 
 

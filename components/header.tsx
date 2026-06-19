@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import StoryLogo from "@/components/stories/StoryLogo";
 import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, Search, X, Car, ClipboardList } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
@@ -237,25 +237,8 @@ export function Header({ user }: HeaderProps) {
       <div className="bg-neutral-950 border-b border-neutral-800/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-3 md:py-4 gap-3 md:gap-6">
-            {/* Logo */}
-            <Link href="/" className="shrink-0 flex items-center min-w-0 group">
-              <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
-                {/* Оранжевое свечение, чтобы чёрный логотип читался на тёмном фоне.
-                    На мобильных логотип маленький — свечение и обводка ярче,
-                    на десктопе наоборот деликатнее. */}
-                <div className="absolute inset-0 bg-orange-500/50 md:bg-orange-500/25 rounded-full blur-md md:blur-xl scale-110" />
-                <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
-                  <Image
-                    src="/Logo_Brocar.webp"
-                    alt="BroCar"
-                    width={1200}
-                    height={1200}
-                    className="w-full h-full object-contain brightness-125 md:brightness-100"
-                    priority
-                  />
-                </div>
-              </div>
-            </Link>
+            {/* Логотип + истории (кольцо на лого, тап → полноэкранные истории) */}
+            <StoryLogo />
 
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden md:block">

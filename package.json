@@ -17,6 +17,7 @@
     "db:import-rossko-email": "node --env-file=.env.local scripts/import-rossko-from-email.mjs",
     "db:import-all": "node --env-file=.env.local scripts/import-all-from-email.mjs",
     "db:warm-images": "node --env-file=.env.local scripts/warm-product-images.mjs",
+    "db:stories": "node --env-file=.env.local scripts/create-stories-table.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },

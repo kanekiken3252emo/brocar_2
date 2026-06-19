@@ -75,6 +75,15 @@ const indexes = [
     name: "idx_products_cat_brand_instock",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_brand_instock ON products (category_slug, brand) WHERE stock > 0",
   },
+  // Главный page-запрос: WHERE category_slug=… AND stock>0 AND our_price>0
+  // ORDER BY our_price LIMIT 20. Частичный индекс по цене ТОЛЬКО для товаров в
+  // наличии — первые 20 по цене берутся прямо из индекса, без heap-проверки
+  // stock у распроданных позиций (на категориях с большой долей out-of-stock
+  // это лишние чтения). Дополняет idx_products_cat_price (без предиката).
+  {
+    name: "idx_products_cat_price_instock",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_price_instock ON products (category_slug, our_price) WHERE stock > 0",
+  },
 ];
 
 try {

@@ -18,6 +18,7 @@ import autotradeAdapter from "@/lib/suppliers/autotrade";
 import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
 import { enrichGroupsWithImages } from "@/lib/product-images";
+import { CACHE_PRODUCT } from "@/lib/http-cache";
 import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, eq, ilike, inArray } from "drizzle-orm";
@@ -175,14 +176,25 @@ export async function GET(
       analogs = await enrichGroupsWithImages(analogs);
     }
 
+    // Засеваем картинку и для ГЛАВНОГО товара (не только аналогов) — иначе клиент
+    // делает второй, медленный запрос /api/product-image за самой важной картинкой
+    // экрана (LCP). enrichGroupsWithImages подставит готовый URL из кэша, если он есть.
+    let enrichedMain: SupplierGroup | null = mainGroup;
+    if (mainGroup) {
+      const [m] = await enrichGroupsWithImages([mainGroup]);
+      enrichedMain = m ?? mainGroup;
+    }
+
     const response: ProductDetailResponse = {
-      group: mainGroup,
+      group: enrichedMain,
       characteristics,
       originals,
       analogs,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: { "Cache-Control": CACHE_PRODUCT },
+    });
   } catch (error) {
     console.error("Product detail route error:", error);
     return NextResponse.json(

@@ -15,3 +15,11 @@ export const CACHE_MENU =
 
 export const CACHE_LISTING =
   "public, max-age=60, s-maxage=600, stale-while-revalidate=86400";
+
+/**
+ * Карточка товара: офферы/цены опрашиваются у поставщиков вживую, поэтому TTL
+ * короткий. Но даже 60с снимают повторный опрос 7 поставщиков при F5 и у двух
+ * пользователей подряд. Без browser max-age (свежесть у самого пользователя
+ * выше), общий кэш (nginx) обслуживает остальных.
+ */
+export const CACHE_PRODUCT = "public, s-maxage=60, stale-while-revalidate=300";

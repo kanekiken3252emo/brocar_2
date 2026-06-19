@@ -53,7 +53,7 @@ export default function RegisterPage() {
         return;
       }
       
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
@@ -63,10 +63,25 @@ export default function RegisterPage() {
         return;
       }
 
+      // Если подтверждение email отключено — Supabase сразу выдаёт сессию, то есть
+      // пользователь уже вошёл. Ведём на главную с уведомлением (полная навигация,
+      // чтобы сервер увидел свежие куки сессии).
+      if (data.session) {
+        try {
+          sessionStorage.setItem(
+            "brocar:flash",
+            "Вы успешно зарегистрированы! Добро пожаловать 🎉"
+          );
+        } catch {}
+        window.location.assign("/");
+        return;
+      }
+
+      // Сессии нет — требуется подтверждение email. Показываем успех и ведём на вход.
       setSuccess(true);
       setTimeout(() => {
         router.push("/auth/login");
-      }, 2000);
+      }, 2500);
     } catch (err) {
       setError("Произошла ошибка при регистрации");
       console.error(err);

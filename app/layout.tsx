@@ -5,6 +5,7 @@ import { HeaderWrapper } from "@/components/header-wrapper";
 import { Footer } from "@/components/footer";
 import { CookieBanner } from "@/components/cookie-banner";
 import CartToast from "@/components/CartToast";
+import FlashToast from "@/components/FlashToast";
 
 const inter = Inter({ 
   subsets: ["latin", "cyrillic"],
@@ -85,6 +86,7 @@ export default function RootLayout({
         <Footer />
         <CookieBanner />
         <CartToast />
+        <FlashToast />
       </body>
     </html>
   );

@@ -370,6 +370,13 @@ export function Header({ user }: HeaderProps) {
                 )}
               </div>
 
+              <Link
+                href="/catalog"
+                className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors"
+              >
+                КАТАЛОГ
+              </Link>
+
               {/* Brand Catalog Dropdown */}
               <button
                 onClick={() => setIsBrandCatalogOpen(!isBrandCatalogOpen)}

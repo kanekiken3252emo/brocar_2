@@ -14,8 +14,10 @@ interface Props {
   group: SupplierGroup;
 }
 
-function formatPrice(n: number) {
-  return n.toLocaleString("ru-RU");
+// Защита от битой цены (NaN→null из импорта): null.toLocaleString() уронил бы
+// рендер. Оферы фильтруются на сервере, но держим предохранитель и тут.
+function formatPrice(n: number | null | undefined) {
+  return Number.isFinite(n) ? (n as number).toLocaleString("ru-RU") : "—";
 }
 
 /** Общий обработчик «в корзину» для десктоп-строки и мобильной карточки. */

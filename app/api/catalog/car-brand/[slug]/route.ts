@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { eq, desc, asc, and, sql as dsql, inArray } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups } from "@/lib/suppliers/adapter";
+import { dedupeGroups, isValidPrice, MAX_PLAUSIBLE_PRICE } from "@/lib/suppliers/adapter";
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
@@ -56,6 +56,12 @@ export async function GET(
     // (forum-auto/rossko/shate-m/armtek/berg), как и в роуте категории.
     const baseConditions = [
       dsql`${products.stock} > 0`,
+      // Прячем позиции с битой ценой (NaN/баркод-мусор от Армтек-импорта): NaN
+      // в Postgres сортируется ВЫШЕ всех при price-desc и всплывал первым,
+      // роняя страницу. `< MAX` отсекает и NaN (NaN < X = false), и нереальные
+      // суммы; так же, как в роуте категории.
+      dsql`${products.ourPrice} > 0`,
+      dsql`${products.ourPrice} < ${MAX_PLAUSIBLE_PRICE}`,
       // Используем `car_brands @> ARRAY[...]`, а НЕ `'X' = ANY(car_brands)`:
       // только форма `@>` задействует GIN-индекс idx_products_car_brands.
       // `= ANY(array)` его игнорирует и даёт seq scan по всей таблице (748к
@@ -102,14 +108,18 @@ export async function GET(
 
     const groups: SupplierGroup[] = productRows.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
-      const offers: SupplierOffer[] = stocks.map((s) => ({
-        supplier: getVegaName(s.supplierCode),
-        supplierCode: s.supplierCode,
-        price: Number(s.supplierPrice),
-        ourPrice: Number(s.ourPrice),
-        stock: s.quantity,
-        deliveryDays: s.deliveryDays ?? null,
-      }));
+      const offers: SupplierOffer[] = stocks
+        .map((s) => ({
+          supplier: getVegaName(s.supplierCode),
+          supplierCode: s.supplierCode,
+          price: Number(s.supplierPrice),
+          ourPrice: Number(s.ourPrice),
+          stock: s.quantity,
+          deliveryDays: s.deliveryDays ?? null,
+        }))
+        // Битый офер (NaN/мусор) при валидном товаре иначе обнулил бы minPrice
+        // в null через Math.min(…, NaN) = NaN. См. роут категории.
+        .filter((o) => isValidPrice(o.ourPrice));
       offers.sort((a, b) => a.ourPrice - b.ourPrice);
 
       const prices = offers.map((o) => o.ourPrice);

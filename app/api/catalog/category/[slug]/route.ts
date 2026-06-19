@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { eq, desc, asc, and, sql as dsql, inArray } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups } from "@/lib/suppliers/adapter";
+import { dedupeGroups, isValidPrice, MAX_PLAUSIBLE_PRICE } from "@/lib/suppliers/adapter";
 import { getCategoryMeta } from "@/lib/catalog/classifier";
 import {
   ATTRIBUTE_META,
@@ -94,6 +94,14 @@ export async function GET(
     const baseConditions = [
       eq(products.categorySlug, slug),
       dsql`${products.stock} > 0`,
+      // Прячем позиции с битой ценой: NaN (Армтек-импорт пишет его в numeric, а
+      // Postgres сортирует NaN ВЫШЕ всех при price-desc — отчего такая позиция
+      // всплывала первой и роняла каталог) и баркод-мусор (цены в сотни млн+).
+      // `> 0` отсекает ноль/отрицательные; `< MAX` отсекает и NaN (NaN < X даёт
+      // false), и нереальные суммы. Условие в WHERE держит выборку, счётчик и
+      // фасеты на одном множестве — пагинация не съезжает.
+      dsql`${products.ourPrice} > 0`,
+      dsql`${products.ourPrice} < ${MAX_PLAUSIBLE_PRICE}`,
     ];
     // Условия с учётом фильтров (бренд + атрибуты) — используем для productRows
     // и для count'а, чтобы пагинация и числа совпадали.
@@ -203,16 +211,21 @@ export async function GET(
     // Сборка SupplierGroup[] в формате, ожидаемом фронтендом.
     const groups: SupplierGroup[] = productRows.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
-      const offers: SupplierOffer[] = stocks.map((s) => ({
-        // Анонимизированное имя склада (VEGA N) — реальные warehouse_name
-        // (напр. «BERG EKB») наружу не отдаём.
-        supplier: getVegaName(s.supplierCode),
-        supplierCode: s.supplierCode,
-        price: Number(s.supplierPrice),
-        ourPrice: Number(s.ourPrice),
-        stock: s.quantity,
-        deliveryDays: s.deliveryDays ?? null,
-      }));
+      const offers: SupplierOffer[] = stocks
+        .map((s) => ({
+          // Анонимизированное имя склада (VEGA N) — реальные warehouse_name
+          // (напр. «BERG EKB») наружу не отдаём.
+          supplier: getVegaName(s.supplierCode),
+          supplierCode: s.supplierCode,
+          price: Number(s.supplierPrice),
+          ourPrice: Number(s.ourPrice),
+          stock: s.quantity,
+          deliveryDays: s.deliveryDays ?? null,
+        }))
+        // Отдельный офер тоже может нести битую цену (NaN/мусор) при валидном
+        // товаре — без отсева Math.min(…, NaN) = NaN снова обнулил бы minPrice
+        // в null и уронил карточку.
+        .filter((o) => isValidPrice(o.ourPrice));
 
       offers.sort((a, b) => a.ourPrice - b.ourPrice);
 

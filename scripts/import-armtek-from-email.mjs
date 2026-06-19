@@ -37,6 +37,17 @@ function clampStock(n) {
   return Number.isFinite(n) && n > MAX_STOCK ? MAX_STOCK : n;
 }
 
+// Потолок правдоподобной розничной цены автозапчасти, ₽. ДОЛЖЕН совпадать с
+// MAX_PLAUSIBLE_PRICE в lib/suppliers/adapter.ts (там тот же порог на чтении
+// каталога). Часть позиций Армтека приходит в «АЛЬТ-формате» (см. fixArmtekFields):
+// колонки сдвинуты, и в ячейку цены попадает баркод (сотни млн–триллионы ₽) или
+// нечисло (NaN). Такие цены ломают сортировку и рендер — лучше пропустить строку,
+// чем занести в каталог мусор.
+const MAX_PLAUSIBLE_PRICE = 50_000_000;
+function isSanePrice(n) {
+  return Number.isFinite(n) && n > 0 && n < MAX_PLAUSIBLE_PRICE;
+}
+
 if (!USER || !PASS) {
   console.error("❌ Нет IMAP-доступа (IMAP_USER/PASSWORD или SMTP_USER/PASSWORD).");
   process.exit(1);
@@ -90,20 +101,42 @@ async function parseXlsx(buf) {
   await wb.xlsx.load(buf);
   const ws = wb.worksheets[0];
   const rows = [];
+  let skippedPrice = 0;
+  // Колонки актуального прайса Армтека (XLSX, 12 столбцов — подтверждено
+  // scripts/inspect-armtek-columns.mjs):
+  //   1 EAN код | 2 Наим. тов. группы | 3 Бренд | 4 Норм. код производителя |
+  //   5 Наименование | 6 Код артикула компании | 7 Код производителя |
+  //   8 Количество | 9 Цена с точкой | 10 Код аналога | 11 Кратность | 12 Мин. заказ
+  // ВАЖНО: раньше тут читались колонки 1/2/3/6/7 (старый формат) — отсюда брался
+  // «Код производителя» вместо цены (parseFloat от кода → миллионы/Infinity) и
+  // весь мусор в каталоге. fixArmtekFields/™-костыль больше не нужен.
   ws.eachRow((row, rn) => {
     if (rn === 1) return; // заголовок
-    let brand = String(row.getCell(1).text || "").trim();
-    let article = String(row.getCell(2).text || "").trim();
-    let name = String(row.getCell(3).text || "").trim();
-    const stock = clampStock(parseInt(String(row.getCell(6).text || "0").replace(/\s/g, ""), 10));
-    const price = parseFloat(
-      String(row.getCell(7).text || "0").replace(",", ".").replace(/\s/g, "")
+    const brand = String(row.getCell(3).text || "").trim();
+    // Артикул — нормированный код производителя (без пробелов); запасной вариант
+    // — «Код производителя» (кол. 7) с убранными пробелами.
+    const article =
+      String(row.getCell(4).text || "").trim() ||
+      String(row.getCell(7).text || "").replace(/\s/g, "").trim();
+    const name = String(row.getCell(5).text || "").trim();
+    const stock = clampStock(
+      parseInt(String(row.getCell(8).text || "0").replace(/\s/g, ""), 10)
     );
-    ({ brand, article, name } = fixArmtekFields(brand, article, name));
+    const price = parseFloat(
+      String(row.getCell(9).text || "0").replace(",", ".").replace(/\s/g, "")
+    );
     if (!brand || !article || !name) return;
-    if (!(price > 0) || !(stock > 0)) return;
+    if (!(stock > 0)) return;
+    // Предохранитель: если формат снова сдвинется, не заносим битую цену.
+    if (!isSanePrice(price)) {
+      skippedPrice++;
+      return;
+    }
     rows.push({ brand, article, name, price, stock });
   });
+  if (skippedPrice > 0) {
+    console.warn(`   ⚠️  пропущено строк с битой ценой: ${skippedPrice}`);
+  }
   return rows;
 }
 
@@ -154,7 +187,7 @@ async function main() {
           if (f.length < 7) continue;
           const price = parseFloat((f[6] || "").replace(",", "."));
           const stock = clampStock(parseInt(f[5] || "0", 10));
-          if (f[0] && f[1] && f[2] && price > 0 && stock > 0) {
+          if (f[0] && f[1] && f[2] && isSanePrice(price) && stock > 0) {
             const fixed = fixArmtekFields(f[0].trim(), f[1].trim(), f[2].trim());
             if (fixed.brand && fixed.article && fixed.name)
               rows.push({ ...fixed, price, stock });
@@ -218,6 +251,23 @@ async function main() {
   });
   const BATCH = 500;
 
+  // Полное обновление: прайс Армтека приходит ЦЕЛИКОМ, поэтому удаляем все
+  // прежние armtek-товары (cascade убирает их остатки) и вставляем заново.
+  // Иначе при смене формата/ключей старые строки повисают дублями с устаревшей
+  // (часто битой) ценой. FK без каскада обрабатываем явно: заказы отвязываем
+  // (снимок name/article/price в order_items сохраняется), корзины чистим.
+  console.log("\n🧹 Полная очистка прежнего каталога Армтека…");
+  await sql`
+    UPDATE order_items SET product_id = NULL
+    WHERE product_id IN (SELECT id FROM products WHERE source = 'armtek')
+  `;
+  await sql`
+    DELETE FROM cart_items
+    WHERE product_id IN (SELECT id FROM products WHERE source = 'armtek')
+  `;
+  const purged = await sql`DELETE FROM products WHERE source = 'armtek'`;
+  console.log(`   ✓ удалено прежних товаров: ${purged.count}`);
+
   console.log("\n⬆️  Upsert products…");
   for (let i = 0; i < productsArr.length; i += BATCH) {
     const rows = productsArr.slice(i, i + BATCH).map((p) => {
@@ -246,9 +296,7 @@ async function main() {
   const idMap = new Map();
   for (const r of idRows) idMap.set(`${r.article}|${r.brand}`, Number(r.id));
 
-  console.log("🧹 Очистка старых остатков armtek…");
-  await sql`DELETE FROM product_stocks WHERE supplier_code = 'armtek'`;
-
+  // Остатки armtek уже удалены каскадом при очистке выше — отдельный DELETE не нужен.
   console.log("⬆️  Импорт остатков…");
   const stocksMap = new Map();
   for (const p of productsArr) {

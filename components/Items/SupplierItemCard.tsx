@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
+import { isValidPrice } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import ProductImage from "@/components/Items/ProductImage";
@@ -18,8 +19,11 @@ interface SupplierItemCardProps {
   priority?: boolean;
 }
 
-function formatPrice(n: number) {
-  return n.toLocaleString("ru-RU");
+// Безопасное форматирование: цена приходит из numeric-колонки, где у битых
+// импортных записей может оказаться NaN (по сети сериализуется в null).
+// Без этой проверки null.toLocaleString() ронял весь каталог.
+function formatPrice(n: number | null | undefined) {
+  return Number.isFinite(n) ? (n as number).toLocaleString("ru-RU") : "—";
 }
 
 export default function SupplierItemCard({
@@ -28,6 +32,9 @@ export default function SupplierItemCard({
   priority = false,
 }: SupplierItemCardProps) {
   const isInStock = group.totalStock > 0;
+  // Цена может быть битой (NaN→null из импорта) — тогда не показываем сумму и
+  // не даём «в корзину»: продать товар без цены нельзя.
+  const hasPrice = isValidPrice(group.minPrice);
   const uniqueSuppliers = new Set(group.offers.map((o) => o.supplierCode)).size;
 
   const href = `/product/${encodeURIComponent(group.article)}?brand=${encodeURIComponent(
@@ -113,14 +120,22 @@ export default function SupplierItemCard({
 
           <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
             <div>
-              <div className="text-xs text-neutral-500">от</div>
-              <div className="text-xl font-bold text-white">
-                {formatPrice(group.minPrice)}{" "}
-                <span className="text-sm text-neutral-400">₽</span>
-              </div>
+              {hasPrice ? (
+                <>
+                  <div className="text-xs text-neutral-500">от</div>
+                  <div className="text-xl font-bold text-white">
+                    {formatPrice(group.minPrice)}{" "}
+                    <span className="text-sm text-neutral-400">₽</span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm font-semibold text-neutral-400">
+                  Цена по запросу
+                </div>
+              )}
             </div>
 
-            {showAddToCart && isInStock && (
+            {showAddToCart && isInStock && hasPrice && (
               <button
                 onClick={handleAddToCart}
                 className="p-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors shadow-lg shadow-orange-500/25"

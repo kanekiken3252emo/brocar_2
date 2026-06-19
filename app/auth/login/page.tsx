@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +15,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +23,13 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      
+
       if (!supabase) {
         setError("Ошибка инициализации");
+        setIsLoading(false);
         return;
       }
-      
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -38,15 +37,20 @@ export default function LoginPage() {
 
       if (signInError) {
         setError(translateAuthError(signInError.message, signInError.code));
+        setIsLoading(false);
         return;
       }
 
-      router.push("/dashboard");
-      router.refresh();
+      // Полная навигация (не router.push): сервер увидит свежие куки сессии и
+      // сразу отрисует личный кабинет. push+refresh иногда оставлял на логине.
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("redirect") || "/dashboard";
+      const redirectTo =
+        raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+      window.location.assign(redirectTo);
     } catch (err) {
       setError("Произошла ошибка при входе");
       console.error(err);
-    } finally {
       setIsLoading(false);
     }
   };

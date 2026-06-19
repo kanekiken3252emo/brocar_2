@@ -66,6 +66,24 @@ function warehouseFromFilename(filename) {
 
 const decoder = new TextDecoder("windows-1251"); // на случай csv; xlsx — через exceljs
 
+/**
+ * Армтек присылает часть позиций в АЛЬТ-формате: в колонке A — код/EAN, а в
+ * колонке B — «Название™Бренд» (вместо артикула). Распознаём по символу «™» и
+ * раскладываем правильно: артикул = код из A, бренд и название достаём из B.
+ * Обычные строки (без «™») не трогаем.
+ */
+function fixArmtekFields(brand, article, name) {
+  const tm = article.indexOf("™");
+  if (tm !== -1) {
+    return {
+      article: brand,
+      name: article.slice(0, tm).trim(),
+      brand: article.slice(tm + 1).trim(),
+    };
+  }
+  return { brand, article, name };
+}
+
 /** Парсит xlsx (Buffer) → массив строк-товаров. */
 async function parseXlsx(buf) {
   const wb = new ExcelJS.Workbook();
@@ -74,13 +92,14 @@ async function parseXlsx(buf) {
   const rows = [];
   ws.eachRow((row, rn) => {
     if (rn === 1) return; // заголовок
-    const brand = String(row.getCell(1).text || "").trim();
-    const article = String(row.getCell(2).text || "").trim();
-    const name = String(row.getCell(3).text || "").trim();
+    let brand = String(row.getCell(1).text || "").trim();
+    let article = String(row.getCell(2).text || "").trim();
+    let name = String(row.getCell(3).text || "").trim();
     const stock = clampStock(parseInt(String(row.getCell(6).text || "0").replace(/\s/g, ""), 10));
     const price = parseFloat(
       String(row.getCell(7).text || "0").replace(",", ".").replace(/\s/g, "")
     );
+    ({ brand, article, name } = fixArmtekFields(brand, article, name));
     if (!brand || !article || !name) return;
     if (!(price > 0) || !(stock > 0)) return;
     rows.push({ brand, article, name, price, stock });
@@ -135,8 +154,11 @@ async function main() {
           if (f.length < 7) continue;
           const price = parseFloat((f[6] || "").replace(",", "."));
           const stock = clampStock(parseInt(f[5] || "0", 10));
-          if (f[0] && f[1] && f[2] && price > 0 && stock > 0)
-            rows.push({ brand: f[0].trim(), article: f[1].trim(), name: f[2].trim(), price, stock });
+          if (f[0] && f[1] && f[2] && price > 0 && stock > 0) {
+            const fixed = fixArmtekFields(f[0].trim(), f[1].trim(), f[2].trim());
+            if (fixed.brand && fixed.article && fixed.name)
+              rows.push({ ...fixed, price, stock });
+          }
         }
       }
       byWarehouse.set(warehouse, { date, uid, rows });

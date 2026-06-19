@@ -71,7 +71,10 @@ async function main() {
         WHERE pi.brand = lower(trim(p.brand))
           AND pi.article = lower(trim(p.article))
       )
-    ORDER BY p.stock DESC
+    -- Армтек-заглушку (clampStock = 99999) отправляем в конец очереди: у этих
+    -- позиций сток искусственный, а среди них много мелочёвки без фото. Сначала
+    -- греем товары с реальным стоком (где выше шанс найти картинку).
+    ORDER BY (p.stock >= 99999), p.stock DESC
     LIMIT ${LIMIT}
   `;
   await sql.end();

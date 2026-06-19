@@ -106,23 +106,75 @@ export async function GET(
       ...attrConditions,
     ];
 
-    const productRows = await db
-      .select({
-        id: products.id,
-        article: products.article,
-        brand: products.brand,
-        name: products.name,
-        ourPrice: products.ourPrice,
-        supplierPrice: products.supplierPrice,
-        stock: products.stock,
-      })
-      .from(products)
-      .where(and(...conditionsWithFilter))
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
+    // Запросы, не зависящие друг от друга, — ПАРАЛЛЕЛЬНО (одна «волна» вместо
+    // нескольких последовательных round-trip'ов к удалённой Supabase).
+    const [productRows, countRows, brandRows, facets] = await Promise.all([
+      // Страница товаров (категория + фильтры, сортировка, пагинация).
+      db
+        .select({
+          id: products.id,
+          article: products.article,
+          brand: products.brand,
+          name: products.name,
+          ourPrice: products.ourPrice,
+          supplierPrice: products.supplierPrice,
+          stock: products.stock,
+        })
+        .from(products)
+        .where(and(...conditionsWithFilter))
+        .orderBy(orderBy)
+        .limit(limit)
+        .offset(offset),
+      // Общее количество для пагинации.
+      db
+        .select({ count: dsql<number>`COUNT(*)::int` })
+        .from(products)
+        .where(and(...conditionsWithFilter)),
+      // Список всех брендов категории (без brand-фильтра, с учётом атрибутов).
+      db
+        .selectDistinct({ brand: products.brand })
+        .from(products)
+        .where(and(...baseConditions, ...attrConditions)),
+      // Фасеты: по каждому атрибуту — доступные значения и счётчики (каждый —
+      // по выборке, отфильтрованной всеми ДРУГИМИ активными фильтрами).
+      Promise.all(
+        attrMeta.map(async (m): Promise<Facet> => {
+          const otherAttrConds = activeAttrs
+            .filter((a) => a.meta.key !== m.key)
+            .map((a) => attrContains(a.meta.key, a.value));
+          const valueExpr = dsql<string>`(${products.attributes} ->> ${m.key})`;
+          const rows = await db
+            .select({ value: valueExpr, count: dsql<number>`COUNT(*)::int` })
+            .from(products)
+            .where(
+              and(
+                ...baseConditions,
+                ...(brandFilter ? [eq(products.brand, brandFilter)] : []),
+                ...otherAttrConds,
+                dsql`(${products.attributes} ->> ${m.key}) IS NOT NULL`
+              )
+            )
+            // GROUP BY по порядковому номеру: повторное встраивание valueExpr
+            // создало бы другой bind-параметр, и Postgres не считал бы его тем же.
+            .groupBy(dsql`1`);
+          const cmp = makeFacetComparator(m);
+          const options: FacetOption[] = rows
+            .map((r) => ({ value: String(r.value), count: Number(r.count) }))
+            .filter((o) => o.value)
+            .sort((a, b) => cmp(a.value, b.value));
+          return { key: m.key, label: m.label, options };
+        })
+      ),
+    ]);
 
-    // 2. Остатки по складам — одним запросом на весь набор id
+    const count = countRows[0]?.count ?? 0;
+    // Список брендов для выпадашки (без учёта самого brand-фильтра).
+    const availableBrands = brandRows
+      .map((r) => r.brand)
+      .filter((b): b is string => Boolean(b))
+      .sort();
+
+    // Остатки по складам — одним запросом на набор id (зависит от productRows).
     const ids = productRows.map((p) => p.id);
     const stockRows = ids.length
       ? await db
@@ -138,7 +190,7 @@ export async function GET(
       stocksByProduct.set(s.productId, list);
     }
 
-    // 3. Сборка SupplierGroup[] в формате ожидаемом фронтендом
+    // Сборка SupplierGroup[] в формате, ожидаемом фронтендом.
     const groups: SupplierGroup[] = productRows.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
       const offers: SupplierOffer[] = stocks.map((s) => ({
@@ -171,59 +223,6 @@ export async function GET(
         offers,
       };
     });
-
-    // 4. Общее количество для пагинации (с учётом brand-фильтра, чтобы
-    //    цифра «Найдено N» соответствовала тому что доступно для скролла).
-    const [{ count = 0 } = { count: 0 }] = await db
-      .select({ count: dsql<number>`COUNT(*)::int` })
-      .from(products)
-      .where(and(...conditionsWithFilter));
-
-    // 5. Список всех брендов в категории — для выпадашки фильтра.
-    //    БЕЗ учёта самого brand-фильтра (иначе остался бы один вариант), но
-    //    С учётом выбранных атрибутов — чтобы список брендов сужался под них.
-    const brandRows = await db
-      .selectDistinct({ brand: products.brand })
-      .from(products)
-      .where(and(...baseConditions, ...attrConditions));
-    const availableBrands = brandRows
-      .map((r) => r.brand)
-      .filter((b): b is string => Boolean(b))
-      .sort();
-
-    // 6. Фасеты: для каждого атрибута категории — доступные значения и счётчики.
-    //    Каждый фасет считается по выборке, отфильтрованной всеми ДРУГИМИ
-    //    активными фильтрами (бренд + прочие атрибуты), но не собственным —
-    //    чтобы внутри фасета всегда можно было переключить значение.
-    const facets: Facet[] = await Promise.all(
-      attrMeta.map(async (m) => {
-        const otherAttrConds = activeAttrs
-          .filter((a) => a.meta.key !== m.key)
-          .map((a) => attrContains(a.meta.key, a.value));
-        const valueExpr = dsql<string>`(${products.attributes} ->> ${m.key})`;
-        const rows = await db
-          .select({ value: valueExpr, count: dsql<number>`COUNT(*)::int` })
-          .from(products)
-          .where(
-            and(
-              ...baseConditions,
-              ...(brandFilter ? [eq(products.brand, brandFilter)] : []),
-              ...otherAttrConds,
-              dsql`(${products.attributes} ->> ${m.key}) IS NOT NULL`
-            )
-          )
-          // GROUP BY по порядковому номеру: повторное встраивание valueExpr
-          // создало бы другой bind-параметр для того же выражения, и Postgres
-          // не считал бы его тем же (ошибка "must appear in GROUP BY").
-          .groupBy(dsql`1`);
-        const cmp = makeFacetComparator(m);
-        const options: FacetOption[] = rows
-          .map((r) => ({ value: String(r.value), count: Number(r.count) }))
-          .filter((o) => o.value)
-          .sort((a, b) => cmp(a.value, b.value));
-        return { key: m.key, label: m.label, options };
-      })
-    );
 
     // Подсеваем картинки из кэша product_images — клиент не будет делать
     // N round-trip'ов к /api/product-image на рендере грида.

@@ -19,6 +19,7 @@
     "db:warm-images": "node --env-file=.env.local scripts/warm-product-images.mjs",
     "db:stories": "node --env-file=.env.local scripts/create-stories-table.mjs",
     "s3:cors": "node --env-file=.env.local scripts/set-s3-cors.mjs",
+    "db:catalog-idx": "node --env-file=.env.local scripts/add-catalog-indexes.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"
   },

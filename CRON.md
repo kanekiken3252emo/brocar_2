@@ -1,124 +1,68 @@
-# ⏰ Ежедневные задачи (импорт каталогов + прогрев картинок)
+# ⏰ Ежедневные задачи (cron на VPS) — как это устроено
 
-Две ежедневные задачи:
+> Это **документация уже работающей схемы** на VPS (`217.114.7.83`, `/var/www/brocar`).
+> Сам crontab живёт на сервере (`crontab -l` под root) — здесь он зафиксирован,
+> чтобы знание не потерялось, если сервер придётся поднимать заново.
+> **Менять ничего не требуется** — схема сама использует свежий код.
 
-1. **Импорт каталогов** — `scripts/import-all-from-email.mjs` забирает прайсы всех
-   поставщиков из почты (Berg, ШАТЕ-М, Форум-Авто, Армтек, Россико) и пишет в БД.
-2. **Прогрев картинок** — `scripts/warm-product-images.mjs` подтягивает фото у
-   поставщиков, кладёт в S3 и кэширует URL, чтобы на сайте они грузились мгновенно.
+## Почему мусор Армтека не вернётся
 
-Обе оборачивает `scripts/cron-daily.sh`.
+Ключевой момент: **импорт всегда исполняет последнюю версию кода.**
 
-> ⚠️ **Почему именно на VPS, а не на ПК.**
-> Импорт-скрипты нельзя запускать внутри задеплоенного контейнера (Docker собирает
-> `output: standalone` — там нет папки `scripts/` и тяжёлых зависимостей вроде
-> `exceljs`/`imapflow`). Поэтому раньше они гонялись с ПК. Но у каждого ПК своя
-> копия кода — и если на нём **старый импортёр**, он заносит мусор (так и случился
-> баг с ценами Армтека: старый маппинг колонок). На VPS `brocar-deploy.sh` делает
-> `git pull` каждую минуту, поэтому `scripts/*` там **всегда последней версии** —
-> версионного дрейфа нет.
+1. Деплой-cron раз в минуту делает `git reset --hard origin/main` → папка
+   `/var/www/brocar` на сервере всегда равна последнему коммиту `main`.
+2. Импорт-cron перед запуском копирует свежие `scripts/` и `lib/` в контейнер
+   (`docker cp`) и только потом запускает импортёр **внутри** контейнера.
 
----
+Версионного дрейфа нет. Баг был не в устаревшей копии на каком-то ПК, а в самом
+импортёре в репозитории (Армтек сменил формат прайса на 12 колонок — маппинг
+колонок не обновили). После фикса в `main` cron берёт исправленный код сам.
 
-## ‼️ Шаг 0. Выключить старую автоматизацию на ПК
-
-Если на ПК уже настроен автозапуск этих задач (Планировщик заданий Windows / cron),
-**отключи его перед включением VPS-крона.** Иначе ПК (возможно, со старым кодом)
-продолжит ежедневно импортировать параллельно и может снова занести мусор.
-
-- Windows: «Планировщик заданий» → найди задачу импорта/прогрева → **Отключить**.
-- Убедись, что задача больше не запускается (история выполнения).
-
----
-
-## Шаг 1. Установить Node 20 на VPS (один раз)
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs
-node -v        # должно быть v20.x (нужен ≥ 20.6 для --env-file)
-```
-
-## Шаг 2. Поставить зависимости в репозитории (один раз; повторять при смене package.json)
-
-```bash
-cd /var/www/brocar
-npm ci --legacy-peer-deps       # node_modules на хосте, отдельно от Docker-образа
-chmod +x scripts/cron-daily.sh
-```
-
-## Шаг 3. Дополнить `.env` ключами для импорта и прогрева
-
-Docker-овский `.env` обычно содержит только переменные сайта. Импорту нужны ещё
-почтовые и (для картинок) S3-ключи. Скопируй недостающее из `.env.local` с ПК:
-
-```
-# Почта (откуда забираем прайсы)
-IMAP_HOST=imap.beget.com
-IMAP_PORT=993
-IMAP_USER=info@brocarparts.ru
-IMAP_PASSWORD=...
-ARMTEK_SENDER=armtek
-# БД
-DATABASE_URL=postgresql://...           # или DATABASE_POOLER_URL
-# Хранилище картинок (S3 / VK Cloud)
-S3_ENDPOINT=...
-S3_ACCESS_KEY=...
-S3_SECRET_KEY=...
-S3_BUCKET=...
-S3_PUBLIC_BASE=...
-SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
-
-## Шаг 4. Проверить вручную, что всё работает
-
-```bash
-cd /var/www/brocar
-# Сухой прогон импортёра Армтека (в БД не пишет) — цены должны быть адекватными:
-node --env-file=.env scripts/import-armtek-from-email.mjs --dry
-# Боевой импорт всех поставщиков:
-./scripts/cron-daily.sh import
-# Прогрев небольшой порцией для проверки:
-WARM_LIMIT=200 ./scripts/cron-daily.sh warm
-```
-
-## Шаг 5. Поставить в crontab
-
-```bash
-crontab -e
-```
+## Расписание (crontab -l, root) — время серверное
 
 ```cron
-# Импорт каталогов — каждый день в 12:00 (после прихода писем от поставщиков).
-# flock не даёт запуститься второму экземпляру, если прошлый ещё идёт.
-0 12 * * * flock -n /tmp/brocar-import.lock /var/www/brocar/scripts/cron-daily.sh import >> /var/log/brocar-import.log 2>&1
+# Авто-деплой: каждую минуту. git fetch; если есть новый коммит в origin/main —
+# git reset --hard + docker compose up -d --build. Логи: /var/log/brocar-deploy.log
+* * * * * flock -n /var/lock/brocar.lock /usr/local/bin/brocar-deploy.sh >> /var/log/brocar-deploy.log 2>&1
 
-# Прогрев картинок — каждую ночь в 02:00 (долгий, ~часы; гоняем по localhost).
-0 2 * * * flock -n /tmp/brocar-warm.lock /var/www/brocar/scripts/cron-daily.sh warm >> /var/log/brocar-warm.log 2>&1
+# 05:00 — импорт всех поставщиков из почты (Berg, ШАТЕ-М, Форум-Авто, Армтек, Россико)
+0 5 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app mkdir -p /app/scripts /app/lib && docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts && docker cp /var/www/brocar/lib/. brocar-app:/app/lib && docker exec -u root brocar-app sh -c '[ -d /app/scripts/node_modules/imapflow ] || (cd /app/scripts && npm init -y >/dev/null 2>&1 && npm i imapflow mailparser adm-zip exceljs postgres --no-audit --no-fund)' && docker exec -u root brocar-app node /app/scripts/import-all-from-email.mjs" >> /var/log/brocar-import.log 2>&1
+
+# 08:30 — отдельный прогон Армтека
+30 8 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app mkdir -p /app/scripts /app/lib && docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts && docker cp /var/www/brocar/lib/. brocar-app:/app/lib && docker exec -u root brocar-app sh -c '[ -d /app/scripts/node_modules/imapflow ] || (cd /app/scripts && npm init -y >/dev/null 2>&1 && npm i imapflow mailparser adm-zip exceljs postgres --no-audit --no-fund)' && docker exec -u root brocar-app node /app/scripts/import-armtek-from-email.mjs" >> /var/log/brocar-import.log 2>&1
+
+# 22:00 — прогрев картинок (S3), порция 30000, по localhost
+0 22 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app sh -c '[ -d /app/node_modules/postgres ] || { rm -rf /tmp/pg && mkdir -p /tmp/pg && cd /tmp/pg && npm i postgres@3.4.5 --no-save --no-audit --no-fund && cp -r /tmp/pg/node_modules/postgres /app/node_modules/postgres; }' && docker cp /var/www/brocar/scripts/warm-product-images.mjs brocar-app:/app/warm.mjs && docker exec -e WARM_LIMIT=30000 -e WARM_CONCURRENCY=6 -e WARM_BASE_URL=http://127.0.0.1:3000 brocar-app node /app/warm.mjs" >> /var/log/brocar-warm.log 2>&1
 ```
 
-> Время — по часовому поясу сервера (`timedatectl`). Подбери под момент, когда письма
-> уже пришли. Прогрев ставь на ночь — он берёт порцию `WARM_LIMIT` (по умолчанию
-> 30000) и за несколько ночей закрывает все товары без фото; в установившемся
-> режиме новых мало.
+Все задачи под одним `flock /var/lock/brocar.lock`, чтобы деплой и импорт не
+пересекались.
 
-## Логи
+## Полезное
 
 ```bash
+# Логи
+tail -f /var/log/brocar-deploy.log
 tail -f /var/log/brocar-import.log
 tail -f /var/log/brocar-warm.log
+
+# Ручной прогон импорта (как в cron)
+docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts
+docker exec -u root brocar-app node /app/scripts/import-armtek-from-email.mjs
+
+# Проверка маппинга колонок Армтека без записи в БД
+docker exec -u root brocar-app node /app/scripts/import-armtek-from-email.mjs --dry
+
+# Если поменяли формат и снова поползли цены — посмотреть сырые колонки письма:
+docker exec -u root brocar-app node /app/scripts/inspect-armtek-columns.mjs
 ```
 
----
+## Предохранители в коде (на случай новой смены формата)
 
-## Заметки
+- Импортёр: `isSanePrice` пропускает неправдоподобные цены — мусор в БД не попадёт.
+- Роуты каталога: SQL-фильтр битых цен (см. `lib/suppliers/adapter.ts` → `isValidPrice`).
+- Карточки + `app/error.tsx`: `null`/`NaN` не роняют страницу.
 
-- `scripts/cron-daily.sh` сам выбирает `.env` (на VPS) или `.env.local` (локально).
-- После каждого `git pull` (авто-деплой) скрипты обновляются сами. Если менялся
-  `package.json` — пересними зависимости: `cd /var/www/brocar && npm ci --legacy-peer-deps`.
-- Прогрев бьёт по `http://localhost:3000/api/product-image` — это сайт на том же
-  VPS, без публичного round-trip. Если контейнер слушает другой порт — поправь
-  `WARM_BASE_URL`.
-- Мёртвый Vercel-cron `/api/cron/sync` (демо Vendor A/B) к этому не относится и не
-  используется на VPS — его можно удалить отдельно.
+Если Армтек снова сменит порядок колонок — поправить нужно `parseXlsx` в
+`scripts/import-armtek-from-email.mjs` (текущий маппинг: бренд=3, артикул=4,
+название=5, кол-во=8, цена=9), свериться через `inspect-armtek-columns.mjs`.

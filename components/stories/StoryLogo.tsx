@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Play, Home } from "lucide-react";
 import StoryViewer, { type Story } from "./StoryViewer";
 
 const SEEN_KEY = "brocar:storiesSeen";
@@ -18,14 +19,16 @@ function loadSeen(): number[] {
 }
 
 /**
- * Логотип BroCar (всегда ведёт на главную) + отдельный кружок историй рядом.
- * Кружок появляется только при активных историях; кольцо разбито на отсеки
- * (как в Telegram): непросмотренные — градиент, просмотренные — серые.
+ * Один логотип BroCar. Если историй нет — обычная ссылка на главную. Если есть —
+ * у логотипа появляется сегментное кольцо (как в Telegram), а клик открывает
+ * компактное меню: «Истории» (со счётчиком новых) и «На главную».
  */
 export default function StoryLogo() {
   const [stories, setStories] = useState<Story[]>([]);
-  const [open, setOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [seen, setSeen] = useState<number[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSeen(loadSeen());
@@ -41,7 +44,30 @@ export default function StoryLogo() {
     };
   }, []);
 
+  // Закрытие меню по клику вне / Esc.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   const hasStories = stories.length > 0;
+  const unseenCount = stories.filter((s) => !seen.includes(s.id)).length;
 
   const markSeen = (id: number) => {
     setSeen((prev) => {
@@ -54,44 +80,33 @@ export default function StoryLogo() {
     });
   };
 
-  // Геометрия сегментного кольца (viewBox 100×100, масштабируется к размеру).
+  const img = (
+    <Image
+      src="/Logo_Brocar.webp"
+      alt="BroCar"
+      width={1200}
+      height={1200}
+      sizes="84px"
+      className="w-full h-full object-contain brightness-125 md:brightness-100"
+      priority
+    />
+  );
+
+  // Геометрия сегментного кольца (viewBox 100×100).
   const n = stories.length;
-  const STROKE = 6;
+  const STROKE = 4;
   const R = 50 - STROKE / 2;
   const C = 2 * Math.PI * R;
-  const GAP = n > 1 ? 8 : 0;
+  const GAP = n > 1 ? 7 : 0;
   const SEG = n > 0 ? C / n : C;
   const DASH = Math.max(SEG - GAP, 0.1);
 
-  return (
-    <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-      {/* Логотип → всегда на главную */}
-      <Link href="/" className="shrink-0 flex items-center group">
-        <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
-          <div className="absolute inset-0 bg-orange-500/50 md:bg-orange-500/25 rounded-full blur-md md:blur-xl scale-110" />
-          <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
-            <Image
-              src="/Logo_Brocar.webp"
-              alt="BroCar"
-              width={1200}
-              height={1200}
-              sizes="84px"
-              className="w-full h-full object-contain brightness-125 md:brightness-100"
-              priority
-            />
-          </div>
-        </div>
-      </Link>
-
-      {/* Отдельный кружок историй */}
-      {hasStories && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="shrink-0 relative h-11 w-11 md:h-14 md:w-14 group"
-          aria-label="Смотреть истории BroCar"
-          title="Истории"
-        >
+  const logoVisual = (
+    <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
+      <div className="absolute inset-0 bg-orange-500/50 md:bg-orange-500/25 rounded-full blur-md md:blur-xl scale-110" />
+      {hasStories ? (
+        <>
+          {/* Сегментное кольцо историй */}
           <svg
             viewBox="0 0 100 100"
             className="absolute inset-0 w-full h-full -rotate-90"
@@ -119,23 +134,82 @@ export default function StoryLogo() {
               />
             ))}
           </svg>
-          <div className="absolute inset-[4px] rounded-full bg-black overflow-hidden ring-1 ring-black/50 group-active:scale-95 transition-transform">
-            <Image
-              src="/Logo_Brocar.webp"
-              alt=""
-              width={300}
-              height={300}
-              sizes="56px"
-              className="w-full h-full object-contain brightness-125 p-0.5"
-            />
+          <div className="absolute inset-[5px] rounded-full bg-black overflow-hidden ring-1 ring-black/50">
+            {img}
           </div>
-        </button>
+        </>
+      ) : (
+        <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
+          {img}
+        </div>
+      )}
+    </div>
+  );
+
+  // Историй нет — логотип просто ведёт на главную.
+  if (!hasStories) {
+    return (
+      <Link href="/" className="shrink-0 flex items-center min-w-0 group">
+        {logoVisual}
+      </Link>
+    );
+  }
+
+  // Истории есть — логотип открывает меню «Истории / На главную».
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setMenuOpen((o) => !o)}
+        className="flex items-center group"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label="Меню: истории или на главную"
+      >
+        {logoVisual}
+        {/* Точка-индикатор новых историй */}
+        {unseenCount > 0 && (
+          <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-neutral-950" />
+        )}
+      </button>
+
+      {menuOpen && (
+        <div className="absolute left-0 top-full mt-2 z-50 w-56 rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl p-1.5 animate-in fade-in slide-in-from-top-1">
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              setViewerOpen(true);
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-white hover:bg-neutral-800 transition-colors"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 shrink-0">
+              <Play className="h-4 w-4 text-white fill-white" />
+            </span>
+            <span className="flex-1 font-medium">Истории</span>
+            {unseenCount > 0 && (
+              <span className="text-xs font-semibold text-orange-400 bg-orange-500/15 px-2 py-0.5 rounded-full">
+                {unseenCount} нов.
+              </span>
+            )}
+          </button>
+          <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-white hover:bg-neutral-800 transition-colors"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 shrink-0">
+              <Home className="h-4 w-4 text-neutral-300" />
+            </span>
+            <span className="flex-1 font-medium">На главную</span>
+          </Link>
+        </div>
       )}
 
-      {open && (
+      {viewerOpen && (
         <StoryViewer
           stories={stories}
-          onClose={() => setOpen(false)}
+          onClose={() => setViewerOpen(false)}
           onSeen={markSeen}
         />
       )}

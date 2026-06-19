@@ -18,10 +18,9 @@ function loadSeen(): number[] {
 }
 
 /**
- * Логотип BroCar с «кольцом историй» как в Telegram: кольцо разбито на отсеки
- * (по одному на историю). Непросмотренные — цветной градиент, просмотренные —
- * серые. По тапу открывается полноэкранный просмотрщик. Если историй нет —
- * обычная ссылка на главную.
+ * Логотип BroCar (всегда ведёт на главную) + отдельный кружок историй рядом.
+ * Кружок появляется только при активных историях; кольцо разбито на отсеки
+ * (как в Telegram): непросмотренные — градиент, просмотренные — серые.
  */
 export default function StoryLogo() {
   const [stories, setStories] = useState<Story[]>([]);
@@ -55,47 +54,51 @@ export default function StoryLogo() {
     });
   };
 
-  const img = (
-    <Image
-      src="/Logo_Brocar.webp"
-      alt="BroCar"
-      width={1200}
-      height={1200}
-      sizes="84px"
-      className="w-full h-full object-contain brightness-125 md:brightness-100"
-      priority
-    />
-  );
-
-  // Геометрия сегментного кольца (viewBox 100×100, масштабируется к размеру лого).
+  // Геометрия сегментного кольца (viewBox 100×100, масштабируется к размеру).
   const n = stories.length;
-  const STROKE = 4;
+  const STROKE = 6;
   const R = 50 - STROKE / 2;
   const C = 2 * Math.PI * R;
-  const GAP = n > 1 ? 7 : 0; // зазор между отсеками
-  const SEG = n > 0 ? C / n : C; // длина одного отсека
+  const GAP = n > 1 ? 8 : 0;
+  const SEG = n > 0 ? C / n : C;
   const DASH = Math.max(SEG - GAP, 0.1);
 
-  const logoInner = (
-    <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
-      {/* Свечение, чтобы чёрный логотип читался на тёмном фоне. */}
-      <div className="absolute inset-0 bg-orange-500/30 rounded-full blur-md scale-110" />
-      {hasStories ? (
-        <>
-          {/* Сегментное кольцо историй (как в Telegram) */}
+  return (
+    <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+      {/* Логотип → всегда на главную */}
+      <Link href="/" className="shrink-0 flex items-center group">
+        <div className="relative h-[4.25rem] w-[4.25rem] md:h-20 md:w-20 lg:h-[5.25rem] lg:w-[5.25rem]">
+          <div className="absolute inset-0 bg-orange-500/50 md:bg-orange-500/25 rounded-full blur-md md:blur-xl scale-110" />
+          <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
+            <Image
+              src="/Logo_Brocar.webp"
+              alt="BroCar"
+              width={1200}
+              height={1200}
+              sizes="84px"
+              className="w-full h-full object-contain brightness-125 md:brightness-100"
+              priority
+            />
+          </div>
+        </div>
+      </Link>
+
+      {/* Отдельный кружок историй */}
+      {hasStories && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="shrink-0 relative h-11 w-11 md:h-14 md:w-14 group"
+          aria-label="Смотреть истории BroCar"
+          title="Истории"
+        >
           <svg
             viewBox="0 0 100 100"
             className="absolute inset-0 w-full h-full -rotate-90"
             aria-hidden="true"
           >
             <defs>
-              <linearGradient
-                id="bcStoryGrad"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
+              <linearGradient id="bcStoryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#f97316" />
                 <stop offset="50%" stopColor="#ec4899" />
                 <stop offset="100%" stopColor="#fbbf24" />
@@ -116,37 +119,19 @@ export default function StoryLogo() {
               />
             ))}
           </svg>
-          {/* Логотип внутри кольца */}
-          <div className="absolute inset-[5px] rounded-full bg-black overflow-hidden ring-1 ring-black/50">
-            {img}
+          <div className="absolute inset-[4px] rounded-full bg-black overflow-hidden ring-1 ring-black/50 group-active:scale-95 transition-transform">
+            <Image
+              src="/Logo_Brocar.webp"
+              alt=""
+              width={300}
+              height={300}
+              sizes="56px"
+              className="w-full h-full object-contain brightness-125 p-0.5"
+            />
           </div>
-        </>
-      ) : (
-        <div className="relative w-full h-full rounded-full bg-black ring-2 ring-orange-500/50 md:ring-1 md:ring-neutral-600 group-hover:ring-orange-500/60 overflow-hidden transition-all">
-          {img}
-        </div>
+        </button>
       )}
-    </div>
-  );
 
-  if (!hasStories) {
-    return (
-      <Link href="/" className="shrink-0 flex items-center min-w-0 group">
-        {logoInner}
-      </Link>
-    );
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="shrink-0 flex items-center min-w-0 group"
-        aria-label="Смотреть истории BroCar"
-      >
-        {logoInner}
-      </button>
       {open && (
         <StoryViewer
           stories={stories}
@@ -154,6 +139,6 @@ export default function StoryLogo() {
           onSeen={markSeen}
         />
       )}
-    </>
+    </div>
   );
 }

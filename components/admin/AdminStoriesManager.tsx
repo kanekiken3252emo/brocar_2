@@ -27,6 +27,44 @@ export type AdminStory = {
   isActive: boolean;
 };
 
+function extFromType(type: string): string {
+  const map: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/quicktime": "mov",
+  };
+  return map[type] || (type.startsWith("video/") ? "mp4" : "jpg");
+}
+
+/** Уменьшает фото до maxDim по большей стороне и кодирует в webp (в браузере). */
+async function downscaleImage(
+  file: File,
+  maxDim: number,
+  quality: number
+): Promise<Blob | null> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/webp", quality)
+    );
+  } catch {
+    return null;
+  }
+}
+
 function Toggle({
   checked,
   onChange,
@@ -88,25 +126,64 @@ export default function AdminStoriesManager({
     }
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      if (title.trim()) fd.append("title", title.trim());
-      if (linkUrl.trim()) fd.append("linkUrl", linkUrl.trim());
-      fd.append("durationMs", String(Math.round(durationSec * 1000)));
-      const res = await fetch("/api/admin/stories", {
-        method: "POST",
-        body: fd,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (res.status === 413) {
-          throw new Error(
-            "Файл режет сервер (обратный прокси). Нужно поднять client_max_body_size в nginx до 64M и перезагрузить nginx."
-          );
+      const isVid = file.type.startsWith("video/");
+      let blob: Blob = file;
+      let contentType = file.type || (isVid ? "video/mp4" : "image/jpeg");
+      let ext = extFromType(contentType);
+      const mediaType: "image" | "video" = isVid ? "video" : "image";
+
+      // Фото жмём прямо в браузере (canvas → webp) — лёгкие истории.
+      if (!isVid) {
+        const compressed = await downscaleImage(file, 1080, 0.82);
+        if (compressed) {
+          blob = compressed;
+          contentType = "image/webp";
+          ext = "webp";
         }
-        throw new Error(data.error || `Ошибка загрузки (HTTP ${res.status})`);
       }
-      setList((p) => [...p, data.story as AdminStory]);
+
+      // 1) Подписанная ссылка на загрузку
+      const urlRes = await fetch("/api/admin/stories/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType, ext }),
+      });
+      const urlData = await urlRes.json().catch(() => ({}));
+      if (!urlRes.ok)
+        throw new Error(
+          urlData.error || `Не удалось получить ссылку (HTTP ${urlRes.status})`
+        );
+
+      // 2) Заливаем файл напрямую в S3 (мимо сервера/прокси — без лимита тела)
+      const putRes = await fetch(urlData.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": contentType, "x-amz-acl": "public-read" },
+        body: blob,
+      });
+      if (!putRes.ok)
+        throw new Error(
+          `Не удалось загрузить в хранилище (HTTP ${putRes.status}). Настрой CORS бакета: npm run s3:cors`
+        );
+
+      // 3) Создаём запись истории
+      const recRes = await fetch("/api/admin/stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mediaUrl: urlData.publicUrl,
+          mediaType,
+          title: title.trim() || null,
+          linkUrl: linkUrl.trim() || null,
+          durationMs: Math.round(durationSec * 1000),
+        }),
+      });
+      const recData = await recRes.json().catch(() => ({}));
+      if (!recRes.ok)
+        throw new Error(
+          recData.error || `Ошибка сохранения (HTTP ${recRes.status})`
+        );
+
+      setList((p) => [...p, recData.story as AdminStory]);
       setFile(null);
       setTitle("");
       setLinkUrl("");
@@ -204,8 +281,8 @@ export default function AdminStoriesManager({
                 className="block w-full text-sm text-neutral-300 file:mr-4 file:rounded-lg file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:text-white file:font-semibold hover:file:bg-orange-600 file:cursor-pointer"
               />
               <p className="text-xs text-neutral-500">
-                Видео до 60 МБ (лучше вертикальное 9:16, 10–30 сек). Фото
-                поджимается автоматически.
+                Видео (лучше вертикальное 9:16, 10–30 сек) грузится напрямую в
+                S3 — без лимита прокси. Фото жмётся прямо в браузере.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">

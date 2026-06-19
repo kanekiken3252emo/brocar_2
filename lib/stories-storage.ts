@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Хранилище медиа историй. Использует те же S3 (VK Cloud) переменные, что и
 // картинки товаров (lib/product-images.ts), но кладёт файлы под префикс stories/.
@@ -70,6 +71,34 @@ export async function uploadStoryMedia(
     })
   );
   return `${publicBase()}/${key}`;
+}
+
+/**
+ * Подписанная ссылка для ПРЯМОЙ загрузки в S3 из браузера (мимо сервера/прокси —
+ * чтобы не упираться в лимит тела nginx). Клиент делает PUT с заголовками
+ * Content-Type и x-amz-acl: public-read. Требует CORS на бакете (scripts/set-s3-cors).
+ */
+export async function createStoryUploadUrl(
+  contentType: string,
+  ext: string
+): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+  if (!s3Configured()) {
+    throw new Error("S3 не настроен (нет S3_ENDPOINT/ключей/бакета)");
+  }
+  const bucket = process.env.S3_BUCKET as string;
+  const rand = Math.random().toString(36).slice(2, 10);
+  const safeExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
+  const key = `stories/${Date.now()}-${rand}.${safeExt}`;
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+    ACL: "public-read",
+  });
+  const uploadUrl = await getSignedUrl(getS3Client(), command, {
+    expiresIn: 600, // 10 минут на загрузку
+  });
+  return { uploadUrl, publicUrl: `${publicBase()}/${key}`, key };
 }
 
 /** Удаляет объект истории из S3 по его публичному URL (best-effort). */

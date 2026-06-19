@@ -1,51 +1,47 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Megaphone, CalendarDays } from "lucide-react";
+import { unstable_cache } from "next/cache";
+import { db } from "@/lib/db";
+import { news } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 
-interface NewsItem {
-  id: number;
-  title: string;
-  body: string;
-  badge: string | null;
-  published_at: string;
-}
+// Серверный компонент: новости приходят в HTML, без supabase-js в клиентском
+// бандле главной и без клиентского fetch-водопада. Кэшируем на 5 минут
+// (revalidate) — новости почти статичны, в БД лезем редко.
+const getNews = unstable_cache(
+  async () =>
+    db
+      .select({
+        id: news.id,
+        title: news.title,
+        body: news.body,
+        badge: news.badge,
+        publishedAt: news.publishedAt,
+      })
+      .from(news)
+      .where(eq(news.archived, false))
+      .orderBy(desc(news.publishedAt))
+      .limit(6),
+  ["homepage-news"],
+  { revalidate: 300, tags: ["news"] }
+);
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("ru-RU", {
+function formatDate(d: Date) {
+  return d.toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 }
 
-export function NewsSection() {
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export async function NewsSection() {
+  let items: Awaited<ReturnType<typeof getNews>> = [];
+  try {
+    items = await getNews();
+  } catch {
+    return null; // БД недоступна — секцию просто не показываем
+  }
 
-  useEffect(() => {
-    async function fetchNews() {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("news")
-          .select("id, title, body, badge, published_at")
-          .eq("archived", false)
-          .order("published_at", { ascending: false })
-          .limit(6);
-        setNews(data ?? []);
-      } catch {
-        // Если БД недоступна — просто не показываем секцию
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchNews();
-  }, []);
-
-  // Не рендерим секцию пока грузим и если новостей нет
-  if (loading || news.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
     <section className="py-10 md:py-16 border-t border-neutral-800/50">
@@ -58,14 +54,14 @@ export function NewsSection() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {news.map((item) => (
+          {items.map((item) => (
             <div
               key={item.id}
               className="bg-neutral-900 border border-neutral-800 hover:border-orange-500/40 transition-colors rounded-2xl p-5"
             >
               <div className="flex items-center gap-2 text-neutral-500 text-xs mb-3">
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                <span>{formatDate(item.published_at)}</span>
+                <span>{formatDate(item.publishedAt)}</span>
                 {item.badge && (
                   <span className="ml-auto bg-orange-500/10 text-orange-400 text-[11px] font-medium px-2 py-0.5 rounded-full">
                     {item.badge}

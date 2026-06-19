@@ -6,7 +6,6 @@ import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, S
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
 import BrandCatalogDropdown from "./BrandCatalogDropdown";
-import { createClient } from "@/lib/supabase/client";
 import { usePathname, useRouter } from "next/navigation";
 
 interface HeaderProps {
@@ -136,6 +135,9 @@ export function Header({ user }: HeaderProps) {
   }, [pathname]);
 
   const handleLogout = async () => {
+    // Ленивый импорт supabase-js: тяжёлый клиент грузится только при клике
+    // «Выйти», а не в составе бандла заголовка на каждой странице.
+    const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");

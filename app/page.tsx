@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ChevronRight, Zap } from "lucide-react";
@@ -524,7 +525,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <NewsSection />
+      <Suspense fallback={null}>
+        <NewsSection />
+      </Suspense>
     </div>
   );
 }

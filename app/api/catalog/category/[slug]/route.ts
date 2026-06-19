@@ -10,7 +10,7 @@ import {
   makeFacetComparator,
   type AttributeMeta,
 } from "@/lib/catalog/attributes";
-import { enrichGroupsWithImages } from "@/lib/product-images";
+import { lookupCachedBatch } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
 
 interface FacetOption {
@@ -174,16 +174,26 @@ export async function GET(
       .filter((b): b is string => Boolean(b))
       .sort();
 
-    // Остатки по складам — одним запросом на набор id (зависит от productRows).
+    // Остатки по складам и кэш картинок не зависят друг от друга — оба нужны
+    // лишь для товаров текущей страницы (бренд/артикул берём из productRows).
+    // Тянем их ОДНОЙ параллельной волной, а не двумя последовательными —
+    // экономим round-trip к удалённой Supabase. Узкое место — именно сетевая
+    // задержка (~200мс/запрос), сами запросы выполняются <1мс.
     const ids = productRows.map((p) => p.id);
-    const stockRows = ids.length
-      ? await db
-          .select()
-          .from(productStocks)
-          .where(inArray(productStocks.productId, ids))
-      : [];
+    type StockRow = typeof productStocks.$inferSelect;
+    const [stockRows, imageCache] = await Promise.all([
+      ids.length
+        ? db
+            .select()
+            .from(productStocks)
+            .where(inArray(productStocks.productId, ids))
+        : Promise.resolve([] as StockRow[]),
+      lookupCachedBatch(
+        productRows.map((p) => ({ brand: p.brand ?? "", article: p.article }))
+      ),
+    ]);
 
-    const stocksByProduct = new Map<number, typeof stockRows>();
+    const stocksByProduct = new Map<number, StockRow[]>();
     for (const s of stockRows) {
       const list = stocksByProduct.get(s.productId) ?? [];
       list.push(s);
@@ -224,9 +234,16 @@ export async function GET(
       };
     });
 
-    // Подсеваем картинки из кэша product_images — клиент не будет делать
-    // N round-trip'ов к /api/product-image на рендере грида.
-    const enriched = await enrichGroupsWithImages(dedupeGroups(groups));
+    // Подсеваем картинки из заранее загруженного кэша (imageCache получен выше,
+    // параллельно с остатками). Пробрасываем только готовые URL; negative-cache
+    // (null) не отдаём — для таких клиент сам сходит в /api/product-image.
+    const norm = (s: string) => s.trim().toLowerCase();
+    const enriched = dedupeGroups(groups).map((g) => {
+      const url = imageCache.get(`${norm(g.brand)}|${norm(g.article)}`);
+      return typeof url === "string" && url.length > 0
+        ? { ...g, imageUrl: url }
+        : g;
+    });
 
     // dedupeGroups всегда сортирует по minPrice ASC, затирая SQL ORDER BY.
     // Возвращаем порядок, соответствующий запрошенному sort, иначе

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { products } from "@/lib/db/schema";
 import { and, eq, sql as dsql } from "drizzle-orm";
 import { CATEGORY_META, getCategoryMeta } from "@/lib/catalog/classifier";
+import { CACHE_MENU } from "@/lib/http-cache";
 
 /**
  * Список категорий с количеством товаров в наличии.
@@ -51,7 +52,10 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ categories });
+    return NextResponse.json(
+      { categories },
+      { headers: { "Cache-Control": CACHE_MENU } }
+    );
   } catch (error) {
     console.error("Catalog categories route error:", error);
     return NextResponse.json(

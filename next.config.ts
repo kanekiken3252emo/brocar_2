@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
+    // Точечные импорты иконок lucide-react (~50 client-компонентов) вместо
+    // тяжёлого barrel-индекса — меньше JS в клиентских чанках первого экрана.
+    optimizePackageImports: ["lucide-react"],
   },
   images: {
     // Сколько next/image держит оптимизированную картинку в своём кэше, даже

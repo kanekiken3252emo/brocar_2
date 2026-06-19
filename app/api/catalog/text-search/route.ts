@@ -5,6 +5,7 @@ import { and, inArray, or, sql as dsql, type SQL } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { dedupeGroups, normalizeArticle as normArticleKey } from "@/lib/suppliers/adapter";
 import { enrichGroupsWithImages } from "@/lib/product-images";
+import { CACHE_LISTING } from "@/lib/http-cache";
 import {
   FOLD_FROM,
   FOLD_TO,
@@ -112,7 +113,10 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim();
     if (q.length < 2) {
-      return NextResponse.json({ groups: [], count: 0, mode: "exact" as Mode });
+      return NextResponse.json(
+        { groups: [], count: 0, mode: "exact" as Mode },
+        { headers: { "Cache-Control": CACHE_LISTING } }
+      );
     }
 
     const limit = Math.min(
@@ -259,7 +263,7 @@ export async function GET(request: NextRequest) {
       count: enriched.length,
       mode,
       limit,
-    });
+    }, { headers: { "Cache-Control": CACHE_LISTING } });
   } catch (error) {
     console.error("Text search error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

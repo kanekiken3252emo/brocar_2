@@ -106,6 +106,11 @@ export default function ProductImage({
             }`}
             onLoad={() => setImgLoaded(true)}
             priority={priority}
+            // Картинки товаров уже лежат в S3 ужатыми до 300px webp (immutable).
+            // Повторная оптимизация через /_next/image не уменьшает вес, а лишь
+            // добавляет хоп клиент→наш Node и нагрузку sharp на каждый показ грида.
+            // Отдаём напрямую из CDN.
+            unoptimized
           />
         </>
       )}

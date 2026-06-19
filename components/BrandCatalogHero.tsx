@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 
 // Brands organized by columns (full text catalog)

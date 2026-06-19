@@ -7,6 +7,7 @@ import { dedupeGroups, isValidPrice, MAX_PLAUSIBLE_PRICE } from "@/lib/suppliers
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
+import { CACHE_LISTING } from "@/lib/http-cache";
 
 /**
  * Товары, совместимые с указанной маркой авто.
@@ -169,7 +170,7 @@ export async function GET(
       offset,
       page: Math.floor(offset / limit) + 1,
       availableBrands,
-    });
+    }, { headers: { "Cache-Control": CACHE_LISTING } });
   } catch (error) {
     console.error("Catalog car-brand route error:", error);
     return NextResponse.json(

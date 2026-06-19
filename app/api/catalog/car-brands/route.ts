@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { client } from "@/lib/db";
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
+import { CACHE_MENU } from "@/lib/http-cache";
 
 /**
  * Список марок авто с количеством товаров в наличии.
@@ -29,7 +30,10 @@ export async function GET() {
       count: countMap.get(m.slug) ?? 0,
     })).filter((b) => b.count > 0);
 
-    return NextResponse.json({ brands });
+    return NextResponse.json(
+      { brands },
+      { headers: { "Cache-Control": CACHE_MENU } }
+    );
   } catch (error) {
     console.error("car-brands route error:", error);
     return NextResponse.json(

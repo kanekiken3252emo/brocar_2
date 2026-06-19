@@ -7,11 +7,27 @@ import { CookieBanner } from "@/components/cookie-banner";
 import CartToast from "@/components/CartToast";
 import FlashToast from "@/components/FlashToast";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin", "cyrillic"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  // Только реально используемые начертания (в разметке нет font-light/extrabold/
+  // black). Раньше грузилось 7 весов × 2 субсета = до 14 woff2 впустую.
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
   variable: "--font-inter",
 });
+
+// Origin S3-хранилища картинок (VK Cloud) — для preconnect/dns-prefetch, чтобы
+// браузер заранее открыл соединение к CDN и первая картинка грида пришла быстрее.
+function imageCdnOrigin(): string | null {
+  const base = process.env.S3_PUBLIC_BASE;
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+}
+const cdnOrigin = imageCdnOrigin();
 
 const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
 const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || "localhost:3000";
@@ -81,6 +97,14 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark">
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-neutral-950`}>
+        {/* Прогрев соединения к CDN картинок (React 19 поднимает link в <head>).
+            Без crossOrigin — картинки грузятся обычным <img> в non-CORS режиме. */}
+        {cdnOrigin && (
+          <>
+            <link rel="preconnect" href={cdnOrigin} />
+            <link rel="dns-prefetch" href={cdnOrigin} />
+          </>
+        )}
         <HeaderWrapper />
         <main className="flex-1">{children}</main>
         <Footer />

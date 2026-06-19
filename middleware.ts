@@ -52,15 +52,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  // Запускаем middleware ТОЛЬКО на защищённых разделах — там auth.getUser() и
+  // нужен (редирект гостя на /auth/login). Раньше matcher ловил ВСЕ страницы и
+  // /api, из-за чего supabase.auth.getUser() делал round-trip к Supabase Auth на
+  // КАЖДЫЙ запрос (особенно бил по залогиненным на /api/catalog и
+  // /api/product-image). API-роуты валидируют JWT сами (lib/api-auth → withAuth),
+  // серверные страницы — через lib/auth. Так что сужение безопасно.
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };
 

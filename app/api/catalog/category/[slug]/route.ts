@@ -12,6 +12,7 @@ import {
 } from "@/lib/catalog/attributes";
 import { lookupCachedBatch } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
+import { CACHE_LISTING } from "@/lib/http-cache";
 
 interface FacetOption {
   value: string;
@@ -285,7 +286,7 @@ export async function GET(
       page: Math.floor(offset / limit) + 1,
       availableBrands,
       facets,
-    });
+    }, { headers: { "Cache-Control": CACHE_LISTING } });
   } catch (error) {
     console.error("Catalog category route error:", error);
     return NextResponse.json(

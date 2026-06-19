@@ -25,8 +25,10 @@ const getNews = unstable_cache(
   { revalidate: 300, tags: ["news"] }
 );
 
-function formatDate(d: Date) {
-  return d.toLocaleDateString("ru-RU", {
+// d может прийти как Date (cache miss) или как строка (после сериализации в
+// unstable_cache) — приводим к Date, иначе .toLocaleDateString() падает на строке.
+function formatDate(d: Date | string) {
+  return new Date(d).toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
     year: "numeric",

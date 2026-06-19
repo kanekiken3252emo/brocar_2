@@ -24,7 +24,7 @@ export default function FlashToast() {
     if (!m && typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("welcome") === "1") {
-        m = "Email подтверждён! Добро пожаловать 🎉";
+        m = "Email успешно подтверждён! Удачных покупок!";
         params.delete("welcome");
         const qs = params.toString();
         window.history.replaceState(

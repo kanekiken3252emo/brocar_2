@@ -83,7 +83,7 @@ export default function RegisterPage() {
         try {
           sessionStorage.setItem(
             "brocar:flash",
-            "Вы успешно зарегистрированы! Добро пожаловать 🎉"
+            "Вы успешно зарегистрированы! Удачных покупок!"
           );
         } catch {}
         window.location.assign("/");

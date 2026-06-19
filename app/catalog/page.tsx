@@ -12,7 +12,10 @@ import {
   ChevronDown,
   Package,
   ScanLine,
+  BookOpen,
+  ArrowRight,
 } from "lucide-react";
+import { getGuideForCategory } from "@/lib/guides";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
@@ -414,6 +417,9 @@ function CatalogContent() {
   // у неё есть фасеты (сервер их вернул). Для поиска по артикулу/VIN — нет.
   const showFacetSidebar = Boolean(category) && facets.length > 0;
 
+  // Статья «Помощь с выбором» для текущей категории (если есть готовая).
+  const categoryGuide = category ? getGuideForCategory(category) : undefined;
+
   const getSearchSummary = () => {
     if (categoryTitle) return categoryTitle;
     if (vin) return `Поиск по VIN: ${vin}`;
@@ -468,20 +474,46 @@ function CatalogContent() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {showFacetSidebar && (
-            <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-4">
-              <CategoryFacets
-                facets={facets}
-                values={attrFilters}
-                onChange={handleAttrChange}
-                onReset={() => {
-                  setAttrFilters({});
-                  setBrandFilter("");
-                }}
-                brandOptions={availableBrands}
-                brandValue={brandFilter}
-                onBrandChange={setBrandFilter}
-              />
+          {(showFacetSidebar || categoryGuide) && (
+            <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-4 space-y-4">
+              {showFacetSidebar && (
+                <CategoryFacets
+                  facets={facets}
+                  values={attrFilters}
+                  onChange={handleAttrChange}
+                  onReset={() => {
+                    setAttrFilters({});
+                    setBrandFilter("");
+                  }}
+                  brandOptions={availableBrands}
+                  brandValue={brandFilter}
+                  onBrandChange={setBrandFilter}
+                />
+              )}
+
+              {/* Помощь с выбором — статья для этой категории */}
+              {categoryGuide && (
+                <Link
+                  href={`/guides/${categoryGuide.slug}`}
+                  className="group block bg-neutral-900 border border-orange-500/30 rounded-2xl p-4 hover:border-orange-500/60 transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-orange-500/15 rounded-lg flex items-center justify-center shrink-0">
+                      <BookOpen className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <p className="text-xs text-orange-400 font-semibold uppercase tracking-wide">
+                      Помощь с выбором
+                    </p>
+                  </div>
+                  <p className="text-white font-semibold text-sm mb-2 leading-snug">
+                    {categoryGuide.title}
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-sm text-orange-400 font-medium group-hover:gap-2 transition-all">
+                    Читать статью
+                    <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
+              )}
             </aside>
           )}
           <div className="flex-1 min-w-0 w-full">

@@ -126,6 +126,20 @@ export function Footer() {
               title="Рейтинг BroCar в Яндексе"
               className="mt-4 rounded-lg"
             />
+
+            {/* Честный ЗНАК — товары с обязательной маркировкой */}
+            <div className="mt-4 flex items-center gap-3">
+              <Image
+                src="/markirovka-4z-2.png"
+                alt="Честный ЗНАК — государственная система маркировки"
+                width={56}
+                height={56}
+                className="w-12 h-12 md:w-14 md:h-14 object-contain shrink-0"
+              />
+              <p className="text-neutral-500 text-xs leading-relaxed max-w-[180px]">
+                Работаем с системой маркировки «Честный ЗНАК»
+              </p>
+            </div>
           </div>
 
           {/* Catalog */}
@@ -157,6 +171,7 @@ export function Footer() {
             <ul className="space-y-2 md:space-y-3">
               {[
                 { name: "О компании", href: "/about" },
+                { name: "Помощь с выбором", href: "/guides" },
                 { name: "Контакты", href: "/contacts" },
                 { name: "Доставка", href: "/delivery" },
                 { name: "Оплата", href: "/payment" },

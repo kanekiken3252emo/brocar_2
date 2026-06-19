@@ -260,6 +260,24 @@ export const stories = pgTable("stories", {
     .notNull(),
 });
 
+// Новости на главной. Создаются из админки (/admin/news), читаются всеми
+// (RLS: публичный SELECT — см. миграцию create_news).
+export const news = pgTable("news", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  badge: text("badge"), // метка: "Режим работы", "Акция" и т.д.
+  // Мягкое удаление: archived=true прячет новость с сайта, но оставляет в БД
+  // (видна в админке в «Архиве»). См. миграцию news_archived.
+  archived: boolean("archived").default(false).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 
 
 

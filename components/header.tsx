@@ -382,6 +382,9 @@ export function Header({ user }: HeaderProps) {
               <Link href="/catalog-vin" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
                 КАТАЛОГ ПО VIN
               </Link>
+              <Link href="/guides" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
+                ПОМОЩЬ С ВЫБОРОМ
+              </Link>
               <Link href="/about" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
                 О НАС
               </Link>
@@ -445,6 +448,9 @@ export function Header({ user }: HeaderProps) {
                 </button>
                 <Link href="/catalog-vin" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   Каталог по VIN
+                </Link>
+                <Link href="/guides" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
+                  Помощь с выбором
                 </Link>
                 <Link href="/about" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   О нас

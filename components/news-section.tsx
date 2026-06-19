@@ -31,6 +31,7 @@ export function NewsSection() {
         const { data } = await supabase
           .from("news")
           .select("id, title, body, badge, published_at")
+          .eq("archived", false)
           .order("published_at", { ascending: false })
           .limit(6);
         setNews(data ?? []);

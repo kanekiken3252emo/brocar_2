@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { orders as ordersTable, profiles } from "@/lib/db/schema";
 import { desc, inArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ClipboardList, Clapperboard } from "lucide-react";
+import { ArrowLeft, ClipboardList, Clapperboard, Megaphone } from "lucide-react";
 import AdminOrdersList from "@/components/admin/AdminOrdersList";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +73,12 @@ export default async function AdminOrdersPage() {
               <Button variant="ghost" size="sm" className="gap-2 text-neutral-400 hover:text-white">
                 <Clapperboard className="h-4 w-4" />
                 Истории
+              </Button>
+            </Link>
+            <Link href="/admin/news">
+              <Button variant="ghost" size="sm" className="gap-2 text-neutral-400 hover:text-white">
+                <Megaphone className="h-4 w-4" />
+                Новости
               </Button>
             </Link>
           </div>

@@ -5,6 +5,19 @@ import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { deleteStoryMedia } from "@/lib/stories-storage";
+import { safeLinkUrl } from "@/lib/utils";
+
+// Поля, которые отдаём клиенту (без createdAt/expiresAt) — совпадает с AdminStory.
+const STORY_FIELDS = {
+  id: stories.id,
+  title: stories.title,
+  mediaUrl: stories.mediaUrl,
+  mediaType: stories.mediaType,
+  linkUrl: stories.linkUrl,
+  durationMs: stories.durationMs,
+  sortOrder: stories.sortOrder,
+  isActive: stories.isActive,
+} as const;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +44,7 @@ export async function PATCH(
     patch.sortOrder = Math.round(body.sortOrder);
   if (typeof body.title === "string") patch.title = body.title.trim() || null;
   if (typeof body.linkUrl === "string")
-    patch.linkUrl = body.linkUrl.trim() || null;
+    patch.linkUrl = safeLinkUrl(body.linkUrl);
   if (typeof body.durationMs === "number" && body.durationMs > 0)
     patch.durationMs = Math.min(Math.max(Math.round(body.durationMs), 1000), 60000);
 
@@ -46,7 +59,7 @@ export async function PATCH(
     .update(stories)
     .set(patch)
     .where(eq(stories.id, storyId))
-    .returning();
+    .returning(STORY_FIELDS);
 
   if (!row) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   return NextResponse.json({ story: row });

@@ -99,6 +99,19 @@ export function parseNumber(value: unknown, defaultValue = 0): number {
   return defaultValue;
 }
 
+/**
+ * Безопасная ссылка (для историй/баннеров): разрешаем только http(s) или
+ * относительный путь (начинается с «/»). Иначе null — защита от javascript:/data:.
+ */
+export function safeLinkUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("/")) return trimmed;
+  return null;
+}
+
 
 
 

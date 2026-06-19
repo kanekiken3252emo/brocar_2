@@ -8,6 +8,19 @@ import {
   uploadStoryMedia,
   isStoriesStorageConfigured,
 } from "@/lib/stories-storage";
+import { safeLinkUrl } from "@/lib/utils";
+
+// Поля, которые отдаём клиенту (без createdAt/expiresAt) — совпадает с AdminStory.
+const STORY_FIELDS = {
+  id: stories.id,
+  title: stories.title,
+  mediaUrl: stories.mediaUrl,
+  mediaType: stories.mediaType,
+  linkUrl: stories.linkUrl,
+  durationMs: stories.durationMs,
+  sortOrder: stories.sortOrder,
+  isActive: stories.isActive,
+} as const;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +47,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const rows = await db
-    .select()
+    .select(STORY_FIELDS)
     .from(stories)
     .orderBy(asc(stories.sortOrder), asc(stories.id));
   return NextResponse.json({ stories: rows });
@@ -85,7 +98,7 @@ export async function POST(request: NextRequest) {
   }
 
   const title = (form.get("title") as string | null)?.trim() || null;
-  const linkUrl = (form.get("linkUrl") as string | null)?.trim() || null;
+  const linkUrl = safeLinkUrl(form.get("linkUrl") as string | null);
   const durationRaw = Number(form.get("durationMs"));
   const durationMs =
     Number.isFinite(durationRaw) && durationRaw > 0
@@ -149,7 +162,7 @@ export async function POST(request: NextRequest) {
       sortOrder,
       isActive: true,
     })
-    .returning();
+    .returning(STORY_FIELDS);
 
   return NextResponse.json({ story: row });
 }

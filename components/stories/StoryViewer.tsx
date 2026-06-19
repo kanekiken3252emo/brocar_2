@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Volume2,
@@ -9,6 +10,7 @@ import {
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
+import { safeLinkUrl } from "@/lib/utils";
 
 export type Story = {
   id: number;
@@ -25,6 +27,9 @@ const IMAGE_TICK = 50; // мс — шаг таймера прогресса фо
  * Полноэкранный просмотрщик историй (как в ВК/ТГ): полоски прогресса,
  * авто-перелистывание, тап влево/вправо, пауза по зажатию, свайп вниз/крестик
  * для закрытия, поддержка видео и фото.
+ *
+ * Рендерится порталом в document.body — чтобы fixed-позиционирование не
+ * ломалось из-за transform-предков (логотип/шапка) и оверлей был поверх всего.
  */
 export default function StoryViewer({
   stories,
@@ -41,6 +46,7 @@ export default function StoryViewer({
   const [progress, setProgress] = useState(0); // 0..1 текущей истории
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const elapsedRef = useRef(0);
@@ -67,12 +73,16 @@ export default function StoryViewer({
     setIndex((i) => (i > 0 ? i - 1 : 0));
   }, []);
 
+  useEffect(() => setMounted(true), []);
+
   // Сброс прогресса при смене истории + отметка «просмотрено».
   useEffect(() => {
     elapsedRef.current = 0;
     setProgress(0);
     setPaused(false);
     if (current && onSeen) onSeen(current.id);
+    // onSeen намеренно не в зависимостях: родитель пересоздаёт его каждый рендер,
+    // а нам нужен сброс только при смене истории.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
@@ -119,9 +129,12 @@ export default function StoryViewer({
     if (!v || !current || current.mediaType !== "video") return;
     if (paused) v.pause();
     else v.play().catch(() => {});
-  }, [paused, current, index]);
+  }, [paused, current]);
 
   if (!current) return null;
+  if (!mounted) return null;
+
+  const linkHref = safeLinkUrl(current.linkUrl);
 
   // ── Жесты ──
   const onPointerDown = (e: React.PointerEvent) => {
@@ -157,13 +170,13 @@ export default function StoryViewer({
       const el = e.currentTarget as HTMLElement;
       const w = el.clientWidth;
       const x = e.clientX - el.getBoundingClientRect().left;
-      if (x < w * 0.3) goPrev();
+      if (x < w * 0.35) goPrev();
       else goNext();
     }
     // Иначе это было зажатие (пауза) — просто возобновили.
   };
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-[80] bg-black flex items-center justify-center select-none">
       {/* Полоски прогресса */}
       <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -188,8 +201,8 @@ export default function StoryViewer({
       </div>
 
       {/* Шапка: бренд + звук + закрыть */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between gap-3 px-4 pt-7 pb-2 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between gap-3 px-2 pt-[max(1.25rem,env(safe-area-inset-top))] pb-2 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+        <div className="flex items-center gap-2 min-w-0 pl-2">
           <div className="h-8 w-8 rounded-full bg-black ring-1 ring-white/30 overflow-hidden shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -206,7 +219,7 @@ export default function StoryViewer({
           {current.mediaType === "video" && (
             <button
               onClick={() => setMuted((m) => !m)}
-              className="p-2 text-white/90 hover:text-white"
+              className="flex h-11 w-11 items-center justify-center text-white/90 hover:text-white"
               aria-label={muted ? "Включить звук" : "Выключить звук"}
             >
               {muted ? (
@@ -218,7 +231,7 @@ export default function StoryViewer({
           )}
           <button
             onClick={onClose}
-            className="p-2 text-white/90 hover:text-white"
+            className="flex h-11 w-11 items-center justify-center text-white/90 hover:text-white"
             aria-label="Закрыть"
           >
             <X className="h-6 w-6" />
@@ -242,7 +255,7 @@ export default function StoryViewer({
             key={current.id}
             ref={videoRef}
             src={current.mediaUrl}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain pointer-events-none"
             autoPlay
             muted={muted}
             playsInline
@@ -267,16 +280,16 @@ export default function StoryViewer({
         )}
 
         {/* Подпись + кнопка «Подробнее» */}
-        {(current.title || current.linkUrl) && (
+        {(current.title || linkHref) && (
           <div className="absolute bottom-0 left-0 right-0 p-4 pb-7 bg-gradient-to-t from-black/70 to-transparent">
             {current.title && (
               <p className="text-white text-base font-medium mb-2 leading-snug">
                 {current.title}
               </p>
             )}
-            {current.linkUrl && (
+            {linkHref && (
               <a
-                href={current.linkUrl}
+                href={linkHref}
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
@@ -310,4 +323,6 @@ export default function StoryViewer({
       )}
     </div>
   );
+
+  return createPortal(content, document.body);
 }

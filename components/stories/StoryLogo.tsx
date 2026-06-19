@@ -62,6 +62,7 @@ export default function StoryLogo() {
       alt="BroCar"
       width={1200}
       height={1200}
+      sizes="84px"
       className="w-full h-full object-contain brightness-125 md:brightness-100"
       priority
     />

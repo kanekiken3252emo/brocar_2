@@ -56,7 +56,9 @@ export async function uploadStoryMedia(
   }
   const bucket = process.env.S3_BUCKET as string;
   const rand = Math.random().toString(36).slice(2, 10);
-  const key = `stories/${Date.now()}-${rand}.${ext}`;
+  // Ключ генерится сервером; ext дополнительно чистим — защита от инъекции пути.
+  const safeExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
+  const key = `stories/${Date.now()}-${rand}.${safeExt}`;
   await getS3Client().send(
     new PutObjectCommand({
       Bucket: bucket,

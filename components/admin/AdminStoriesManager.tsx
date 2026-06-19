@@ -219,6 +219,10 @@ export default function AdminStoriesManager({
                   onChange={(e) => setLinkUrl(e.target.value)}
                   placeholder="/catalog или https://..."
                 />
+                <p className="text-xs text-neutral-500">
+                  Только относительный путь (/catalog) или полный адрес
+                  (https://…).
+                </p>
               </div>
             </div>
             {!isVideo && (

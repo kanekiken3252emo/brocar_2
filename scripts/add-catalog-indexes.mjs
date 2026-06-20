@@ -100,6 +100,13 @@ const indexes = [
     name: "idx_products_price_instock",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_price_instock ON products (our_price) WHERE stock > 0",
   },
+  // Меню/хаб каталога: SELECT category_slug, COUNT(*) ... WHERE source='berg'
+  // AND stock>0 GROUP BY category_slug. Без покрывающего индекса сканировал все
+  // berg-товары (~49k) и читал category_slug из кучи — 4.8с холодная. Index-only → 0.2с.
+  {
+    name: "idx_products_source_cat",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_source_cat ON products (source, category_slug) WHERE stock > 0",
+  },
 ];
 
 try {

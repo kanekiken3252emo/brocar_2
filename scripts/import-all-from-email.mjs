@@ -41,6 +41,25 @@ for (const [name, script] of SUPPLIERS) {
   results.push([name, ok]);
 }
 
+// После массового импорта (ежедневный DELETE+INSERT остатков и upsert товаров)
+// таблицы раздуты «мёртвыми» строками, а visibility map устаревает — из-за этого
+// index-only scan каталога лезет в тысячи страниц кучи и запросы тормозят на
+// секунды (на холодную). VACUUM ANALYZE чинит visibility map и обновляет
+// статистику планировщика. Делаем это СРАЗУ после импорта, не дожидаясь autovacuum.
+console.log("\n================ VACUUM ================");
+try {
+  const { makeImportSql } = await import("./import-db.mjs");
+  const sql = await makeImportSql();
+  for (const t of ["products", "product_stocks"]) {
+    const start = Date.now();
+    await sql.unsafe(`VACUUM (ANALYZE) ${t}`);
+    console.log(`  ✓ ${t}: ${((Date.now() - start) / 1000).toFixed(1)}с`);
+  }
+  await sql.end();
+} catch (e) {
+  console.error("  ⚠️ VACUUM не удался:", e.message || e);
+}
+
 console.log("\n================ ИТОГ ================");
 for (const [name, ok] of results) console.log(`  ${ok ? "✅" : "❌"} ${name}`);
 const failed = results.filter(([, ok]) => !ok).length;

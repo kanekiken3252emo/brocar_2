@@ -84,6 +84,13 @@ const indexes = [
     name: "idx_products_cat_price_instock",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_price_instock ON products (category_slug, our_price) WHERE stock > 0",
   },
+  // Сортировка каталога «По названию» (sort=name): ORDER BY name. Без этого
+  // индекса Postgres сканировал и сортировал ВСЕ товары категории (14k+) на
+  // лету — замер показал 3.3с против 0.13с с индексом.
+  {
+    name: "idx_products_cat_name_instock",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_name_instock ON products (category_slug, name) WHERE stock > 0",
+  },
 ];
 
 try {

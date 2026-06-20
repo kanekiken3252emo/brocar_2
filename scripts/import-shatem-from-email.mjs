@@ -20,6 +20,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import AdmZip from "adm-zip";
 import postgres from "postgres";
+import { makeImportSql } from "./import-db.mjs";
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
 
 const DRY = process.argv.includes("--dry") || process.env.DRY_RUN === "1";
@@ -183,14 +184,7 @@ async function main() {
   }
 
   // ── Запись в БД ──────────────────────────────────────────────────────────
-  const isPooler = DB_URL.includes("pooler.supabase.com");
-  const sql = postgres(DB_URL, {
-    max: 3,
-    idle_timeout: 30,
-    connect_timeout: 30,
-    ssl: "require",
-    prepare: !isPooler,
-  });
+  const sql = await makeImportSql();
 
   const BATCH = 500;
   console.log("\n⬆️  Upsert products…");

@@ -17,6 +17,7 @@ import { simpleParser } from "mailparser";
 import AdmZip from "adm-zip";
 import ExcelJS from "exceljs";
 import postgres from "postgres";
+import { makeImportSql } from "./import-db.mjs";
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
 
 const DRY = process.argv.includes("--dry") || process.env.DRY_RUN === "1";
@@ -245,28 +246,8 @@ async function main() {
     return;
   }
 
-  const isPooler = DB_URL.includes("pooler.supabase.com");
-  const sql = postgres(DB_URL, {
-    max: 3, idle_timeout: 30, connect_timeout: 30, ssl: "require", prepare: !isPooler,
-  });
+  const sql = await makeImportSql();
   const BATCH = 500;
-
-  // Полное обновление: прайс Армтека приходит ЦЕЛИКОМ, поэтому удаляем все
-  // прежние armtek-товары (cascade убирает их остатки) и вставляем заново.
-  // Иначе при смене формата/ключей старые строки повисают дублями с устаревшей
-  // (часто битой) ценой. FK без каскада обрабатываем явно: заказы отвязываем
-  // (снимок name/article/price в order_items сохраняется), корзины чистим.
-  console.log("\n🧹 Полная очистка прежнего каталога Армтека…");
-  await sql`
-    UPDATE order_items SET product_id = NULL
-    WHERE product_id IN (SELECT id FROM products WHERE source = 'armtek')
-  `;
-  await sql`
-    DELETE FROM cart_items
-    WHERE product_id IN (SELECT id FROM products WHERE source = 'armtek')
-  `;
-  const purged = await sql`DELETE FROM products WHERE source = 'armtek'`;
-  console.log(`   ✓ удалено прежних товаров: ${purged.count}`);
 
   console.log("\n⬆️  Upsert products…");
   for (let i = 0; i < productsArr.length; i += BATCH) {
@@ -296,7 +277,12 @@ async function main() {
   const idMap = new Map();
   for (const r of idRows) idMap.set(`${r.article}|${r.brand}`, Number(r.id));
 
-  // Остатки armtek уже удалены каскадом при очистке выше — отдельный DELETE не нужен.
+  // Полное обновление остатков: удаляем ВСЕ прежние armtek-остатки по
+  // supplier_code (НЕ по source товара — товар мог забрать другой поставщик, и
+  // тогда старый armtek-остаток повис бы и дал duplicate key на вставке).
+  console.log("🧹 Очистка прежних остатков armtek…");
+  await sql`DELETE FROM product_stocks WHERE supplier_code = 'armtek'`;
+
   console.log("⬆️  Импорт остатков…");
   const stocksMap = new Map();
   for (const p of productsArr) {

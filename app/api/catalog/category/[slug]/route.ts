@@ -114,6 +114,16 @@ export async function GET(
       ...(brandFilter ? [eq(products.brand, brandFilter)] : []),
       ...attrConditions,
     ];
+    // Список брендов считаем БЕЗ фильтра по цене (our_price). Эти условия НЕ входят
+    // в индекс (category_slug, brand), поэтому запрос лез бы в кучу по ВСЕЙ
+    // категории (heap fetches) — до ~6с на холодную. Мусорных цен в БД больше нет
+    // (импортёр их не пускает + почищено), так что фильтр для списка брендов
+    // избыточен. Без него — Index Only Scan по idx_products_cat_brand_instock (~5мс).
+    const brandConditions = [
+      eq(products.categorySlug, slug),
+      dsql`${products.stock} > 0`,
+      ...attrConditions,
+    ];
 
     // Запросы, не зависящие друг от друга, — ПАРАЛЛЕЛЬНО (одна «волна» вместо
     // нескольких последовательных round-trip'ов к удалённой Supabase).
@@ -140,10 +150,11 @@ export async function GET(
         .from(products)
         .where(and(...conditionsWithFilter)),
       // Список всех брендов категории (без brand-фильтра, с учётом атрибутов).
+      // Без price-фильтра (см. brandConditions) → index-only, быстро на холодную.
       db
         .selectDistinct({ brand: products.brand })
         .from(products)
-        .where(and(...baseConditions, ...attrConditions)),
+        .where(and(...brandConditions)),
       // Фасеты: по каждому атрибуту — доступные значения и счётчики (каждый —
       // по выборке, отфильтрованной всеми ДРУГИМИ активными фильтрами).
       Promise.all(

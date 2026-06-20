@@ -47,12 +47,13 @@ interface CategoryHub {
 }
 
 /**
- * Данные первой страницы категории, отрендеренные на СЕРВЕРЕ (см. app/catalog/page.tsx).
- * Передаются в клиентский компонент, чтобы товары были в HTML сразу, без
- * клиентского водопада «шелл → JS → запрос → рендер».
+ * Данные первой страницы категории ИЛИ марки авто, отрендеренные на СЕРВЕРЕ
+ * (см. app/catalog/page.tsx). Передаются в клиентский компонент, чтобы товары
+ * были в HTML сразу, без клиентского водопада «шелл → JS → запрос → рендер».
  */
 export interface InitialData {
-  category: string;
+  mode: "category" | "brand";
+  key: string; // categorySlug (mode=category) или марка (mode=brand)
   groups: SupplierGroup[];
   title: string | null;
   count: number;
@@ -136,17 +137,21 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
   const category = searchParams?.get("category");
 
   // Серверный засев первого показа: страница пришла server-rendered с готовыми
-  // данными категории (initialData) и URL — «чистый» заход в эту же категорию
-  // (без бренда/поиска/VIN). Тогда стартуем сразу с товарами и НЕ делаем
-  // повторный запрос. Любое изменение (фильтр/сортировка/страница) дальше
-  // работает как раньше. Если initialData нет — поведение идентично прежнему.
+  // данными категории ИЛИ марки (initialData) и URL — «чистый» заход в ту же
+  // категорию/марку (без поиска/VIN/модели). Тогда стартуем сразу с товарами и
+  // НЕ делаем повторный запрос. Любое изменение (фильтр/сортировка/страница)
+  // дальше работает как раньше. Если initialData нет — поведение идентично прежнему.
   const seedable =
     !!initialData &&
-    initialData.category === category &&
-    !brand &&
     !vin &&
     !article &&
-    !model;
+    !model &&
+    ((initialData.mode === "category" &&
+      initialData.key === category &&
+      !brand) ||
+      (initialData.mode === "brand" &&
+        initialData.key === brand &&
+        !category));
 
   const [groups, setGroups] = useState<SupplierGroup[]>(() => {
     if (seedable) {

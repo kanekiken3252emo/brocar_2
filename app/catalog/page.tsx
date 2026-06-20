@@ -5,16 +5,16 @@ import CatalogClient, { type InitialData } from "./CatalogClient";
 const INTERNAL_BASE = process.env.INTERNAL_API_BASE || "http://127.0.0.1:3000";
 
 /**
- * Серверная обёртка каталога. Для «чистого» захода в категорию
- * (/catalog?category=…, без фильтров/сортировки/поиска) подгружает первую
- * страницу НА СЕРВЕРЕ и отдаёт товары прямо в HTML — у нового пользователя нет
- * клиентского водопада «шелл → JS → запрос → рендер», товары видны сразу (и их
- * видят поисковики). Остальные сценарии (фильтры, поиск по артикулу/VIN, марки
- * авто) грузятся клиентом как раньше — там initialData не передаётся, и
- * CatalogClient ведёт себя ровно как прежде.
+ * Серверная обёртка каталога. Для «чистого» захода в КАТЕГОРИЮ (/catalog?category=…)
+ * или МАРКУ авто (/catalog?brand=…) — без фильтров/сортировки/поиска — подгружает
+ * первую страницу НА СЕРВЕРЕ и отдаёт товары прямо в HTML: у нового пользователя
+ * нет клиентского водопада «шелл → JS → запрос → рендер», товары видны сразу (и их
+ * видят поисковики). Остальные сценарии (фильтры, поиск по артикулу/VIN, brand+model)
+ * грузятся клиентом как раньше — там initialData не передаётся, и CatalogClient
+ * ведёт себя ровно как прежде.
  *
- * Данные берём из того же /api/catalog/category с Next Data Cache (revalidate),
- * поэтому серверный рендер быстрый и не дублирует логику роута.
+ * Данные берём из тех же роутов с Next Data Cache (revalidate) — серверный рендер
+ * быстрый и не дублирует логику.
  */
 export default async function CatalogPage({
   searchParams,
@@ -23,12 +23,11 @@ export default async function CatalogPage({
 }) {
   const sp = await searchParams;
   const category = typeof sp.category === "string" ? sp.category : undefined;
+  const brand = typeof sp.brand === "string" ? sp.brand : undefined;
 
-  // Только самый частый и кэшируемый случай: чистая категория без модификаторов
-  // (сортировка/страница/фильтры — это уже клиентские взаимодействия, их в URL нет).
-  const isCleanCategory =
-    !!category &&
-    !sp.brand &&
+  // «Чистый» заход — без модификаторов (сортировка/страница/фильтры/поиск — это
+  // клиентские взаимодействия, в URL их нет при первом заходе из меню/хаба).
+  const noModifiers =
     !sp.vin &&
     !sp.article &&
     !sp.model &&
@@ -37,18 +36,19 @@ export default async function CatalogPage({
     !Object.keys(sp).some((k) => k.startsWith("attr_"));
 
   let initialData: InitialData | undefined;
-  if (isCleanCategory) {
-    try {
+  try {
+    if (category && !brand && noModifiers) {
       const res = await fetch(
         `${INTERNAL_BASE}/api/catalog/category/${encodeURIComponent(
-          category!
+          category
         )}?page=1&limit=20&sort=price-asc`,
         { next: { revalidate: 600 } }
       );
       if (res.ok) {
         const data = await res.json();
         initialData = {
-          category: category!,
+          mode: "category",
+          key: category,
           groups: data.groups ?? [],
           title: data.title ?? null,
           count: data.count ?? 0,
@@ -56,9 +56,29 @@ export default async function CatalogPage({
           facets: data.facets ?? [],
         };
       }
-    } catch {
-      // Сервер не смог подгрузить — не страшно: клиент догрузит сам, как раньше.
+    } else if (brand && !category && noModifiers) {
+      const res = await fetch(
+        `${INTERNAL_BASE}/api/catalog/car-brand/${encodeURIComponent(
+          brand
+        )}?page=1&limit=20&sort=price-asc`,
+        { next: { revalidate: 600 } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        initialData = {
+          mode: "brand",
+          key: brand,
+          groups: data.groups ?? [],
+          // Клиент показывает заголовок марки как «Запчасти для <title>».
+          title: data.title ? `Запчасти для ${data.title}` : null,
+          count: data.count ?? 0,
+          availableBrands: data.availableBrands ?? [],
+          facets: [],
+        };
+      }
     }
+  } catch {
+    // Сервер не смог подгрузить — не страшно: клиент догрузит сам, как раньше.
   }
 
   return <CatalogClient initialData={initialData} />;

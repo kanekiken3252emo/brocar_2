@@ -91,6 +91,15 @@ const indexes = [
     name: "idx_products_cat_name_instock",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_cat_name_instock ON products (category_slug, name) WHERE stock > 0",
   },
+  // Страница МАРКИ авто (car-brand): WHERE car_brands @> ARRAY[…] ORDER BY
+  // our_price LIMIT 20. car_brands — массив (GIN-индекс), его НЕЛЬЗЯ btree-
+  // индексировать с сортировкой → планировщик находил все товары марки (12k+) и
+  // сортировал по цене на лету (3.4с холодная). С btree-индексом по цене он идёт
+  // по нему в порядке цены и фильтрует марку, останавливаясь на 20 (~0.4с / 1мс exec).
+  {
+    name: "idx_products_price_instock",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_price_instock ON products (our_price) WHERE stock > 0",
+  },
 ];
 
 try {

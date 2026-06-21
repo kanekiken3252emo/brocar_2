@@ -62,12 +62,16 @@
   
   html {
     scroll-behavior: smooth;
+    /* Защита от горизонтального «выезда» контента (можно было таскать страницу
+       вбок на мобилке). clip, а НЕ hidden — hidden ломает position: sticky хедера. */
+    overflow-x: clip;
   }
-  
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: hsl(0 0% 4%);
+    overflow-x: clip;
   }
 
   /* Custom Scrollbar */

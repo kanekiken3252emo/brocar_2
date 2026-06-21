@@ -104,6 +104,17 @@ export function Header({ user }: HeaderProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Блокируем скролл фона, пока открыто мобильное меню — иначе палец скроллил
+  // страницу под меню. Само меню скроллится внутри (overflow-y-auto ниже).
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMenuOpen]);
+
   // Счётчик товаров в корзине.
   //  - cart:landed (шарик долетел до корзины) — мгновенный оптимистичный +qty,
   //    не ждём ответа сервера;
@@ -445,7 +456,7 @@ export function Header({ user }: HeaderProps) {
 
           {/* Mobile Menu */}
           {isMenuOpen && (
-            <div className="lg:hidden py-3 border-t border-neutral-800 animate-slide-down">
+            <div className="lg:hidden py-3 pb-8 border-t border-neutral-800 animate-slide-down max-h-[calc(100dvh_-_11rem)] overflow-y-auto overscroll-contain">
               {/* Contact info for mobile */}
               <div className="flex flex-col gap-2 px-4 py-3 mb-2 bg-neutral-800/30 rounded-lg">
                 <a href="tel:+79326006015" className="flex items-center gap-2 text-white">

@@ -47,9 +47,14 @@ export async function GET(
       partKomAdapter,
     ];
 
-    // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M
+    // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M.
+    // Таймаут 6000мс (был 10000): живая цена на карточке появляется быстрее.
+    // Каждый адаптер по race отдаёт ЛИБО полный список, ЛИБО [] — частичных нет,
+    // так что урезание не «портит» ответ, лишь отсекает не успевших. Быстрые
+    // (Berg/ShATE-M/Forum) укладываются; для каталожных товаров цена и так уже
+    // показана из локального сида (см. app/product/[id]/page.tsx).
     const [mainItems, shateArticleId] = await Promise.all([
-      searchAllSuppliers(adapters, { article: decoded, brand }, 10000).catch(
+      searchAllSuppliers(adapters, { article: decoded, brand }, 6000).catch(
         () => [] as SupplierItem[]
       ),
       (shateMAdapter as ShateMAdapter).findArticleId(decoded, brand).catch(() => null),

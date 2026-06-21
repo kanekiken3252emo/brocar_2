@@ -107,6 +107,45 @@ const indexes = [
     name: "idx_products_source_cat",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_source_cat ON products (source, category_slug) WHERE stock > 0",
   },
+  // ── Внешние ключи без авто-индекса ────────────────────────────────────────
+  // Postgres НЕ создаёт индекс под FK автоматически. order_items.order_id и
+  // cart_items.cart_id растут со ВСЕМ магазином, а выбираются по одному заказу/
+  // корзине. Без индекса каждый просмотр заказа (/order/[id], /garage, /admin/
+  // orders, /dashboard) и любое действие с корзиной (открытие, +/-, бейдж в
+  // хедере) делают seq scan по всей таблице. cart_items дёргается особенно часто.
+  {
+    name: "idx_order_items_order_id",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_order_id ON order_items (order_id)",
+  },
+  {
+    name: "idx_cart_items_cart_id",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cart_items_cart_id ON cart_items (cart_id)",
+  },
+  // Лист заказов (админка/дашборд): ORDER BY created_at DESC. Без индекса —
+  // seq scan + сортировка всей таблицы orders на каждый заход.
+  {
+    name: "idx_orders_created_at",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_created_at ON orders (created_at DESC)",
+  },
+  // ── Триграммный поиск (pg_trgm) ───────────────────────────────────────────
+  // text-search Tier1/2 строят LIKE '%слово%' (ведущий wildcard) — btree их не
+  // берёт, нужен GIN trgm. Раньше эти индексы ставил только разовый
+  // scripts/enable-fuzzy-search.mjs; дублируем сюда, чтобы прод не зависел от
+  // ручного запуска (если расширение/индекса нет — поиск молча уходит в seq scan).
+  // Выражение ДОЛЖНО совпадать символ-в-символ с NAME_NORM в text-search route и
+  // FOLD_FROM/FOLD_TO (lib/catalog/fold.mjs) — иначе индекс не применится.
+  {
+    name: "pg_trgm extension",
+    ddl: "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+  },
+  {
+    name: "idx_products_name_trgm",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_name_trgm ON products USING gin (translate(lower(name), 'ёabcehkmoptxy', 'еавсенкмортху') gin_trgm_ops)",
+  },
+  {
+    name: "idx_products_article_trgm",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_article_trgm ON products USING gin (lower(article) gin_trgm_ops)",
+  },
 ];
 
 try {

@@ -190,7 +190,7 @@ export default function CheckoutPage() {
 
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Форма контактов */}
-            <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+            <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6 min-w-0">
               <Card className="border-neutral-800 bg-neutral-900">
                 <CardHeader className="border-b border-neutral-800">
                   <CardTitle className="text-lg">Контактные данные</CardTitle>
@@ -250,8 +250,8 @@ export default function CheckoutPage() {
             </form>
 
             {/* Итог */}
-            <div>
-              <Card className="border-neutral-800 bg-neutral-900 sticky top-4">
+            <div className="min-w-0">
+              <Card className="border-neutral-800 bg-neutral-900 lg:sticky lg:top-4">
                 <CardHeader className="border-b border-neutral-800">
                   <CardTitle className="text-lg">Ваш заказ</CardTitle>
                 </CardHeader>
@@ -259,11 +259,11 @@ export default function CheckoutPage() {
                   <div className="space-y-2 max-h-64 overflow-auto">
                     {items.map((it) => (
                       <div key={it.id} className="flex justify-between gap-2 text-sm">
-                        <span className="text-neutral-300 truncate">
+                        <span className="text-neutral-300 truncate min-w-0 flex-1">
                           {it.product.name}{" "}
                           <span className="text-neutral-500">× {it.qty}</span>
                         </span>
-                        <span className="text-white whitespace-nowrap">
+                        <span className="text-white whitespace-nowrap shrink-0">
                           {formatPrice(it.product.price * it.qty)}
                         </span>
                       </div>

@@ -222,3 +222,16 @@
     scrollbar-width: none;
   }
 }
+
+/* iOS зумит поля ввода с font-size < 16px при фокусе и НЕ возвращает масштаб
+   обратно — после ввода в поиск/форму страница остаётся «приближенной», и масштаб
+   приходится сбрасывать руками. Принудительные 16px на мобилке у всех текстовых
+   полей убирают зум в корне. Вне @layer + !important — чтобы перебить утилиты
+   Tailwind (text-sm и т.п.) на конкретных инпутах. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

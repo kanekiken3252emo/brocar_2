@@ -62,7 +62,7 @@ export default async function DashboardPage() {
                 Добро пожаловать, <span className="text-orange-500">{displayName}</span>
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {userIsAdmin && (
                 <Link href="/admin/orders">
                   <Button className="gap-2 bg-blue-600 hover:bg-blue-700">

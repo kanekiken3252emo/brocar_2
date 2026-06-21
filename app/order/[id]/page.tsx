@@ -97,15 +97,17 @@ export default async function OrderDetailPage({
                     личном кабинете.
                   </p>
                 </div>
-                <div className="flex flex-wrap justify-center gap-3 pt-1">
-                  <Link href="/dashboard">
-                    <Button className="gap-2">
+                <div className="flex flex-col sm:flex-row sm:justify-center gap-3 pt-1 w-full">
+                  <Link href="/dashboard" className="w-full sm:w-auto">
+                    <Button className="gap-2 w-full sm:w-auto">
                       В личный кабинет
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href="/catalog">
-                    <Button variant="outline">Продолжить покупки</Button>
+                  <Link href="/catalog" className="w-full sm:w-auto">
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      Продолжить покупки
+                    </Button>
                   </Link>
                 </div>
               </div>
@@ -127,8 +129,8 @@ export default async function OrderDetailPage({
                     минут. Если оплата не завершена, вы можете оплатить заказ прямо сейчас.
                   </p>
                 </div>
-                <div className="flex flex-col items-center gap-3 pt-1">
-                  <PayButton orderId={order.id} />
+                <div className="flex flex-col items-center gap-3 pt-1 w-full">
+                  <PayButton orderId={order.id} className="w-full sm:w-auto" />
                   <AwaitingRefresher />
                 </div>
               </div>
@@ -150,15 +152,17 @@ export default async function OrderDetailPage({
                     оформить заказ заново.
                   </p>
                 </div>
-                <div className="flex flex-wrap justify-center gap-3 pt-1">
-                  <Link href="/cart">
-                    <Button className="gap-2">
+                <div className="flex flex-col sm:flex-row sm:justify-center gap-3 pt-1 w-full">
+                  <Link href="/cart" className="w-full sm:w-auto">
+                    <Button className="gap-2 w-full sm:w-auto">
                       Вернуться в корзину
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href="/catalog">
-                    <Button variant="outline">В каталог</Button>
+                  <Link href="/catalog" className="w-full sm:w-auto">
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      В каталог
+                    </Button>
                   </Link>
                 </div>
               </div>

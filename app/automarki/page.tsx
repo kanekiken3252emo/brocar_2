@@ -1,62 +1,36 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Car, Search, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import AutomarkiClient, { type CarBrand } from "./AutomarkiClient";
 
-interface CarBrand {
-  slug: string;
-  title: string;
-  count: number;
-}
+export const metadata = {
+  title: "Автомарки — подбор запчастей по марке авто | Brocar",
+  description:
+    "Выберите марку автомобиля и подберите подходящие запчасти: BMW, Toyota, Kia и десятки других марок.",
+};
 
-function BrandLogo({ slug, title }: { slug: string; title: string }) {
-  const [errored, setErrored] = useState(false);
-  if (errored) {
-    return (
-      <div className="h-28 bg-neutral-800 flex items-center justify-center">
-        <Car className="w-14 h-14 text-orange-500" />
-      </div>
-    );
+// Базовый URL для серверного fetch к собственному API (внутри контейнера Next
+// слушает 127.0.0.1:3000). Тот же приём, что в app/catalog/page.tsx.
+const INTERNAL_BASE = process.env.INTERNAL_API_BASE || "http://127.0.0.1:3000";
+
+/**
+ * Страница автомарок. Список марок подгружается НА СЕРВЕРЕ и отдаётся прямо в HTML —
+ * у пользователя нет клиентского водопада «спиннер → fetch → рендер», сетка видна
+ * сразу (и её видят поисковики). Кэш у /api/catalog/car-brands агрессивный
+ * (s-maxage=86400), плюс Next Data Cache (revalidate) — cold-цену почти никто не платит.
+ */
+export default async function AutomarkiPage() {
+  let initialBrands: CarBrand[] = [];
+  try {
+    const res = await fetch(`${INTERNAL_BASE}/api/catalog/car-brands`, {
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      initialBrands = Array.isArray(data.brands) ? data.brands : [];
+    }
+  } catch {
+    // Сервер не смог подгрузить — отдаём пустой список, клиент покажет «Пока нет марок».
   }
-  return (
-    <div className="h-28 bg-white flex items-center justify-center p-4 transition-colors group-hover:bg-neutral-50">
-      <Image
-        src={`/brand-logos/${slug}.png`}
-        alt={title}
-        width={160}
-        height={160}
-        className="object-contain max-h-full max-w-full"
-        onError={() => setErrored(true)}
-        unoptimized
-      />
-    </div>
-  );
-}
-
-export default function AutomarkiPage() {
-  const [brands, setBrands] = useState<CarBrand[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    fetch("/api/catalog/car-brands")
-      .then(async (r) => {
-        if (!r.ok) throw new Error("load error");
-        return r.json();
-      })
-      .then((data) => setBrands(data.brands || []))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filtered = query
-    ? brands.filter((b) =>
-        b.title.toLowerCase().includes(query.toLowerCase())
-      )
-    : brands;
 
   return (
     <div className="min-h-screen bg-neutral-950">
@@ -78,64 +52,7 @@ export default function AutomarkiPage() {
           </p>
         </div>
 
-        <div className="mb-8 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Поиск марки — BMW, Toyota, Kia…"
-              className="w-full pl-12 pr-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder:text-neutral-500 focus:border-orange-500 focus:outline-none transition-colors"
-            />
-          </div>
-        </div>
-
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-3" />
-            <span className="text-neutral-400">Загрузка марок…</span>
-          </div>
-        )}
-
-        {error && !loading && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-red-400">
-            {error}
-          </div>
-        )}
-
-        {!loading && filtered.length === 0 && !error && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-12 text-center text-neutral-400">
-            {query ? "По запросу ничего не найдено" : "Пока нет марок"}
-          </div>
-        )}
-
-        {!loading && filtered.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filtered.map((b) => (
-              <Link
-                key={b.slug}
-                href={`/catalog?brand=${encodeURIComponent(b.slug)}`}
-                className="group bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
-              >
-                <BrandLogo slug={b.slug} title={b.title} />
-                <div className="p-4">
-                  <div className="text-base font-bold text-white group-hover:text-orange-400 transition-colors">
-                    {b.title}
-                  </div>
-                  <div className="text-xs text-neutral-500 mt-1">
-                    {b.count.toLocaleString("ru-RU")}{" "}
-                    {b.count === 1
-                      ? "товар"
-                      : b.count < 5
-                      ? "товара"
-                      : "товаров"}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <AutomarkiClient initialBrands={initialBrands} />
       </div>
     </div>
   );

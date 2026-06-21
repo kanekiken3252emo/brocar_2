@@ -1,9 +1,9 @@
 import "server-only";
-import { and, ilike, inArray } from "drizzle-orm";
+import { and, ilike, inArray, sql as dsql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { getVegaName } from "@/lib/vega-names";
-import type { SupplierGroup } from "@/lib/suppliers/adapter";
+import { normalizeArticle, type SupplierGroup } from "@/lib/suppliers/adapter";
 
 /**
  * Группа товара из ЛОКАЛЬНОГО каталога (products + product_stocks) — те же данные,
@@ -21,7 +21,14 @@ export async function findDbProductGroup(
   article: string,
   brand: string
 ): Promise<SupplierGroup | null> {
-  const conds = [ilike(products.article, article)];
+  // Поиск по НОРМАЛИЗОВАННОМУ артикулу (как в ссылке карточки: normalizeArticle).
+  // Раньше тут был ilike(article) — он НЕ берёт индекс и делал seq scan по всем
+  // ~768k товаров (~9 сек на КАЖДЫЙ заход в карточку!). Выражение совпадает с
+  // функциональным индексом idx_products_norm_article → теперь Index Scan ~5мс.
+  const norm = normalizeArticle(article);
+  const conds = [
+    dsql`upper(regexp_replace(${products.article}, '[^0-9A-Za-zА-Яа-я]', '', 'g')) = ${norm}`,
+  ];
   if (brand) conds.push(ilike(products.brand, brand));
 
   const rows = await db

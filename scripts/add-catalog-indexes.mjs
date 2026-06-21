@@ -146,6 +146,15 @@ const indexes = [
     name: "idx_products_article_trgm",
     ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_article_trgm ON products USING gin (lower(article) gin_trgm_ops)",
   },
+  // Карточка товара: серверный шелл (getShell → findDbProductGroup) ищет товар по
+  // НОРМАЛИЗОВАННОМУ артикулу (как в ссылке карточки — normalizeArticle: strip
+  // не-буквенно-цифровых + upper). Без этого индекса был ilike(article) → seq scan
+  // по ~768k товаров на КАЖДЫЙ заход в карточку (~9 сек!). Выражение обязано
+  // совпадать с normalizeArticle (lib/suppliers/adapter.ts) и с запросом в db-group.ts.
+  {
+    name: "idx_products_norm_article",
+    ddl: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_norm_article ON products (upper(regexp_replace(article, '[^0-9A-Za-zА-Яа-я]', '', 'g')))",
+  },
 ];
 
 try {

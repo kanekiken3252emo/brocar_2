@@ -20,6 +20,7 @@ import { applyPricingSync } from "@/lib/pricing";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { CACHE_PRODUCT } from "@/lib/http-cache";
 import { findDbProductGroup } from "@/lib/suppliers/db-group";
+import { withServerTiming } from "@/lib/server-timing";
 
 interface ProductDetailResponse {
   group: SupplierGroup | null;
@@ -28,7 +29,7 @@ interface ProductDetailResponse {
   analogs: SupplierGroup[];
 }
 
-export async function GET(
+async function getHandler(
   request: NextRequest,
   { params }: { params: Promise<{ article: string }> }
 ) {
@@ -140,3 +141,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withServerTiming(getHandler);

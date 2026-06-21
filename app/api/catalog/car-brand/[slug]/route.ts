@@ -8,6 +8,7 @@ import { CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
 import { CACHE_LISTING } from "@/lib/http-cache";
+import { withServerTiming } from "@/lib/server-timing";
 
 /**
  * Товары, совместимые с указанной маркой авто.
@@ -21,7 +22,7 @@ import { CACHE_LISTING } from "@/lib/http-cache";
 // только ночным импортом → держим в памяти 1ч (переживает nginx-кэш ответа).
 const availableBrandsCache = new Map<string, { brands: string[]; exp: number }>();
 
-export async function GET(
+async function getHandler(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
@@ -205,3 +206,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withServerTiming(getHandler);

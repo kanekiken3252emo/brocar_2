@@ -6,6 +6,7 @@ import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { dedupeGroups, isValidPrice, normalizeArticle as normArticleKey } from "@/lib/suppliers/adapter";
 import { lookupCachedBatch } from "@/lib/product-images";
 import { CACHE_LISTING } from "@/lib/http-cache";
+import { withServerTiming } from "@/lib/server-timing";
 import {
   FOLD_FROM,
   FOLD_TO,
@@ -115,7 +116,7 @@ function relevance(nameNorm: string, articleLower: string, tokens: string[]): nu
 // касается — там полная серверная пагинация по всему каталогу, без потолка.
 const RESULT_LIMIT = 200;
 
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim();
@@ -301,3 +302,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const GET = withServerTiming(getHandler);

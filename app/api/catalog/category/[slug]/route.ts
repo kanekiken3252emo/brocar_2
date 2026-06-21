@@ -13,6 +13,7 @@ import {
 import { lookupCachedBatch } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
 import { CACHE_LISTING } from "@/lib/http-cache";
+import { withServerTiming } from "@/lib/server-timing";
 
 interface FacetOption {
   value: string;
@@ -37,7 +38,7 @@ function attrContains(key: string, value: string) {
  * Актуальные цены на момент покупки всё равно идут через API (см.
  * /api/product/[article]) — там запрашиваем свежие офферы.
  */
-export async function GET(
+async function getHandler(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
@@ -306,3 +307,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withServerTiming(getHandler);

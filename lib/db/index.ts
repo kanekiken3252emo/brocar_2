@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { trackQuery } from "@/lib/server-timing";
 
 // Приоритет: pooler (работает везде, и IPv4, и serverless) → direct (может
 // блокироваться сетью/провайдером). На Vercel добавь DATABASE_POOLER_URL.
@@ -23,6 +24,10 @@ export const client = postgres(connectionString, {
   // max_lifetime изредка пересоздаёт соединение, чтобы не копились «протухшие».
   max_lifetime: 60 * 30,
   connect_timeout: 15,
+  // Счётчик запросов к БД на каждый HTTP-запрос (Server-Timing). Хук вызывается
+  // на отправку запроса и только увеличивает счётчик в текущем request-контексте —
+  // самих запросов/данных не трогает.
+  debug: () => trackQuery(),
 });
 
 export const db = drizzle(client, { schema });

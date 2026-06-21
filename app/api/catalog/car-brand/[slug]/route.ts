@@ -15,6 +15,12 @@ import { CACHE_LISTING } from "@/lib/http-cache";
  * Дополнительно поддерживается category_slug — можно комбинировать:
  *   /api/catalog/car-brand/BMW?category=brake-pads
  */
+// Кэш списка брендов запчастей по марке авто (availableBrands). Этот DISTINCT
+// читает ВСЕ строки марки из кучи (для Kia — 13005 строк, ~7с на холодном диске
+// Supabase) и был главным тормозом холодной загрузки страницы бренда. Меняется
+// только ночным импортом → держим в памяти 1ч (переживает nginx-кэш ответа).
+const availableBrandsCache = new Map<string, { brands: string[]; exp: number }>();
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -75,22 +81,57 @@ export async function GET(
       ? [...baseConditions, eq(products.brand, brandFilter)]
       : baseConditions;
 
-    const productRows = await db
-      .select({
-        id: products.id,
-        article: products.article,
-        brand: products.brand,
-        name: products.name,
-        ourPrice: products.ourPrice,
-        supplierPrice: products.supplierPrice,
-        stock: products.stock,
-        categorySlug: products.categorySlug,
-      })
-      .from(products)
-      .where(and(...conditionsWithFilter))
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
+    // availableBrands (бренды запчастей марки, без brand-фильтра) — самый тяжёлый
+    // запрос: DISTINCT читает ВСЕ строки марки из кучи. Кэшируем в памяти на 1ч
+    // (меняется только ночным импортом), иначе считаем и кладём в кэш.
+    const abKey = `${carBrand}|${category ?? ""}`;
+    const abHit = availableBrandsCache.get(abKey);
+    const availableBrandsPromise: Promise<string[]> =
+      abHit && abHit.exp > Date.now()
+        ? Promise.resolve(abHit.brands)
+        : db
+            .selectDistinct({ brand: products.brand })
+            .from(products)
+            .where(and(...baseConditions))
+            .then((rows) => {
+              const list = rows
+                .map((r) => r.brand)
+                .filter((b): b is string => Boolean(b))
+                .sort();
+              availableBrandsCache.set(abKey, {
+                brands: list,
+                exp: Date.now() + 3_600_000,
+              });
+              return list;
+            });
+
+    // Главный запрос + count + availableBrands независимы → один Promise.all.
+    // Раньше шли ПОСЛЕДОВАТЕЛЬНО (main → … → count → availableBrands), и тяжёлый
+    // availableBrands добавлялся СВЕРХУ ко времени ответа. Теперь параллельно (+кэш).
+    const [productRows, countRows, availableBrands] = await Promise.all([
+      db
+        .select({
+          id: products.id,
+          article: products.article,
+          brand: products.brand,
+          name: products.name,
+          ourPrice: products.ourPrice,
+          supplierPrice: products.supplierPrice,
+          stock: products.stock,
+          categorySlug: products.categorySlug,
+        })
+        .from(products)
+        .where(and(...conditionsWithFilter))
+        .orderBy(orderBy)
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: dsql<number>`COUNT(*)::int` })
+        .from(products)
+        .where(and(...conditionsWithFilter)),
+      availableBrandsPromise,
+    ]);
+    const count = countRows[0]?.count ?? 0;
 
     const ids = productRows.map((p) => p.id);
     const stockRows = ids.length
@@ -140,21 +181,6 @@ export async function GET(
         offers,
       };
     });
-
-    const [{ count = 0 } = { count: 0 }] = await db
-      .select({ count: dsql<number>`COUNT(*)::int` })
-      .from(products)
-      .where(and(...conditionsWithFilter));
-
-    // Список доступных брендов запчастей в выборке (без учёта brand-фильтра).
-    const brandRows = await db
-      .selectDistinct({ brand: products.brand })
-      .from(products)
-      .where(and(...baseConditions));
-    const availableBrands = brandRows
-      .map((r) => r.brand)
-      .filter((b): b is string => Boolean(b))
-      .sort();
 
     // Подсеваем картинки из кэша product_images — клиент не будет делать
     // N round-trip'ов к /api/product-image на рендере грида.

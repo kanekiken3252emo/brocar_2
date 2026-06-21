@@ -56,13 +56,18 @@ export default async function OrderDetailPage({
 
   const meta = orderStatusMeta(status);
 
-  // Какой экран показать вверху: оплачен / ждёт оплаты / не прошло.
-  const heroKind: "paid" | "awaiting" | "canceled" =
+  // Какой экран показать вверху: оплачен / ждёт оплаты / не прошло / ничего.
+  // «Спасибо за заказ» показываем только для свежих оплаченных статусов — на
+  // заказе, который уже в пути/выдан, это лишнее, остаётся обычный трекинг.
+  const PAID_HERO_STATUSES = ["accepted", "awaiting_confirmation", "processing", "paid"];
+  const heroKind: "paid" | "awaiting" | "canceled" | null =
     status === "canceled"
       ? "canceled"
       : status === "pending" || status === "awaiting_payment"
         ? "awaiting"
-        : "paid";
+        : PAID_HERO_STATUSES.includes(status)
+          ? "paid"
+          : null;
 
   return (
     <div className="min-h-screen bg-neutral-950">

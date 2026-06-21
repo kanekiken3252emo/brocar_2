@@ -1,19 +1,16 @@
 import { cache } from "react";
 import type { Metadata } from "next";
-import { and, ilike } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { products } from "@/lib/db/schema";
 import { enrichGroupsWithImages } from "@/lib/product-images";
+import { findDbProductGroup } from "@/lib/suppliers/db-group";
 import ProductClient, { type ProductShell } from "./ProductClient";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
- * (название + URL картинки) — без живого опроса 7 поставщиков — и отдаёт «шелл»
- * (бренд/название/LCP-фото) прямо в первом HTML. Живые цены/наличие/аналоги
- * догружает клиент (ProductClient) опросом /api/product/[article]. Так у нового
- * пользователя нет полноэкранного спиннера и пустого экрана: каркас и главное
- * фото видны сразу (и их видят поисковики), а generateMetadata даёт нормальные
- * SEO/OG-теги вместо дженерика.
+ * (название + URL картинки + офферы из product_stocks) — без живого опроса 7
+ * поставщиков — и отдаёт «шелл» прямо в первом HTML: бренд/название/LCP-фото И
+ * ЦЕНУ/НАЛИЧИЕ/ПРЕДЛОЖЕНИЯ (для каталожных товаров). Живые цены/наличие/аналоги
+ * client-island (ProductClient) ПЕРЕЗАПИШЕТ свежими данными опросом
+ * /api/product/[article]. generateMetadata даёт нормальные SEO/OG-теги.
  */
 
 // Один lookup на запрос, общий для generateMetadata и самой страницы.
@@ -21,36 +18,24 @@ const getShell = cache(
   async (rawArticle: string, brand: string): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
-      const conds = [ilike(products.article, article)];
-      if (brand) conds.push(ilike(products.brand, brand));
-
-      const rows = await db
-        .select({
-          name: products.name,
-          brand: products.brand,
-          article: products.article,
-        })
-        .from(products)
-        .where(and(...conds))
-        .limit(1);
-
-      const p = rows[0];
-      if (!p) {
-        return { article, brand: brand || null, name: null, imageUrl: null };
+      const group = await findDbProductGroup(article, brand);
+      if (!group) {
+        return { article, brand: brand || null, name: null, imageUrl: null, group: null };
       }
 
       const [enriched] = await enrichGroupsWithImages([
-        { brand: p.brand ?? brand ?? "", article: p.article },
+        { brand: group.brand, article: group.article },
       ]);
 
       return {
-        article: p.article,
-        brand: p.brand ?? brand ?? null,
-        name: p.name ?? null,
+        article: group.article,
+        brand: group.brand || brand || null,
+        name: group.name ?? null,
         imageUrl: enriched?.imageUrl ?? null,
+        group,
       };
     } catch {
-      return { article, brand: brand || null, name: null, imageUrl: null };
+      return { article, brand: brand || null, name: null, imageUrl: null, group: null };
     }
   }
 );

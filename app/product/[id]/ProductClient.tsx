@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import ProductImage from "@/components/Items/ProductImage";
 import { formatDeliveryDays } from "@/lib/utils";
@@ -30,6 +30,16 @@ export interface ProductShell {
   brand: string | null;
   name: string | null;
   imageUrl: string | null;
+  /** Офферы из локального каталога — сеют цену/наличие в первый HTML (null, если товара нет локально). */
+  group: SupplierGroup | null;
+}
+
+/**
+ * Ключ оффера БЕЗ цены (склад/поставщик) — чтобы при замене сид→живые данные
+ * сохранить выбор пользователя, даже если живая цена отличается от сидированной.
+ */
+function offerKey(o: BergOffer): string {
+  return o.warehouse?.name || o.supplier || "";
 }
 
 interface Characteristic {
@@ -76,15 +86,31 @@ export default function ProductClient({
 }) {
   const productId = article;
 
-  const [product, setProduct] = useState<BergResource | null>(null);
+  // Сид из локального каталога (RSC-шелл): цена/наличие/офферы — в первом HTML.
+  // Живой опрос ниже ПЕРЕЗАПИШЕТ их свежими данными от поставщиков.
+  const seedProduct = useMemo(
+    () => (shell.group ? groupToBergResource(shell.group) : null),
+    [shell.group]
+  );
+
+  const [product, setProduct] = useState<BergResource | null>(seedProduct);
   const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
   const [originals, setOriginals] = useState<OriginalItem[]>([]);
   const [analogs, setAnalogs] = useState<SupplierGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(
+    seedProduct?.offers?.[0] ?? null
+  );
   const [offersCollapsed, setOffersCollapsed] = useState(false);
   const [showAllOffers, setShowAllOffers] = useState(false);
+
+  // При переходе на другой товар — сбросить на новый сид, пока грузятся живые
+  // данные (иначе на экране осталась бы цена предыдущего товара).
+  useEffect(() => {
+    setProduct(seedProduct);
+    setSelectedOffer(seedProduct?.offers?.[0] ?? null);
+  }, [seedProduct]);
 
   useEffect(() => {
     if (productId) {
@@ -136,9 +162,19 @@ export default function ProductClient({
       setAnalogs(analogGroups);
 
       if (resource.offers && resource.offers.length > 0) {
-        // Офферы уже отсортированы «в наличии → быстрее → дешевле»,
-        // поэтому лучшее предложение — первое в списке.
-        setSelectedOffer(resource.offers[0]);
+        // Офферы уже отсортированы «в наличии → быстрее → дешевле».
+        // Если пользователь уже выбрал оффер на сид-данных — сохраняем выбор по
+        // складу/поставщику (ключ без цены, чтобы пережить смену цены сид→живые);
+        // иначе берём лучший (первый).
+        const liveOffers = resource.offers;
+        setSelectedOffer((prev) => {
+          if (prev) {
+            const k = offerKey(prev);
+            const match = liveOffers.find((o) => offerKey(o) === k);
+            if (match) return match;
+          }
+          return liveOffers[0];
+        });
       }
     } catch (err: any) {
       console.error("Product load error:", err);
@@ -255,8 +291,8 @@ export default function ProductClient({
 
             {/* Покупка: цена + кнопка сразу, ниже — наличие/гарантия/описание */}
             <div className="space-y-5">
-              {/* Price — пока офферы грузятся, показываем скелетон */}
-              {loading ? (
+              {/* Price — скелетон только если данных ещё нет (нет сида и идёт загрузка) */}
+              {!product && loading ? (
                 <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-5 md:p-6">
                   <div className="h-4 w-16 bg-neutral-700 rounded animate-pulse mb-3" />
                   <div className="h-9 w-40 bg-neutral-700 rounded animate-pulse" />
@@ -278,7 +314,7 @@ export default function ProductClient({
               {/* Add to Cart */}
               <Button
                 onClick={handleAddToCart}
-                disabled={loading || !selectedOffer || totalStock === 0}
+                disabled={!selectedOffer || totalStock === 0}
                 size="xl"
                 className="w-full"
               >
@@ -288,7 +324,7 @@ export default function ProductClient({
 
               {/* Stock Status */}
               <div className="flex items-center gap-4">
-                {loading ? (
+                {!product && loading ? (
                   <div className="h-10 w-44 bg-neutral-800 border border-neutral-700 rounded-xl animate-pulse" />
                 ) : totalStock > 0 ? (
                   <div className="flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl">

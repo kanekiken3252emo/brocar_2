@@ -22,7 +22,7 @@ export const CACHE_LISTING =
  * пользователей подряд. Без browser max-age (свежесть у самого пользователя
  * выше), общий кэш (nginx) обслуживает остальных.
  */
-export const CACHE_PRODUCT = "public, s-maxage=60, stale-while-revalidate=300";
+export const CACHE_PRODUCT = "public, s-maxage=120, stale-while-revalidate=600";
 
 /**
  * GoodVin: дерево узлов каталога (groups) и детали узла (parts) для фиксированного

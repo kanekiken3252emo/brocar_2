@@ -4,22 +4,34 @@ import { getUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { orders as ordersTable, profiles } from "@/lib/db/schema";
-import { desc, inArray } from "drizzle-orm";
+import { count, desc, inArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ClipboardList, Clapperboard, Megaphone } from "lucide-react";
 import AdminOrdersList from "@/components/admin/AdminOrdersList";
 
 export const dynamic = "force-dynamic";
 
+// Грузим последние N заказов, а не весь безграничный массив (с items+профилями)
+// в память и на клиент. Точное «всего» считаем отдельным дешёвым COUNT(*), так
+// что шапка остаётся честной даже при отсечке. ORDER BY created_at идёт по
+// idx_orders_created_at, join позиций — по idx_order_items_order_id.
+const ADMIN_ORDERS_LIMIT = 500;
+
 export default async function AdminOrdersPage() {
   const user = await getUser();
   if (!user) redirect("/auth/login");
   if (!isAdmin(user)) redirect("/dashboard");
 
-  const allOrders = await db.query.orders.findMany({
-    with: { items: true },
-    orderBy: [desc(ordersTable.createdAt)],
-  });
+  const [allOrders, totalRow] = await Promise.all([
+    db.query.orders.findMany({
+      with: { items: true },
+      orderBy: [desc(ordersTable.createdAt)],
+      limit: ADMIN_ORDERS_LIMIT,
+    }),
+    db.select({ c: count() }).from(ordersTable),
+  ]);
+  const totalOrders = Number(totalRow[0]?.c ?? allOrders.length);
+  const capped = totalOrders > allOrders.length;
 
   const userIds = Array.from(new Set(allOrders.map((o) => o.userId)));
   const profs = userIds.length
@@ -92,7 +104,12 @@ export default async function AdminOrdersPage() {
                 Заказы магазина
               </h1>
               <p className="text-neutral-400 text-sm">
-                Всего заказов: {data.length}
+                Всего заказов: {totalOrders}
+                {capped && (
+                  <span className="text-neutral-500">
+                    {" "}· показаны последние {ADMIN_ORDERS_LIMIT}
+                  </span>
+                )}
               </p>
             </div>
           </div>

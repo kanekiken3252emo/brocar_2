@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { goodvin } from "@/lib/goodvinServer";
 import { goodvinErrorResponse } from "@/lib/goodvinRoute";
+import { CACHE_VIN_TREE } from "@/lib/http-cache";
 
 /**
  * Детали узла (для групп с hasParts: true).
@@ -26,7 +27,10 @@ export async function GET(request: NextRequest) {
       groupId,
       criteria,
     });
-    return NextResponse.json({ parts });
+    return NextResponse.json(
+      { parts },
+      { headers: { "Cache-Control": CACHE_VIN_TREE } }
+    );
   } catch (error) {
     return goodvinErrorResponse(error);
   }

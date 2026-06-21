@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { goodvin } from "@/lib/goodvinServer";
 import { goodvinErrorResponse } from "@/lib/goodvinRoute";
+import { CACHE_VIN_TREE } from "@/lib/http-cache";
 
 /**
  * Узлы каталога. Пустой groupId — корневые группы.
@@ -26,7 +27,10 @@ export async function GET(request: NextRequest) {
       groupId,
       criteria,
     });
-    return NextResponse.json({ groups: Array.isArray(groups) ? groups : [] });
+    return NextResponse.json(
+      { groups: Array.isArray(groups) ? groups : [] },
+      { headers: { "Cache-Control": CACHE_VIN_TREE } }
+    );
   } catch (error) {
     return goodvinErrorResponse(error);
   }

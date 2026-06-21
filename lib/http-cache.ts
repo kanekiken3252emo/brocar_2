@@ -23,3 +23,19 @@ export const CACHE_LISTING =
  * выше), общий кэш (nginx) обслуживает остальных.
  */
 export const CACHE_PRODUCT = "public, s-maxage=60, stale-while-revalidate=300";
+
+/**
+ * GoodVin: дерево узлов каталога (groups) и детали узла (parts) для фиксированного
+ * catalogId/carId/groupId неизменны между пользователями — это статичная структура
+ * каталога производителя. Кэшируем агрессивно: повторные клики любого юзера по тем
+ * же узлам обслуживаются из nginx/CDN/браузера без round-trip Екб→GoodVin.
+ */
+export const CACHE_VIN_TREE =
+  "public, max-age=600, s-maxage=86400, stale-while-revalidate=604800";
+
+/**
+ * GoodVin: распознавание авто по VIN/Frame (car-info). Детерминировано по VIN, но
+ * TTL чуть короче дерева — справочник авто обновляется чаще структуры каталога.
+ */
+export const CACHE_VIN_INFO =
+  "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";

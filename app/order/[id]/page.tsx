@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { PayButton } from "@/components/order/pay-button";
 import { AwaitingRefresher } from "@/components/order/awaiting-refresher";
+import { CancelOrderButton } from "@/components/order/cancel-order-button";
 import { ArrowLeft, ArrowRight, Package, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 export default async function OrderDetailPage({
@@ -132,6 +133,7 @@ export default async function OrderDetailPage({
                 <div className="flex flex-col items-center gap-3 pt-1 w-full">
                   <PayButton orderId={order.id} className="w-full sm:w-auto" />
                   <AwaitingRefresher />
+                  <CancelOrderButton orderId={order.id} />
                 </div>
               </div>
             </div>

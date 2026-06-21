@@ -234,12 +234,6 @@ export function Footer() {
             <p className="text-neutral-500 text-xs md:text-sm">
               © {currentYear} BroCar. Все права защищены.
             </p>
-            <p className="text-neutral-600 text-xs">
-              ИП Бакиров Артём Олегович · ИНН 660308104039 · ОГРНИП 324665800095141 ·{" "}
-              <Link href="/legal/requisites" className="hover:text-orange-500 transition-colors">
-                Реквизиты
-              </Link>
-            </p>
           </div>
         </div>
       </div>

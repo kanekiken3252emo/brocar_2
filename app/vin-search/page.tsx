@@ -134,7 +134,7 @@ export default function VinSearchPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
       {/* Hero */}
-      <section className="relative overflow-hidden py-16 md:py-20">
+      <section className="relative overflow-hidden py-8 md:py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-600/15 via-neutral-950 to-neutral-950" />
         <div className="absolute top-10 right-20 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-10 w-48 h-48 bg-orange-500/5 rounded-full blur-2xl pointer-events-none" />

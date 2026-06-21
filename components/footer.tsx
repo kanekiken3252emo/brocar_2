@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, MapPin, ArrowUpRight } from "lucide-react";
+import { Mail, Phone, MapPin, ArrowUpRight, Home } from "lucide-react";
 
 function VkIcon({ className }: { className?: string }) {
   return (
@@ -39,8 +39,8 @@ export function Footer() {
 
   return (
     <footer className="bg-neutral-950 border-t border-neutral-800/50 mt-auto">
-      {/* Centered Logo */}
-      <div className="container mx-auto px-4 pt-10 md:pt-16 pb-2 md:pb-4 flex justify-center">
+      {/* Centered Logo + кнопка на главную */}
+      <div className="container mx-auto px-4 pt-10 md:pt-16 pb-2 md:pb-4 flex flex-col items-center gap-4">
         <Link href="/" className="inline-block group">
           <div className="relative w-28 h-28 md:w-36 md:h-36">
             <div className="absolute inset-0 bg-orange-500/15 rounded-full blur-2xl scale-110" />
@@ -54,6 +54,13 @@ export function Footer() {
               />
             </div>
           </div>
+        </Link>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-orange-500/20"
+        >
+          <Home className="h-4 w-4" />
+          На главную
         </Link>
       </div>
 

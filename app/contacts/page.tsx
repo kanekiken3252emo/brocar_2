@@ -47,7 +47,7 @@ export default function ContactsPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-16">
+      <section className="relative overflow-hidden py-8 md:py-16">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-neutral-950 to-neutral-950" />
         <div className="absolute top-10 right-20 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
         

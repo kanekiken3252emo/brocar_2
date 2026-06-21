@@ -78,31 +78,8 @@ export function Header({ user }: HeaderProps) {
   const [isBrandCatalogOpen, setIsBrandCatalogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useState(0);
-  const [hidden, setHidden] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-
-  // Авто-скрытие хедера на МОБИЛКЕ: прячем при скролле вниз (освобождает экран,
-  // т.к. хедер высокий), показываем при скролле вверх и у верха страницы.
-  // На десктопе хедер не трогаем — трансформация навешана через max-lg: ниже.
-  useEffect(() => {
-    let lastY = window.scrollY;
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = window.scrollY;
-        if (Math.abs(y - lastY) > 6) {
-          setHidden(y > lastY && y > 120);
-          lastY = y;
-        }
-        ticking = false;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Блокируем скролл фона, пока открыто мобильное меню — иначе палец скроллил
   // страницу под меню. Само меню скроллится внутри (overflow-y-auto ниже).
@@ -193,11 +170,10 @@ export function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header
-      className={`sticky top-0 z-50 transition-transform duration-300 ${
-        hidden && !isMenuOpen ? "max-lg:-translate-y-full" : ""
-      }`}
-    >
+    // На мобилке хедер НЕ sticky — уезжает вместе с контентом, виден только
+    // наверху страницы (по просьбе: не «вылезать» при скролле вверх). На десктопе
+    // (lg+) остаётся прилипшим к верху.
+    <header className="lg:sticky lg:top-0 z-50">
       {/* Top Bar */}
       <div className="bg-neutral-950">
         <div className="container mx-auto px-4">

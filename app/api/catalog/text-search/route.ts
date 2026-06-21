@@ -3,8 +3,8 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, inArray, or, sql as dsql, type SQL } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups, normalizeArticle as normArticleKey } from "@/lib/suppliers/adapter";
-import { enrichGroupsWithImages } from "@/lib/product-images";
+import { dedupeGroups, isValidPrice, normalizeArticle as normArticleKey } from "@/lib/suppliers/adapter";
+import { lookupCachedBatch } from "@/lib/product-images";
 import { CACHE_LISTING } from "@/lib/http-cache";
 import {
   FOLD_FROM,
@@ -198,12 +198,21 @@ export async function GET(request: NextRequest) {
             .map((r) => r.p);
 
     const ids = ranked.map((p) => p.id);
-    const stockRows = ids.length
-      ? await db
-          .select()
-          .from(productStocks)
-          .where(inArray(productStocks.productId, ids))
-      : [];
+    // Остатки и кэш картинок независимы — тянем одним Promise.all (минус ~93мс хоп
+    // до БД в Ирландии на каждом запросе). Ключ картинок — нормализованный article
+    // (normArticleKey, как в дедупе), иначе промах на артикулах с пробелами/дефисами.
+    // Промах кэша картинок не должен ронять весь ответ — .catch на пустую Map.
+    const [stockRows, imageCache] = await Promise.all([
+      ids.length
+        ? db
+            .select()
+            .from(productStocks)
+            .where(inArray(productStocks.productId, ids))
+        : Promise.resolve([] as Array<typeof productStocks.$inferSelect>),
+      lookupCachedBatch(
+        ranked.map((p) => ({ brand: p.brand ?? "", article: normArticleKey(p.article) }))
+      ).catch(() => new Map<string, string | null>()),
+    ]);
 
     const stocksByProduct = new Map<number, typeof stockRows>();
     for (const s of stockRows) {
@@ -214,14 +223,18 @@ export async function GET(request: NextRequest) {
 
     const groups: SupplierGroup[] = ranked.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
-      const offers: SupplierOffer[] = stocks.map((s) => ({
-        supplier: `${SUPPLIER_LABELS[s.supplierCode] ?? "Поставщик"} (${s.warehouseName})`,
-        supplierCode: s.supplierCode,
-        price: Number(s.supplierPrice),
-        ourPrice: Number(s.ourPrice),
-        stock: s.quantity,
-        deliveryDays: s.deliveryDays ?? null,
-      }));
+      const offers: SupplierOffer[] = stocks
+        .map((s) => ({
+          supplier: `${SUPPLIER_LABELS[s.supplierCode] ?? "Поставщик"} (${s.warehouseName})`,
+          supplierCode: s.supplierCode,
+          price: Number(s.supplierPrice),
+          ourPrice: Number(s.ourPrice),
+          stock: s.quantity,
+          deliveryDays: s.deliveryDays ?? null,
+        }))
+        // Защита от битых цен (NaN/мусор из импорта) — иначе minPrice=NaN роняет
+        // рендер карточки на клиенте (в category-роуте такой фильтр уже есть).
+        .filter((o) => isValidPrice(o.ourPrice));
 
       offers.sort((a, b) => a.ourPrice - b.ourPrice);
 
@@ -255,7 +268,14 @@ export async function GET(request: NextRequest) {
       const rb = rank.get(`${b.article}|${b.brand.trim().toLowerCase()}`) ?? Infinity;
       return ra - rb;
     });
-    const enriched = await enrichGroupsWithImages(deduped);
+    // Картинки берём из уже полученного кэша (тот же ключ, что в category-роуте:
+    // нормализованные brand|article). enrichGroupsWithImages здесь больше не нужен —
+    // его запрос уже сделан параллельно остаткам выше.
+    const imgNorm = (s: string) => s.trim().toLowerCase();
+    const enriched = deduped.map((g) => {
+      const url = imageCache.get(`${imgNorm(g.brand)}|${imgNorm(g.article)}`);
+      return typeof url === "string" && url.length > 0 ? { ...g, imageUrl: url } : g;
+    });
 
     return NextResponse.json({
       q,

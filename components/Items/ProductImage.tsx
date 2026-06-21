@@ -20,6 +20,11 @@ interface Props {
    * иначе теряем выгоду от ленивой загрузки.
    */
   priority?: boolean;
+  /**
+   * initialUrl — готовый URL картинки от сервера (RSC-шелл). Когда задан,
+   * картинка попадает в первый HTML без клиентского запроса /api/product-image.
+   */
+  initialUrl?: string | null;
 }
 
 const PLACEHOLDER = "/photo-soon.png";
@@ -32,6 +37,7 @@ export default function ProductImage({
   sizes,
   innerPadding = "p-3",
   priority = false,
+  initialUrl = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Видна ли карточка: priority — сразу true; иначе включаем по IntersectionObserver
@@ -60,7 +66,7 @@ export default function ProductImage({
     return () => obs.disconnect();
   }, [priority, inView]);
 
-  const { url, loading } = useProductImage(brand, article, inView);
+  const { url, loading } = useProductImage(brand, article, inView, initialUrl);
 
   return (
     <div

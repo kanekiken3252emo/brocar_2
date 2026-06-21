@@ -96,19 +96,33 @@ export function useProductImage(
   article: string | undefined | null,
   // enabled=false → не запрашиваем «холодную» картинку (карточка ещё вне зоны
   // видимости). Засеянные/кэшированные URL отдаются сразу независимо от флага.
-  enabled: boolean = true
+  enabled: boolean = true,
+  // initialUrl — готовый URL картинки, полученный сервером (RSC-шелл карточки
+  // товара). Когда он задан, картинка рисуется СРАЗУ (в т.ч. в SSR-HTML) без
+  // запроса к /api/product-image. memoryCache не сеется во время рендера (иначе
+  // на сервере был бы межзапросный leak) — только в клиентском эффекте ниже.
+  initialUrl: string | null = null
 ): { url: string | null; loading: boolean } {
   const [url, setUrl] = useState<string | null>(() => {
+    if (initialUrl) return initialUrl;
     if (!brand || !article) return null;
     const key = cacheKey(brand, article);
     return memoryCache.has(key) ? memoryCache.get(key) ?? null : null;
   });
   const [loading, setLoading] = useState<boolean>(() => {
+    if (initialUrl) return false;
     if (!brand || !article) return false;
     return !memoryCache.has(cacheKey(brand, article));
   });
 
   useEffect(() => {
+    // Сервер уже отдал URL — используем его, сеем клиентский кэш и не ходим в сеть.
+    if (initialUrl) {
+      if (brand && article) memoryCache.set(cacheKey(brand, article), initialUrl);
+      setUrl(initialUrl);
+      setLoading(false);
+      return;
+    }
     if (!brand || !article) {
       setUrl(null);
       setLoading(false);
@@ -138,7 +152,7 @@ export function useProductImage(
     return () => {
       cancelled = true;
     };
-  }, [brand, article, enabled]);
+  }, [brand, article, enabled, initialUrl]);
 
   return { url, loading };
 }

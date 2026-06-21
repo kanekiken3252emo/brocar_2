@@ -1,543 +1,105 @@
-"use client";
+import { cache } from "react";
+import type { Metadata } from "next";
+import { and, ilike } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { products } from "@/lib/db/schema";
+import { enrichGroupsWithImages } from "@/lib/product-images";
+import ProductClient, { type ProductShell } from "./ProductClient";
 
-import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import ProductImage from "@/components/Items/ProductImage";
-import { formatDeliveryDays } from "@/lib/utils";
-import {
-  ArrowLeft,
-  Package,
-  Clock,
-  MapPin,
-  TrendingUp,
-  ShoppingCart,
-  Loader2,
-  CheckCircle,
-  XCircle,
-  Shield,
-  Truck,
-  ChevronDown,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import type { BergResource, BergOffer } from "@/types/berg-api";
-import type { SupplierGroup } from "@/lib/suppliers/adapter";
-import { addSupplierItemToCart } from "@/lib/cart/client";
-import { flyToCart } from "@/lib/cart/fly-to-cart";
-import { getVegaName } from "@/lib/vega-names";
-import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
-import { seedProductImageCache } from "@/lib/hooks/useProductImage";
+/**
+ * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
+ * (название + URL картинки) — без живого опроса 7 поставщиков — и отдаёт «шелл»
+ * (бренд/название/LCP-фото) прямо в первом HTML. Живые цены/наличие/аналоги
+ * догружает клиент (ProductClient) опросом /api/product/[article]. Так у нового
+ * пользователя нет полноэкранного спиннера и пустого экрана: каркас и главное
+ * фото видны сразу (и их видят поисковики), а generateMetadata даёт нормальные
+ * SEO/OG-теги вместо дженерика.
+ */
 
-interface Characteristic {
-  key: string;
-  value: string;
-}
-
-interface OriginalItem {
-  code: string;
-  brand: string;
-}
-
-function groupToBergResource(g: SupplierGroup): BergResource {
-  const offers: BergOffer[] = g.offers.map((o) => ({
-    price: o.ourPrice,
-    quantity: o.stock,
-    available_more: false,
-    reliability: 90,
-    multiplication_factor: 1,
-    average_period: o.deliveryDays ?? 0,
-    assured_period: o.deliveryDays ?? 0,
-    delivery_type: 1,
-    is_transit: false,
-    warehouse: { id: 0, name: getVegaName(o.supplierCode), type: 1 },
-    supplier: o.supplier,
-  }));
-  return {
-    id: 0,
-    name: g.name,
-    article: g.article,
-    brand: { id: 0, name: g.brand },
-    offers,
-  };
-}
-
-export default function ProductPage() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const productId = params?.id as string;
-  const brand = searchParams?.get("brand") || "";
-
-  const [product, setProduct] = useState<BergResource | null>(null);
-  const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
-  const [originals, setOriginals] = useState<OriginalItem[]>([]);
-  const [analogs, setAnalogs] = useState<SupplierGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(null);
-  const [offersCollapsed, setOffersCollapsed] = useState(false);
-  const [showAllOffers, setShowAllOffers] = useState(false);
-
-  useEffect(() => {
-    if (productId) {
-      loadProduct();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId, brand]);
-
-  const loadProduct = async () => {
-    setLoading(true);
-    setError(null);
-
+// Один lookup на запрос, общий для generateMetadata и самой страницы.
+const getShell = cache(
+  async (rawArticle: string, brand: string): Promise<ProductShell> => {
+    const article = decodeURIComponent(rawArticle);
     try {
-      const url = `/api/product/${encodeURIComponent(productId)}${
-        brand ? `?brand=${encodeURIComponent(brand)}` : ""
-      }`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Товар не найден");
-      }
+      const conds = [ilike(products.article, article)];
+      if (brand) conds.push(ilike(products.brand, brand));
 
-      const data: {
-        group: SupplierGroup | null;
-        characteristics: Characteristic[];
-        originals: OriginalItem[];
-        analogs: SupplierGroup[];
-      } = await res.json();
-
-      if (!data.group) {
-        setError("Товар не найден");
-        return;
-      }
-
-      const resource = groupToBergResource(data.group);
-      setProduct(resource);
-      setCharacteristics(data.characteristics || []);
-      setOriginals(data.originals || []);
-
-      // Сервер уже подмешал готовые URL картинок в аналоги (enrichGroupsWithImages).
-      // Засеваем in-memory cache до монтирования карточек — тогда ProductImage
-      // в каждом аналоге найдёт URL мгновенно и не пойдёт в /api/product-image.
-      const analogGroups = data.analogs || [];
-      for (const g of analogGroups) {
-        if (g.imageUrl !== undefined) {
-          seedProductImageCache(g.brand, g.article, g.imageUrl);
-        }
-      }
-      setAnalogs(analogGroups);
-
-      if (resource.offers && resource.offers.length > 0) {
-        // Офферы уже отсортированы «в наличии → быстрее → дешевле»,
-        // поэтому лучшее предложение — первое в списке.
-        setSelectedOffer(resource.offers[0]);
-      }
-    } catch (err: any) {
-      console.error("Product load error:", err);
-      setError(err.message || "Не удалось загрузить товар");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    if (!product || !selectedOffer) return;
-    flyToCart(e.currentTarget as HTMLElement);
-    try {
-      await addSupplierItemToCart({
-        article: product.article,
-        brand: product.brand?.name || "",
-        name: product.name,
-        ourPrice: selectedOffer.price,
-        supplierPrice: selectedOffer.price,
-        stock: selectedOffer.quantity,
-        deliveryDays: selectedOffer.average_period,
-        supplier: selectedOffer.supplier,
-      });
-    } catch (err: any) {
-      window.dispatchEvent(
-        new CustomEvent("cart:error", {
-          detail: { message: err?.message || "Не удалось добавить" },
+      const rows = await db
+        .select({
+          name: products.name,
+          brand: products.brand,
+          article: products.article,
         })
-      );
+        .from(products)
+        .where(and(...conds))
+        .limit(1);
+
+      const p = rows[0];
+      if (!p) {
+        return { article, brand: brand || null, name: null, imageUrl: null };
+      }
+
+      const [enriched] = await enrichGroupsWithImages([
+        { brand: p.brand ?? brand ?? "", article: p.article },
+      ]);
+
+      return {
+        article: p.article,
+        brand: p.brand ?? brand ?? null,
+        name: p.name ?? null,
+        imageUrl: enriched?.imageUrl ?? null,
+      };
+    } catch {
+      return { article, brand: brand || null, name: null, imageUrl: null };
     }
+  }
+);
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const sp = await searchParams;
+  const brand = typeof sp.brand === "string" ? sp.brand : "";
+  const shell = await getShell(id, brand);
+
+  const brandPart = shell.brand ? `${shell.brand} ` : "";
+  const title = shell.name
+    ? `${brandPart}${shell.article} — ${shell.name} | Brocar`
+    : `Запчасть ${shell.article}${brandPart ? ` (${shell.brand})` : ""} | Brocar`;
+  const description = shell.name
+    ? `${shell.name}. ${brandPart}артикул ${shell.article} — цена, наличие и доставка автозапчастей в Brocar.`
+    : `Артикул ${shell.article} — цена, наличие и доставка автозапчастей в Brocar.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      ...(shell.imageUrl ? { images: [{ url: shell.imageUrl }] } : {}),
+    },
   };
+}
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-950">
-        <Loader2 className="w-12 h-12 animate-spin text-orange-500 mb-4" />
-        <span className="text-lg text-neutral-400">Загрузка товара...</span>
-      </div>
-    );
-  }
-
-  if (error || !product) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-        <div className="bg-neutral-900 border border-red-500/30 rounded-2xl p-8 text-center max-w-md">
-          <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Ошибка</h2>
-          <p className="text-neutral-400 mb-6">{error || "Товар не найден"}</p>
-          <Link href="/">
-            <Button>Вернуться на главную</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const totalStock = product.offers?.reduce((sum, offer) => sum + offer.quantity, 0) || 0;
-  const minPrice = product.offers?.length
-    ? Math.min(...product.offers.map((o) => o.price))
-    : null;
-
-  // Самый дешёвый оффер — на него указывает «Цена от». Список отсортирован
-  // «в наличии → быстрее → дешевле», поэтому дешёвый может оказаться вне топ-3.
-  // Чтобы «Цена от X» не расходилась с видимыми строками, всегда показываем
-  // самый дешёвый оффер рядом с тремя лучшими (если он не попал в топ-3).
-  const cheapestOffer = product.offers?.length
-    ? product.offers.reduce((m, o) => (o.price < m.price ? o : m), product.offers[0])
-    : null;
-  let visibleOffers = product.offers ?? [];
-  if (!showAllOffers && product.offers) {
-    visibleOffers = product.offers.slice(0, 3);
-    if (cheapestOffer && !visibleOffers.includes(cheapestOffer)) {
-      visibleOffers = [...visibleOffers, cheapestOffer];
-    }
-  }
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { id } = await params;
+  const sp = await searchParams;
+  const brand = typeof sp.brand === "string" ? sp.brand : "";
+  const shell = await getShell(id, brand);
 
   return (
-    <div className="min-h-screen bg-neutral-950">
-      <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumbs */}
-        <div className="mb-6">
-          <Link href="/catalog" className="inline-flex items-center text-orange-500 hover:text-orange-400 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Вернуться в каталог
-          </Link>
-        </div>
-
-        {/* Product Details */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
-          {/* Заголовок: бренд + название — сразу видно (особенно на мобилке) */}
-          <div className="px-6 pt-6 md:px-8 md:pt-8">
-            <div className="inline-block px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-lg mb-3">
-              <span className="text-sm text-orange-400 font-semibold">
-                {product.brand?.name || "Неизвестный бренд"}
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
-              {product.name}
-            </h1>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6 md:gap-8 p-6 md:p-8 md:pt-5">
-            {/* Картинка */}
-            <ProductImage
-              brand={product.brand?.name}
-              article={product.article}
-              alt={product.name || "Фото товара"}
-              className="w-full h-[220px] sm:h-[320px] md:h-[min(46vh,440px)] rounded-2xl"
-              innerPadding="p-4 md:p-8"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
-              
-            {/* Покупка: цена + кнопка сразу, ниже — наличие/гарантия/описание */}
-            <div className="space-y-5">
-              {/* Price */}
-              {minPrice && (
-                <div className="bg-gradient-to-r from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-5 md:p-6">
-                  <div className="text-sm text-neutral-400 mb-1">Цена от</div>
-                  <div className="text-4xl font-bold text-white">
-                    {minPrice.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Add to Cart */}
-              <Button
-                onClick={handleAddToCart}
-                disabled={!selectedOffer || totalStock === 0}
-                size="xl"
-                className="w-full"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Добавить в корзину
-              </Button>
-
-              {/* Stock Status */}
-              <div className="flex items-center gap-4">
-                {totalStock > 0 ? (
-                  <div className="flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="font-semibold">В наличии: {totalStock} шт.</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-neutral-400 bg-neutral-800 border border-neutral-700 px-4 py-2 rounded-xl">
-                    <Clock className="w-5 h-5" />
-                    <span className="font-semibold">Под заказ</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Features */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl p-3">
-                  <Shield className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm text-neutral-400">Гарантия</span>
-                </div>
-                <div className="flex items-center gap-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl p-3">
-                  <Truck className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm text-neutral-400">Доставка</span>
-                </div>
-              </div>
-
-              {/* Article */}
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-500">Артикул:</span>
-                <span className="font-mono font-bold text-lg text-white bg-neutral-800 px-3 py-1 rounded-lg">
-                  {product.article}
-                </span>
-              </div>
-
-              {/* Description */}
-              <div className="border-t border-neutral-800 pt-5">
-                <h3 className="font-semibold text-white mb-2">Описание</h3>
-                <p className="text-neutral-400">{product.name}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Offers Table */}
-        {product.offers && product.offers.length > 0 && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
-            <button
-              type="button"
-              onClick={() => setOffersCollapsed((v) => !v)}
-              className={`w-full px-6 py-4 flex items-center justify-between hover:bg-neutral-800/30 transition-colors ${
-                offersCollapsed ? "" : "border-b border-neutral-800"
-              }`}
-              aria-expanded={!offersCollapsed}
-            >
-              <h2 className="text-xl font-bold text-white">Предложения</h2>
-              <ChevronDown
-                className={`w-5 h-5 text-neutral-400 transition-transform duration-200 ${
-                  offersCollapsed ? "" : "rotate-180"
-                }`}
-              />
-            </button>
-            {!offersCollapsed && (
-            <>
-              {/* Mobile cards */}
-              <div className="md:hidden divide-y divide-neutral-800">
-                {visibleOffers.map((offer, index) => (
-                  <div
-                    key={index}
-                    className={`p-4 ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
-                      </div>
-                      <span className="text-base font-bold text-white">
-                        {offer.price.toLocaleString("ru-RU")} ₽
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
-                      <span>{offer.quantity} шт.</span>
-                      <span>{formatDeliveryDays(offer.average_period)}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${
-                          offer.reliability >= 90 ? "bg-green-500" : offer.reliability >= 70 ? "bg-yellow-500" : "bg-red-500"
-                        }`} />
-                        {offer.reliability}%
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setSelectedOffer(offer)}
-                      className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        selectedOffer === offer
-                          ? "bg-orange-500 text-white"
-                          : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
-                      }`}
-                    >
-                      {selectedOffer === offer ? "Выбрано" : "Выбрать"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-neutral-800/50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Склад
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Количество
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Цена
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Срок
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Надежность
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Действие
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800">
-                    {visibleOffers.map((offer, index) => (
-                      <tr
-                        key={index}
-                        className={`hover:bg-neutral-800/50 transition-colors ${
-                          selectedOffer === offer ? "bg-orange-500/10" : ""
-                        }`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-neutral-500" />
-                            <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-neutral-300">
-                          {offer.quantity} шт.
-                          {offer.available_more && (
-                            <span className="text-green-400 ml-1">+</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-white">
-                          {offer.price.toLocaleString("ru-RU")} ₽
-                        </td>
-                        <td className="px-6 py-4 text-sm text-neutral-300">
-                          {formatDeliveryDays(offer.average_period)}
-                          {offer.is_transit && (
-                            <span className="ml-2 text-xs text-orange-400">(в пути)</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-2 bg-neutral-700 rounded-full overflow-hidden w-20">
-                              <div
-                                className={`h-full ${
-                                  offer.reliability >= 90
-                                    ? "bg-green-500"
-                                    : offer.reliability >= 70
-                                    ? "bg-yellow-500"
-                                    : "bg-red-500"
-                                }`}
-                                style={{ width: `${offer.reliability}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-neutral-400">{offer.reliability}%</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => setSelectedOffer(offer)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                              selectedOffer === offer
-                                ? "bg-orange-500 text-white"
-                                : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
-                            }`}
-                          >
-                            {selectedOffer === offer ? "Выбрано" : "Выбрать"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {product.offers.length > 3 && (
-                <button
-                  onClick={() => setShowAllOffers(!showAllOffers)}
-                  className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-neutral-400 hover:text-orange-400 bg-neutral-800/30 hover:bg-neutral-800/60 border-t border-neutral-800 transition-colors"
-                >
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showAllOffers ? "rotate-180" : ""}`} />
-                  {showAllOffers
-                    ? "Свернуть"
-                    : `Показать все ${product.offers.length} предложений`}
-                </button>
-              )}
-            </>
-            )}
-          </div>
-        )}
-
-        {/* Характеристики */}
-        {characteristics.length > 0 && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-neutral-800">
-              <h2 className="text-xl font-bold text-white">Характеристики</h2>
-            </div>
-            <div className="divide-y divide-neutral-800">
-              {characteristics.map((c, i) => (
-                <div
-                  key={`${c.key}-${i}`}
-                  className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 px-6 py-3"
-                >
-                  <div className="sm:w-60 shrink-0 text-sm text-neutral-400">
-                    {c.key}
-                  </div>
-                  <div className="text-sm text-neutral-100 break-words">
-                    {c.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Оригинальные OEM-номера */}
-        {originals.length > 0 && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-neutral-800">
-              <h2 className="text-xl font-bold text-white">Оригинальные номера</h2>
-            </div>
-            <div className="px-6 py-4 flex flex-wrap gap-2">
-              {originals.slice(0, 40).map((o, i) => (
-                <div
-                  key={`${o.brand}-${o.code}-${i}`}
-                  className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <span className="text-orange-500 font-semibold mr-2">
-                    {o.brand}
-                  </span>
-                  <span className="font-mono text-white">{o.code}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Аналоги искомого бренда */}
-        {analogs.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Аналоги искомого бренда
-            </h2>
-            <div className="space-y-4">
-              {analogs.map((g) => (
-                <SupplierGroupListItem
-                  key={`${g.article}-${g.brand}`}
-                  group={g}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    <ProductClient article={decodeURIComponent(id)} brand={brand} shell={shell} />
   );
 }

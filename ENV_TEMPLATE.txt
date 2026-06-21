@@ -69,8 +69,12 @@ GOODVIN_API_KEY=TWS-74EE104F-A08B-45B6-8995-497F5361AD67
 PAYMENT_PROVIDER=yookassa
 PAYMENT_SHOP_ID=вставьте_shop_id_сюда
 PAYMENT_SECRET_KEY=вставьте_секретный_ключ_сюда
-# Куда вернуть покупателя после оплаты (на проде — https://brocarparts.ru/cart)
-PAYMENT_RETURN_URL=http://localhost:3000/cart
+# Куда вернуть покупателя после оплаты — БОЛЬШЕ НЕ ИСПОЛЬЗУЕТСЯ.
+# Возврат теперь строится автоматически на страницу заказа /order/{id}
+# (там же сверяется статус оплаты и показывается экран «спасибо за заказ»).
+# Важно: на проде NEXT_PUBLIC_SITE_DOMAIN должен быть реальным доменом
+# (brocarparts.ru), иначе ЮKassa вернёт покупателя не туда.
+# PAYMENT_RETURN_URL=  # deprecated
 # Чеки 54-ФЗ: true — передавать данные чека в платёж (нужна онлайн-касса в ЮKassa)
 PAYMENT_SEND_RECEIPT=false
 # PAYMENT_VAT_CODE=1            # код ставки НДС (1 = без НДС)

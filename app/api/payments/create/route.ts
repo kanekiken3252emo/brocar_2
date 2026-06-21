@@ -5,6 +5,7 @@ import { orders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { createPayment, toAmountValue, type Receipt } from "@/lib/yookassa";
+import { publicBaseUrl } from "@/lib/site-url";
 
 const createPaymentSchema = z.object({
   orderId: z.number(),
@@ -54,9 +55,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const returnUrl =
-      process.env.PAYMENT_RETURN_URL ||
-      `${process.env.NEXT_PUBLIC_SITE_DOMAIN?.startsWith("http") ? "" : "https://"}${process.env.NEXT_PUBLIC_SITE_DOMAIN || "localhost:3000"}/orders/${order.id}`;
+    // Куда ЮKassa вернёт покупателя после формы оплаты — на страницу его заказа.
+    // Там же идёт активная сверка статуса (на случай, если вебхук ещё не пришёл)
+    // и показывается экран «спасибо за заказ» / «ожидание оплаты».
+    const returnUrl = `${publicBaseUrl(request)}/order/${order.id}`;
 
     // Чек по 54-ФЗ — формируем только если включён флаг PAYMENT_SEND_RECEIPT.
     // Требует контакт покупателя (email) и корректные коды НДС/налогообложения.

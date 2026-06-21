@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { orders, carts, cartItems } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { getPayment } from "@/lib/yookassa";
-import { STATUS_AFTER_PAYMENT } from "@/lib/order-status";
+import { settleByPaymentId } from "@/lib/payments/settle";
 
 /**
  * Обработчик уведомлений ЮKassa (HTTP-уведомления).
@@ -30,42 +26,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, ignored: event });
     }
 
-    // Сверяем статус напрямую с API ЮKassa
-    const payment = await getPayment(paymentId);
-    const orderId = payment.metadata?.order_id;
+    // Вся логика сверки и обновления заказа — в settleByPaymentId (та же, что и на
+    // странице заказа). order_id берётся из metadata платежа, статус — из API ЮKassa.
+    const { orderId, status } = await settleByPaymentId(paymentId);
 
     if (!orderId) {
       console.warn(`Webhook: платёж ${paymentId} без order_id в metadata`);
       return NextResponse.json({ success: false, error: "No order_id" });
     }
 
-    const orderIdNum = parseInt(orderId, 10);
-
-    if (payment.status === "succeeded" && payment.paid) {
-      const [paidOrder] = await db
-        .update(orders)
-        .set({ status: STATUS_AFTER_PAYMENT, paymentId: payment.id })
-        .where(eq(orders.id, orderIdNum))
-        .returning();
-      console.log(`Order ${orderIdNum} paid → ${STATUS_AFTER_PAYMENT} (${payment.id})`);
-
-      // Очищаем корзину покупателя только после успешной оплаты.
-      if (paidOrder?.userId) {
-        const cart = await db.query.carts.findFirst({
-          where: eq(carts.userId, paidOrder.userId),
-        });
-        if (cart) {
-          await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
-        }
-      }
-    } else if (payment.status === "canceled") {
-      await db
-        .update(orders)
-        .set({ status: "canceled" })
-        .where(eq(orders.id, orderIdNum));
-      console.log(`Order ${orderIdNum} marked as canceled (${payment.id})`);
-    }
-
+    console.log(`Webhook: заказ ${orderId} → ${status ?? "без изменений"} (${paymentId})`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Webhook processing error:", error);

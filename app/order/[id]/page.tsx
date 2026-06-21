@@ -6,11 +6,14 @@ import { orders as ordersTable } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { isAdmin } from "@/lib/admin";
 import { orderStatusMeta } from "@/lib/order-status";
+import { settleByPaymentId } from "@/lib/payments/settle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
-import { ArrowLeft, Package } from "lucide-react";
+import { PayButton } from "@/components/order/pay-button";
+import { AwaitingRefresher } from "@/components/order/awaiting-refresher";
+import { ArrowLeft, ArrowRight, Package, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 export default async function OrderDetailPage({
   params,
@@ -38,7 +41,28 @@ export default async function OrderDetailPage({
     redirect("/dashboard");
   }
 
-  const meta = orderStatusMeta(order.status);
+  // Покупатель мог вернуться с формы оплаты раньше, чем пришёл вебхук ЮKassa —
+  // активно сверяем статус платежа напрямую с API, чтобы показать корректный
+  // экран сразу (а не «ждёт оплаты» по уже оплаченному заказу).
+  let status = order.status;
+  if (status === "awaiting_payment" && order.paymentId) {
+    try {
+      const settled = await settleByPaymentId(order.paymentId);
+      if (settled.status) status = settled.status;
+    } catch (e) {
+      console.error(`Order ${orderId}: сверка платежа не удалась`, e);
+    }
+  }
+
+  const meta = orderStatusMeta(status);
+
+  // Какой экран показать вверху: оплачен / ждёт оплаты / не прошло.
+  const heroKind: "paid" | "awaiting" | "canceled" =
+    status === "canceled"
+      ? "canceled"
+      : status === "pending" || status === "awaiting_payment"
+        ? "awaiting"
+        : "paid";
 
   return (
     <div className="min-h-screen bg-neutral-950">
@@ -50,6 +74,91 @@ export default async function OrderDetailPage({
               К моим заказам
             </Button>
           </Link>
+
+          {/* Экран результата оплаты */}
+          {heroKind === "paid" && (
+            <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-6 md:p-8">
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-green-500/20 flex items-center justify-center">
+                  <CheckCircle2 className="h-9 w-9 text-green-400" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl md:text-3xl font-bold text-white">
+                    Спасибо за заказ!
+                  </h2>
+                  <p className="text-neutral-300 max-w-md mx-auto leading-relaxed">
+                    Заказ №{order.id} оплачен и принят в работу. Мы свяжемся с вами для
+                    подтверждения деталей. Отслеживать статус можно на этой странице и в
+                    личном кабинете.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 pt-1">
+                  <Link href="/dashboard">
+                    <Button className="gap-2">
+                      В личный кабинет
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/catalog">
+                    <Button variant="outline">Продолжить покупки</Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {heroKind === "awaiting" && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 md:p-8">
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/20 flex items-center justify-center">
+                  <Clock className="h-9 w-9 text-amber-400" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl md:text-3xl font-bold text-white">
+                    Ожидаем оплату
+                  </h2>
+                  <p className="text-neutral-300 max-w-md mx-auto leading-relaxed">
+                    Если вы уже оплатили — статус обновится автоматически в течение пары
+                    минут. Если оплата не завершена, вы можете оплатить заказ прямо сейчас.
+                  </p>
+                </div>
+                <div className="flex flex-col items-center gap-3 pt-1">
+                  <PayButton orderId={order.id} />
+                  <AwaitingRefresher />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {heroKind === "canceled" && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 md:p-8">
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center">
+                  <XCircle className="h-9 w-9 text-red-400" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl md:text-3xl font-bold text-white">
+                    Оплата не прошла
+                  </h2>
+                  <p className="text-neutral-300 max-w-md mx-auto leading-relaxed">
+                    Платёж был отменён или не завершён. Товары сохранены в корзине — можно
+                    оформить заказ заново.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 pt-1">
+                  <Link href="/cart">
+                    <Button className="gap-2">
+                      Вернуться в корзину
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/catalog">
+                    <Button variant="outline">В каталог</Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

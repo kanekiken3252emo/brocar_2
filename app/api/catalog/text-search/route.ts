@@ -108,6 +108,12 @@ function relevance(nameNorm: string, articleLower: string, tokens: string[]): nu
   return score;
 }
 
+// Сколько максимум результатов отдаём с ПОЛНОЙ догрузкой (остатки/картинки).
+// Кандидатов из БД берём больше (limit, по умолч. 200) и ранжируем ВСЕ, затем
+// отдаём топ-RESULT_LIMIT — тяжёлая работа меньше без потери качества ранжирования.
+// Пользователь листает 20/стр → 100 = 5 страниц самых релевантных.
+const RESULT_LIMIT = 100;
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
@@ -197,7 +203,12 @@ export async function GET(request: NextRequest) {
             })
             .map((r) => r.p);
 
-    const ids = ranked.map((p) => p.id);
+    // Срезаем до топ-N по релевантности ПОСЛЕ ранжирования всего набора — порядок
+    // и качество выдачи сохранены, дальше тяжёлую работу (остатки/картинки/группы)
+    // делаем только для этих N. count в ответе = число отданных групп (честно).
+    const topRanked = ranked.slice(0, RESULT_LIMIT);
+
+    const ids = topRanked.map((p) => p.id);
     // Остатки и кэш картинок независимы — тянем одним Promise.all (минус ~93мс хоп
     // до БД в Ирландии на каждом запросе). Ключ картинок — нормализованный article
     // (normArticleKey, как в дедупе), иначе промах на артикулах с пробелами/дефисами.
@@ -210,7 +221,7 @@ export async function GET(request: NextRequest) {
             .where(inArray(productStocks.productId, ids))
         : Promise.resolve([] as Array<typeof productStocks.$inferSelect>),
       lookupCachedBatch(
-        ranked.map((p) => ({ brand: p.brand ?? "", article: normArticleKey(p.article) }))
+        topRanked.map((p) => ({ brand: p.brand ?? "", article: normArticleKey(p.article) }))
       ).catch(() => new Map<string, string | null>()),
     ]);
 
@@ -221,7 +232,7 @@ export async function GET(request: NextRequest) {
       stocksByProduct.set(s.productId, list);
     }
 
-    const groups: SupplierGroup[] = ranked.map((p) => {
+    const groups: SupplierGroup[] = topRanked.map((p) => {
       const stocks = stocksByProduct.get(p.id) ?? [];
       const offers: SupplierOffer[] = stocks
         .map((s) => ({
@@ -260,7 +271,7 @@ export async function GET(request: NextRequest) {
     // это перетёрло бы наш порядок (релевантность / триграммное сходство). Поэтому
     // после дедупликации восстанавливаем порядок из `ranked`.
     const rank = new Map<string, number>();
-    ranked.forEach((p, i) => {
+    topRanked.forEach((p, i) => {
       rank.set(`${normArticleKey(p.article)}|${(p.brand ?? "").trim().toLowerCase()}`, i);
     });
     const deduped = dedupeGroups(groups).sort((a, b) => {

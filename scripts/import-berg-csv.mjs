@@ -24,6 +24,8 @@ import { resolve } from "node:path";
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
 // Извлечение характеристик для фасетных фильтров (см. backfill-attributes.mjs).
 import { extractAttributes } from "../lib/catalog/attributes.mjs";
+// Каноничный бренд: схлопывает разные написания одного бренда (STELLOX/Stellox).
+import { canonicalBrand } from "../lib/brands/canonical.mjs";
 
 const CSV_PATH = process.argv[2] || "public/BERG_brocar_20260422_114614.csv";
 // Приоритет: pooler (работает везде) > direct (может блокироваться провайдером)
@@ -138,7 +140,7 @@ async function main() {
 
     const article = (fields[0] || "").trim();
     const name = (fields[1] || "").trim();
-    const brand = (fields[2] || "").trim();
+    const brand = canonicalBrand((fields[2] || "").trim());
     const warehouse = (fields[3] || "").trim();
     const qty = parseInt(fields[4] || "0", 10);
     const price = parseFloat(fields[5] || "0");

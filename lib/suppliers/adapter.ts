@@ -1,3 +1,7 @@
+// Каноничный бренд: схлопывает разные написания одного бренда (STELLOX/Stellox)
+// и в живых ответах поставщиков, как и в импортированном каталоге.
+import { canonicalBrand, brandKey } from "../brands/canonical.mjs";
+
 /**
  * Generic supplier item interface — одно предложение от одного склада одного поставщика
  */
@@ -148,13 +152,14 @@ export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
   const map = new Map<string, SupplierGroup>();
 
   for (const g of groups) {
-    const key = `${normalizeArticle(g.article)}|${(g.brand || "").trim().toLowerCase()}`;
+    const key = `${normalizeArticle(g.article)}|${brandKey(g.brand)}`;
     const existing = map.get(key);
 
     if (!existing) {
       map.set(key, {
         ...g,
         article: normalizeArticle(g.article),
+        brand: canonicalBrand(g.brand),
         offers: [...g.offers],
       });
       continue;
@@ -228,8 +233,8 @@ export function groupOffers(
     if (!Number.isFinite(item.price) || item.price <= 0) continue;
     if (!Number.isFinite(item.stock) || item.stock <= 0) continue;
 
-    const brand = (item.brand || "").trim();
-    const key = `${normalizeArticle(item.article)}|${brand.toLowerCase()}`;
+    const brand = canonicalBrand(item.brand);
+    const key = `${normalizeArticle(item.article)}|${brandKey(item.brand)}`;
 
     const offer: SupplierOffer = {
       supplier: item.supplier,

@@ -50,6 +50,15 @@ public/SHATE_*.csv
 # сырые ответы API из диагностических скриптов
 scripts/probe-output/
 
+# диагностические дампы в корне (страницы и ответы API из ручных проверок)
+/brands.json
+/kia.json
+/*.html
+/resp.json
+/respc.json
+/rv.json
+/logs.txt
+
 
 
 

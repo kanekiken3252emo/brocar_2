@@ -19,6 +19,7 @@ import AdmZip from "adm-zip";
 import ExcelJS from "exceljs";
 import postgres from "postgres";
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
+import { canonicalBrand } from "../lib/brands/canonical.mjs";
 
 const DRY = process.argv.includes("--dry") || process.env.DRY_RUN === "1";
 
@@ -124,11 +125,12 @@ async function main() {
 
   const products = new Map();
   for (const r of rows) {
-    const key = `${r.article}|${r.brand}`;
+    const brand = canonicalBrand(r.brand);
+    const key = `${r.article}|${brand}`;
     let p = products.get(key);
     if (!p) {
       p = {
-        article: r.article, brand: r.brand, name: r.name,
+        article: r.article, brand, name: r.name,
         category: detectCategory(r.name), carBrands: detectCarBrands(r.name),
         qty: 0, minPrice: Infinity, delivery: null,
       };

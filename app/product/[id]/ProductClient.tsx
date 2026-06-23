@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ProductImage from "@/components/Items/ProductImage";
 import { formatDeliveryDays } from "@/lib/utils";
 import {
@@ -104,6 +105,20 @@ export default function ProductClient({
   );
   const [offersCollapsed, setOffersCollapsed] = useState(false);
   const [showAllOffers, setShowAllOffers] = useState(false);
+
+  const router = useRouter();
+
+  // «Назад» возвращает туда, откуда пришёл (список цен по артикулу, результаты
+  // поиска, VIN-каталог), а не в общий каталог — иначе после мисклика на
+  // карточку приходится заново вводить VIN и искать деталь. Fallback на /catalog,
+  // если истории нет (прямой заход по ссылке / новая вкладка).
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/catalog");
+    }
+  };
 
   // При переходе на другой товар — сбросить на новый сид, пока грузятся живые
   // данные (иначе на экране осталась бы цена предыдущего товара).
@@ -257,10 +272,14 @@ export default function ProductClient({
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <div className="mb-6">
-          <Link href="/catalog" className="inline-flex items-center text-orange-500 hover:text-orange-400 transition-colors">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center text-orange-500 hover:text-orange-400 transition-colors"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Вернуться в каталог
-          </Link>
+            Назад
+          </button>
         </div>
 
         {/* Product Details — шелл (бренд/название/фото) отдаётся сервером сразу */}

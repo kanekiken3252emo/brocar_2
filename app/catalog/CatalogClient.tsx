@@ -438,6 +438,13 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
     ? serverBrands
     : Array.from(new Set(groups.map((g) => g.brand).filter(Boolean))).sort();
 
+  // Текстовый поиск («компрессор кондиционера»), а не артикул/категория/VIN.
+  // Тогда сервер уже вернул товары в порядке РЕЛЕВАНТНОСТИ (целое слово > часть,
+  // имя > артикул), и для дефолта «Сначала подходящие» мы этот порядок СОХРАНЯЕМ,
+  // а не пересортировываем по алфавиту. Цена/срок — выбор пользователя — ниже
+  // всё равно применяются.
+  const isTextSearch = !!article && isFreeText(article);
+
   // Для serverPagination фильтрация/сортировка уже применены сервером,
   // а пагинация = текущая страница. Клиентский фильтр/sort всё равно
   // прогоняем для пользовательского sort=delivery (его API не знает).
@@ -454,6 +461,9 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
             (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999)
         )
       : filtered
+    : isTextSearch && sortBy === "name"
+    ? // «Сначала подходящие»: сохраняем порядок релевантности от сервера.
+      filtered
     : [...filtered].sort((a, b) => {
         switch (sortBy) {
           case "price-asc":
@@ -635,10 +645,16 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
                   >
+                    {/* В режиме поиска дефолт — «Сначала подходящие» (тот же
+                        sort=name, но клиент сохраняет порядок релевантности от
+                        сервера). В каталоге/по марке — обычная сортировка по имени. */}
+                    {isTextSearch && (
+                      <option value="name">Сначала подходящие</option>
+                    )}
                     <option value="price-asc">Цена: по возрастанию</option>
                     <option value="price-desc">Цена: по убыванию</option>
                     <option value="delivery">По сроку доставки</option>
-                    <option value="name">По названию</option>
+                    {!isTextSearch && <option value="name">По названию</option>}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
                 </div>

@@ -1,6 +1,9 @@
 // Каноничный бренд: схлопывает разные написания одного бренда (STELLOX/Stellox)
 // и в живых ответах поставщиков, как и в импортированном каталоге.
 import { canonicalBrand, brandKey } from "../brands/canonical.mjs";
+// Ремонт битых названий из живых ответов поставщиков (особенно Armtek):
+// «KopfstГ tze» → «Kopfstütze», выбор чистого дубля вместо «Р С С Р».
+import { repairSupplierName, nameScore, pickBetterName } from "./mojibake";
 
 /**
  * Generic supplier item interface — одно предложение от одного склада одного поставщика
@@ -160,11 +163,13 @@ export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
         ...g,
         article: normalizeArticle(g.article),
         brand: canonicalBrand(g.brand),
+        name: repairSupplierName(g.name),
         offers: [...g.offers],
       });
       continue;
     }
 
+    existing.name = pickBetterName(existing.name, g.name);
     existing.offers.push(...g.offers);
     existing.totalStock += g.totalStock;
     existing.minPrice = Math.min(existing.minPrice, g.minPrice);
@@ -226,6 +231,19 @@ export function groupOffers(
 ): SupplierGroup[] {
   const groups = new Map<string, SupplierGroup>();
 
+  // Лучшее (наименее битое) название на каждый article+brand — среди ВСЕХ строк,
+  // даже отсеянных ниже по цене/остатку: иначе единственный «живой» офер с битым
+  // именем («Р С С Р») победил бы чистый дубль («крюк») того же товара.
+  const bestName = new Map<string, string>();
+  for (const item of items) {
+    const key = `${normalizeArticle(item.article)}|${brandKey(item.brand)}`;
+    const cand = repairSupplierName(item.name || "");
+    const cur = bestName.get(key);
+    if (cur === undefined || nameScore(cand) > nameScore(cur)) {
+      bestName.set(key, cand);
+    }
+  }
+
   for (const item of items) {
     // Защита от «пустых» оферов от поставщиков: цена или остаток ≤ 0 —
     // нечего выставлять. Иначе один такой offer обнуляет minPrice
@@ -250,7 +268,7 @@ export function groupOffers(
       groups.set(key, {
         article: normalizeArticle(item.article),
         brand,
-        name: item.name,
+        name: bestName.get(key) ?? repairSupplierName(item.name),
         minPrice: offer.ourPrice,
         maxPrice: offer.ourPrice,
         totalStock: offer.stock,

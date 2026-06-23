@@ -131,7 +131,7 @@ async function getHandler(request: NextRequest) {
       Math.max(parseInt(url.searchParams.get("limit") || "200", 10) || 200, 1),
       1000
     );
-    const sort = url.searchParams.get("sort") || "price-asc";
+    const sort = url.searchParams.get("sort") || "name"; // дефолт — по названию (тай-брейкер после релевантности)
 
     const qNorm = normalizeName(q);
     const tokens = tokenize(qNorm);

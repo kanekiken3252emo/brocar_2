@@ -178,9 +178,13 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
   );
 
   const [brandFilter, setBrandFilter] = useState<string>("");
+  // По умолчанию сортируем по названию (алфавит) — так выдача предсказуема и
+  // её удобно листать; цену/срок/наличие пользователь выбирает сам. Серверный
+  // первичный рендер (app/catalog/page.tsx) использует тот же дефолт, иначе на
+  // первом экране был бы рассинхрон «дропдаун: по названию / данные: по цене».
   const [sortBy, setSortBy] = useState<
     "price-asc" | "price-desc" | "name" | "delivery"
-  >("price-asc");
+  >("name");
 
   // Фасетные фильтры по характеристикам (приходят с сервера для категории).
   // facets — доступные значения, attrFilters — что выбрал пользователь.

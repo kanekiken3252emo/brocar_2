@@ -41,7 +41,7 @@ export default async function CatalogPage({
       const res = await fetch(
         `${INTERNAL_BASE}/api/catalog/category/${encodeURIComponent(
           category
-        )}?page=1&limit=20&sort=price-asc`,
+        )}?page=1&limit=20&sort=name`,
         { next: { revalidate: 600 } }
       );
       if (res.ok) {
@@ -60,7 +60,7 @@ export default async function CatalogPage({
       const res = await fetch(
         `${INTERNAL_BASE}/api/catalog/car-brand/${encodeURIComponent(
           brand
-        )}?page=1&limit=20&sort=price-asc`,
+        )}?page=1&limit=20&sort=name`,
         { next: { revalidate: 600 } }
       );
       if (res.ok) {

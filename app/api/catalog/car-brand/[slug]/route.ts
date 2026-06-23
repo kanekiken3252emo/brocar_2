@@ -44,7 +44,7 @@ async function getHandler(
     const offset = pageParam
       ? Math.max(parseInt(pageParam, 10) - 1, 0) * limit
       : Math.max(parseInt(offsetParam || "0", 10), 0);
-    const sort = url.searchParams.get("sort") || "price-asc";
+    const sort = url.searchParams.get("sort") || "name"; // дефолт — по названию
     const brandFilter = url.searchParams.get("brand")?.trim() || "";
 
     const orderBy = (() => {

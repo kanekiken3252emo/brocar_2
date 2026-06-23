@@ -60,6 +60,21 @@ function img(src?: string): string | undefined {
   return src.startsWith("//") ? `https:${src}` : src;
 }
 
+/**
+ * Ключ в sessionStorage для запоминания позиции в каталоге (авто + путь по узлам
+ * + открытая схема). Нужно, чтобы кнопка «Назад» из карточки цен возвращала на ту
+ * же схему, а не сбрасывала каталог в корень / на главную: вся навигация здесь
+ * живёт в React-состоянии и в историю браузера не попадает.
+ */
+const NAV_STORAGE_KEY = "vinCatalogNav";
+
+interface SavedNav {
+  query: string;
+  car: GoodvinCarInfo;
+  path: GoodvinGroup[];
+  partsGroup: GoodvinGroup | null;
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const data = await res.json();
@@ -165,6 +180,10 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     async (q: string) => {
       const value = q.trim();
       if (!value) return;
+      // Новый поиск — старая запомненная позиция больше не актуальна.
+      try {
+        sessionStorage.removeItem(NAV_STORAGE_KEY);
+      } catch {}
       setLoading("cars");
       setError("");
       setCar(null);
@@ -196,14 +215,52 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     [selectCar]
   );
 
-  // VIN с верхней строки поиска / из гаража: /catalog-vin?vin=...
+  // Монтирование: сперва пробуем восстановить позицию (возврат «Назад» из карточки
+  // цен), и только если восстанавливать нечего — запускаем поиск по initialVin.
   useEffect(() => {
-    if (initialVin) {
+    let restored = false;
+    try {
+      const raw = sessionStorage.getItem(NAV_STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as SavedNav;
+        // Не подменяем явный заход по другому VIN запомненной схемой.
+        const sameContext =
+          !initialVin ||
+          (saved.car?.vin || saved.query || "").toUpperCase() ===
+            initialVin.toUpperCase();
+        if (saved?.car && sameContext) {
+          restored = true;
+          setQuery(saved.query || "");
+          setCar(saved.car);
+          setPath(saved.path || []);
+          if (saved.partsGroup) {
+            void loadParts(saved.car, saved.partsGroup);
+          } else {
+            const groupId = saved.path?.length
+              ? saved.path[saved.path.length - 1].id
+              : "";
+            void loadGroups(saved.car, groupId);
+          }
+        }
+      }
+    } catch {}
+
+    if (!restored && initialVin) {
       setQuery(initialVin);
       void runSearch(initialVin);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Запоминаем текущую позицию в каталоге, пока выбрано авто. Чистка — в
+  // resetSearch / runSearch (там контекст меняется осознанно).
+  useEffect(() => {
+    if (!car) return;
+    try {
+      const snapshot: SavedNav = { query, car, path, partsGroup };
+      sessionStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {}
+  }, [car, path, partsGroup, query]);
 
   function openGroup(g: GoodvinGroup) {
     if (!car) return;
@@ -225,6 +282,9 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
   }
 
   function resetSearch() {
+    try {
+      sessionStorage.removeItem(NAV_STORAGE_KEY);
+    } catch {}
     setCar(null);
     setCars([]);
     setGroups([]);

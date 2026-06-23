@@ -503,7 +503,7 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
 
           {/* Детали узла */}
           {!loading && parts && (
-            <PartsView parts={parts} />
+            <PartsView parts={parts} backVin={car.vin || car.frame || query} />
           )}
         </div>
       )}
@@ -511,7 +511,15 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
   );
 }
 
-function PartsView({ parts }: { parts: GoodvinParts }) {
+function PartsView({
+  parts,
+  backVin,
+}: {
+  parts: GoodvinParts;
+  /** VIN/Frame текущего авто — чтобы из карточки цен можно было вернуться на
+   *  эту же схему (см. ссылку «Цены» ниже и /catalog → «Назад в каталог по VIN»). */
+  backVin?: string;
+}) {
   // Активная позиция (номер выноски). Подсвечивает зону на схеме и деталь(и)
   // в списке. Меняется кликом по схеме или по строке детали.
   const [active, setActive] = useState<string | null>(null);
@@ -530,6 +538,32 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
   const selectFromList = useCallback((num: string) => {
     setActive((prev) => (prev === num ? null : num));
   }, []);
+
+  // Сколько деталей делят одну выноску. GoodVin может вернуть на одной позиции
+  // несколько артикулов (замена по году выпуска, зависимость от комплектации
+  // или их физически несколько) — при клике подсвечиваются все, поэтому помечаем
+  // их «вариант N из M», чтобы повтор не выглядел багом. Считаем по всем группам
+  // деталей: подсветка active === positionNumber тоже сквозная.
+  const posCounts = new Map<string, number>();
+  for (const pg of parts.partGroups) {
+    for (const p of pg.parts) {
+      const k = p.positionNumber || "";
+      if (k) posCounts.set(k, (posCounts.get(k) ?? 0) + 1);
+    }
+  }
+  const variantSeen = new Map<string, number>();
+  const variantInfo = new Map<string, { index: number; total: number }>();
+  parts.partGroups.forEach((pg, gi) => {
+    pg.parts.forEach((p, pi) => {
+      const k = p.positionNumber || "";
+      const total = k ? posCounts.get(k) ?? 0 : 0;
+      if (total > 1) {
+        const index = (variantSeen.get(k) ?? 0) + 1;
+        variantSeen.set(k, index);
+        variantInfo.set(`${gi}-${pi}`, { index, total });
+      }
+    });
+  });
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -605,6 +639,7 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
               {pg.parts.map((part, pi) => {
                 const pos = part.positionNumber || "";
                 const isActive = pos !== "" && active === pos;
+                const variant = variantInfo.get(`${gi}-${pi}`);
                 return (
                   <div
                     key={`${part.id}-${pi}`}
@@ -634,6 +669,14 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-neutral-100">
                         {part.name}
+                        {variant && (
+                          <span
+                            title="На этой позиции схемы несколько артикулов — выберите подходящий"
+                            className="ml-2 inline-block whitespace-nowrap rounded bg-orange-500/10 px-1.5 py-0.5 align-middle text-[11px] font-medium text-orange-400/90"
+                          >
+                            вариант {variant.index} из {variant.total}
+                          </span>
+                        )}
                       </p>
                       {part.number && (
                         <p className="font-mono text-xs text-neutral-400">
@@ -646,7 +689,13 @@ function PartsView({ parts }: { parts: GoodvinParts }) {
                     </div>
                     {part.number && (
                       <Link
-                        href={`/catalog?article=${encodeURIComponent(part.number)}`}
+                        href={`/catalog?article=${encodeURIComponent(
+                          part.number
+                        )}${
+                          backVin
+                            ? `&fromVin=${encodeURIComponent(backVin)}`
+                            : ""
+                        }`}
                         className="shrink-0"
                         onClick={(e) => e.stopPropagation()}
                       >

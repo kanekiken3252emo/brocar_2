@@ -135,6 +135,10 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
   const brand = searchParams?.get("brand");
   const model = searchParams?.get("model");
   const category = searchParams?.get("category");
+  // Откуда пришли: при заходе из VIN-каталога (кнопка «Цены» на схеме узла)
+  // ссылка несёт исходный VIN — он нужен только чтобы кнопка «Назад» вернула
+  // на ту же схему, а не на главную. На выборку товаров не влияет.
+  const fromVin = searchParams?.get("fromVin");
 
   // Серверный засев первого показа: страница пришла server-rendered с готовыми
   // данными категории ИЛИ марки (initialData) и URL — «чистый» заход в ту же
@@ -492,11 +496,11 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
       <div className="container mx-auto px-4 py-5 md:py-6">
         <div className="mb-5">
           <Link
-            href="/"
+            href={fromVin ? `/catalog-vin?vin=${encodeURIComponent(fromVin)}` : "/"}
             className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-3 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Вернуться на главную
+            {fromVin ? "Назад в каталог по VIN" : "Вернуться на главную"}
           </Link>
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
@@ -729,8 +733,14 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
                 которых нет в поиске по названию.
               </p>
             )}
-            <Link href="/">
-              <Button size="lg">Вернуться на главную</Button>
+            <Link
+              href={
+                fromVin ? `/catalog-vin?vin=${encodeURIComponent(fromVin)}` : "/"
+              }
+            >
+              <Button size="lg">
+                {fromVin ? "Назад в каталог по VIN" : "Вернуться на главную"}
+              </Button>
             </Link>
           </div>
         )}

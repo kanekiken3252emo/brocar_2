@@ -161,13 +161,21 @@ async function getHandler(request: NextRequest) {
     // Tier 3 — fuzzy (pg_trgm). Безопасно пропускается, если расширение не стоит.
     if (rows.length === 0) {
       try {
-        const wsim = dsql`word_similarity(${qNorm}, ${NAME_NORM})`;
-        rows = await db
-          .select(SELECT)
-          .from(products)
-          .where(and(stockPositive, dsql`${wsim} > 0.4`))
-          .orderBy(dsql`${wsim} DESC`)
-          .limit(50);
+        // Оператор `<%` (word_similarity), а НЕ функция word_similarity(...) > 0.4:
+        // только оператор задействует GIN-индекс idx_products_name_trgm. С функцией
+        // был seq scan по 866к строк (~7с на каждую опечатку). Порог `<%` берётся из
+        // GUC word_similarity_threshold (дефолт 0.6) — ставим 0.4 через SET LOCAL,
+        // чтобы сохранить прежнюю «ширину» нечёткого поиска. SET LOCAL действует
+        // только внутри этой транзакции (пул соединений не загрязняем).
+        rows = await db.transaction(async (tx) => {
+          await tx.execute(dsql`SET LOCAL pg_trgm.word_similarity_threshold = 0.4`);
+          return await tx
+            .select(SELECT)
+            .from(products)
+            .where(and(stockPositive, dsql`${qNorm} <% ${NAME_NORM}`))
+            .orderBy(dsql`word_similarity(${qNorm}, ${NAME_NORM}) DESC`)
+            .limit(50);
+        });
         if (rows.length) mode = "fuzzy";
       } catch {
         // pg_trgm не установлено — фаззи-поиск недоступен, это не ошибка.

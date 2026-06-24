@@ -1,63 +1,55 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-auth";
-import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db";
+import { profiles } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { toProfileResponse } from "@/lib/db/serialize";
 
 /**
- * GET /api/profile - Получить профиль текущего пользователя
- * Требует JWT авторизацию
+ * GET /api/profile — профиль текущего пользователя.
+ * Читаем через drizzle (наша БД), а НЕ через supabase.from (PostgREST) — иначе
+ * после переезда БД на VK ходили бы в старый Supabase. Если профиля нет —
+ * создаём лениво (заменяет триггер handle_new_user, которого на VK нет).
+ * Авторизация остаётся на Supabase; identity берём из JWT (user).
  */
-export const GET = withAuth(async (request, { user }) => {
+export const GET = withAuth(async (_request, { user }) => {
   try {
-    const supabase = await createClient();
+    let [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, user.id))
+      .limit(1);
 
-    // Получаем профиль пользователя из БД
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    if (!profile) {
+      // Ленивое создание (заменяет триггер handle_new_user, которого на VK нет).
+      // email — NOT NULL UNIQUE: для юзера без email кладём уникальный плейсхолдер
+      // (а не "", который у второго безымейлового нарушил бы UNIQUE). target:id —
+      // гасим только гонку двух параллельных GET, не маскируя конфликт по email.
+      const [created] = await db
+        .insert(profiles)
+        .values({ id: user.id, email: user.email ?? `${user.id}@noemail.local` })
+        .onConflictDoNothing({ target: profiles.id })
+        .returning();
+      profile =
+        created ??
+        (await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1))[0];
+    }
 
-    if (error) {
-      // Если профиля нет, создаём его
-      if (error.code === "PGRST116") {
-        const { data: newProfile, error: createError } = await supabase
-          .from("profiles")
-          .insert({
-            id: user.id,
-            email: user.email,
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          return NextResponse.json(
-            { error: "Failed to create profile" },
-            { status: 500 }
-          );
-        }
-
-        return NextResponse.json({ profile: newProfile });
-      }
-
+    if (!profile) {
       return NextResponse.json(
-        { error: "Failed to fetch profile" },
+        { error: "Failed to create profile" },
         { status: 500 }
       );
     }
-
-    return NextResponse.json({ profile });
+    return NextResponse.json({ profile: toProfileResponse(profile) });
   } catch (error) {
     console.error("Profile fetch error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 });
 
 /**
- * PATCH /api/profile - Обновить профиль пользователя
- * Требует JWT авторизацию
+ * PATCH /api/profile — обновить профиль (drizzle → наша БД).
  */
 export const PATCH = withAuth(async (request, { user }) => {
   try {
@@ -73,41 +65,30 @@ export const PATCH = withAuth(async (request, { user }) => {
       max_messenger,
     } = body;
 
-    const supabase = await createClient();
-
-    // Обновляем только разрешенные поля
-    const updates: Record<string, unknown> = {};
-    if (full_name !== undefined) updates.full_name = full_name;
+    // Только разрешённые поля; вход snake_case (от фронта) → camelCase (drizzle).
+    const updates: Partial<typeof profiles.$inferInsert> = {};
+    if (full_name !== undefined) updates.fullName = full_name;
     if (phone !== undefined) updates.phone = phone;
-    if (avatar_url !== undefined) updates.avatar_url = avatar_url;
-    if (contact_email !== undefined) updates.contact_email = contact_email;
+    if (avatar_url !== undefined) updates.avatarUrl = avatar_url;
+    if (contact_email !== undefined) updates.contactEmail = contact_email;
     if (telegram !== undefined) updates.telegram = telegram;
     if (whatsapp !== undefined) updates.whatsapp = whatsapp;
     if (vk !== undefined) updates.vk = vk;
-    if (max_messenger !== undefined) updates.max_messenger = max_messenger;
+    if (max_messenger !== undefined) updates.maxMessenger = max_messenger;
+    updates.updatedAt = new Date();
 
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", user.id)
-      .select()
-      .single();
+    const [profile] = await db
+      .update(profiles)
+      .set(updates)
+      .where(eq(profiles.id, user.id))
+      .returning();
 
-    if (error) {
-      console.error("Profile update error:", error);
-      return NextResponse.json(
-        { error: "Failed to update profile" },
-        { status: 500 }
-      );
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
-
-    return NextResponse.json({ profile });
+    return NextResponse.json({ profile: toProfileResponse(profile) });
   } catch (error) {
     console.error("Profile update error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 });
-

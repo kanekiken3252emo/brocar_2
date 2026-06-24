@@ -13,8 +13,14 @@ const isPooler = connectionString.includes("pooler.supabase.com");
 export const client = postgres(connectionString, {
   // Transaction pooler не поддерживает prepared statements — отключаем.
   prepare: !isPooler,
-  // Supabase-хосты всегда требуют SSL.
-  ssl: connectionString.includes("supabase.com") ? "require" : undefined,
+  // SSL обязателен и для Supabase, и для VK. Раньше включался только по подстроке
+  // "supabase.com" — у VK-хоста её нет. Поэтому завязываемся ещё и на sslmode=require
+  // в строке подключения (для VK он там обязателен → DATABASE_URL=...?sslmode=require).
+  ssl:
+    connectionString.includes("supabase.com") ||
+    connectionString.includes("sslmode=require")
+      ? "require"
+      : undefined,
   max: isPooler ? 10 : 5,
   // НЕ закрываем соединения по простою (раньше было idle_timeout: 20с).
   // Замер показал: установка соединения с пулером Supabase стоит ~1с (несколько

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-auth";
-import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db";
+import { vehicles } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
+import { toVehicleResponse } from "@/lib/db/serialize";
 
 function cleanVin(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -8,64 +11,64 @@ function cleanVin(raw: unknown): string | null {
   return v.length ? v : null;
 }
 
-/** PATCH /api/garage/[id] — обновить машину (например, пробег) */
+/** PATCH /api/garage/[id] — обновить машину (например, пробег). Только свою. */
 export const PATCH = withAuth(async (request, { user, params }) => {
   const id = Number.parseInt(params?.id, 10);
   if (!Number.isFinite(id)) {
     return NextResponse.json({ error: "Некорректный id" }, { status: 400 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const updates: Record<string, unknown> = {};
+  try {
+    const body = await request.json().catch(() => ({}));
+    const updates: Partial<typeof vehicles.$inferInsert> = {};
 
-  if (body.nickname !== undefined)
-    updates.nickname = body.nickname?.trim() || null;
-  if (body.brand !== undefined) updates.brand = body.brand?.trim() || null;
-  if (body.model !== undefined) updates.model = body.model?.trim() || null;
-  if (body.year !== undefined) {
-    const y = Number.parseInt(body.year, 10);
-    updates.year = Number.isFinite(y) ? y : null;
-  }
-  if (body.vin !== undefined) updates.vin = cleanVin(body.vin);
-  if (body.mileage !== undefined) {
-    const m = Number.parseInt(body.mileage, 10);
-    updates.mileage = Number.isFinite(m) ? m : null;
-  }
-  updates.updated_at = new Date().toISOString();
+    if (body.nickname !== undefined)
+      updates.nickname = body.nickname?.trim() || null;
+    if (body.brand !== undefined) updates.brand = body.brand?.trim() || null;
+    if (body.model !== undefined) updates.model = body.model?.trim() || null;
+    if (body.year !== undefined) {
+      const y = Number.parseInt(body.year, 10);
+      updates.year = Number.isFinite(y) ? y : null;
+    }
+    if (body.vin !== undefined) updates.vin = cleanVin(body.vin);
+    if (body.mileage !== undefined) {
+      const m = Number.parseInt(body.mileage, 10);
+      updates.mileage = Number.isFinite(m) ? m : null;
+    }
+    updates.updatedAt = new Date();
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("vehicles")
-    .update(updates)
-    .eq("id", id)
-    .eq("user_id", user.id) // защита: только своя машина (плюс RLS)
-    .select()
-    .single();
+    // Фильтр по userId — ЕДИНСТВЕННАЯ защита «только своя машина»: на VK нет RLS.
+    const [updated] = await db
+      .update(vehicles)
+      .set(updates)
+      .where(and(eq(vehicles.id, id), eq(vehicles.userId, user.id)))
+      .returning();
 
-  if (error) {
+    if (!updated) {
+      return NextResponse.json({ error: "Машина не найдена" }, { status: 404 });
+    }
+    return NextResponse.json({ vehicle: toVehicleResponse(updated) });
+  } catch (error) {
     console.error("Garage update error:", error);
     return NextResponse.json({ error: "Не удалось обновить машину" }, { status: 500 });
   }
-  return NextResponse.json({ vehicle: data });
 });
 
-/** DELETE /api/garage/[id] — удалить машину */
+/** DELETE /api/garage/[id] — удалить машину. Только свою. */
 export const DELETE = withAuth(async (_request, { user, params }) => {
   const id = Number.parseInt(params?.id, 10);
   if (!Number.isFinite(id)) {
     return NextResponse.json({ error: "Некорректный id" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("vehicles")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
-
-  if (error) {
+  try {
+    // Фильтр по userId — единственная защита «только своя машина» (RLS на VK нет).
+    await db
+      .delete(vehicles)
+      .where(and(eq(vehicles.id, id), eq(vehicles.userId, user.id)));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
     console.error("Garage delete error:", error);
     return NextResponse.json({ error: "Не удалось удалить машину" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
 });

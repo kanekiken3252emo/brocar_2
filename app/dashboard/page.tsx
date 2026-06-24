@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { orders as ordersTable } from "@/lib/db/schema";
+import { orders as ordersTable, profiles } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,16 +28,16 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
-  // Загружаем имя из profiles
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .single();
+  // Имя из profiles — через drizzle (наша БД), а не supabase.from (PostgREST),
+  // чтобы после переезда БД на VK читать оттуда же, куда пишет /api/profile.
+  const [profile] = await db
+    .select({ fullName: profiles.fullName })
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+    .limit(1);
 
   const displayName =
-    profile?.full_name?.trim() || user.email?.split("@")[0] || "Пользователь";
+    profile?.fullName?.trim() || user.email?.split("@")[0] || "Пользователь";
 
   // Реальные заказы пользователя из БД
   const orders = await db.query.orders.findMany({

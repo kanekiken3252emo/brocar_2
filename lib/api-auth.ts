@@ -29,7 +29,7 @@ export function withAuth(
       }
 
       // Вызываем оригинальный handler с данными пользователя
-      return handler(request, { user, params: context?.params });
+      return handler(request, { user, params: await context?.params });
     } catch (error) {
       console.error("Auth middleware error:", error);
       return NextResponse.json(
@@ -59,11 +59,11 @@ export function withOptionalAuth(
       } = await supabase.auth.getUser();
 
       // Вызываем handler с user или null
-      return handler(request, { user: user || null, params: context?.params });
+      return handler(request, { user: user || null, params: await context?.params });
     } catch (error) {
       console.error("Optional auth middleware error:", error);
       // В случае ошибки просто передаём null
-      return handler(request, { user: null, params: context?.params });
+      return handler(request, { user: null, params: await context?.params });
     }
   };
 }

@@ -291,7 +291,11 @@ export default function ProductClient({
                 {displayBrand}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+            <h1
+              className={`text-2xl md:text-3xl font-bold text-white leading-tight transition-opacity duration-300 ${
+                loading && product ? "opacity-80" : "opacity-100"
+              }`}
+            >
               {displayName}
             </h1>
           </div>
@@ -318,8 +322,22 @@ export default function ProductClient({
                 </div>
               ) : minPrice ? (
                 <div className="bg-gradient-to-r from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-5 md:p-6">
-                  <div className="text-sm text-neutral-400 mb-1">Цена от</div>
-                  <div className="text-4xl font-bold text-white">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="text-sm text-neutral-400">Цена от</div>
+                    {/* Пока идёт живой опрос поставщиков — показываем, что цифры
+                        предварительные и уточняются (а не «глючат»). */}
+                    {loading && product && (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-orange-300/90">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                        обновляем цену и наличие…
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={`text-4xl font-bold text-white transition-opacity duration-300 ${
+                      loading && product ? "opacity-60" : "opacity-100"
+                    }`}
+                  >
                     {minPrice.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
                   </div>
                 </div>
@@ -346,7 +364,11 @@ export default function ProductClient({
                 {!product && loading ? (
                   <div className="h-10 w-44 bg-neutral-800 border border-neutral-700 rounded-xl animate-pulse" />
                 ) : totalStock > 0 ? (
-                  <div className="flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl">
+                  <div
+                    className={`flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl transition-opacity duration-300 ${
+                      loading && product ? "opacity-60" : "opacity-100"
+                    }`}
+                  >
                     <CheckCircle className="w-5 h-5" />
                     <span className="font-semibold">В наличии: {totalStock} шт.</span>
                   </div>

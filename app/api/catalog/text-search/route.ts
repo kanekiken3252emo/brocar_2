@@ -164,11 +164,12 @@ async function getHandler(request: NextRequest) {
         // Оператор `<%` (word_similarity), а НЕ функция word_similarity(...) > 0.4:
         // только оператор задействует GIN-индекс idx_products_name_trgm. С функцией
         // был seq scan по 866к строк (~7с на каждую опечатку). Порог `<%` берётся из
-        // GUC word_similarity_threshold (дефолт 0.6) — ставим 0.4 через SET LOCAL,
-        // чтобы сохранить прежнюю «ширину» нечёткого поиска. SET LOCAL действует
-        // только внутри этой транзакции (пул соединений не загрязняем).
+        // GUC word_similarity_threshold (дефолт 0.6) — ставим 0.5 через SET LOCAL:
+        // компромисс ширина/скорость. При 0.4 индекс отдавал слишком много кандидатов
+        // (~1.1с на ранжирование), 0.5 — меньше кандидатов, чище матчи, быстрее.
+        // SET LOCAL действует только внутри этой транзакции (пул не загрязняем).
         rows = await db.transaction(async (tx) => {
-          await tx.execute(dsql`SET LOCAL pg_trgm.word_similarity_threshold = 0.4`);
+          await tx.execute(dsql`SET LOCAL pg_trgm.word_similarity_threshold = 0.5`);
           return await tx
             .select(SELECT)
             .from(products)

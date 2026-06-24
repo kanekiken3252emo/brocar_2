@@ -20,15 +20,20 @@ fi
 
 line() { echo "=================================================================="; }
 
-line; echo "1) Ищу строку подключения к Supabase (источник)"
-SRC=$(docker exec brocar-app printenv DATABASE_URL 2>/dev/null || true)
+line; echo "1) Источник: session-пулер Supabase (IPv4 :5432; direct по IPv6 с VPS недоступен)"
+# direct-хост Supabase отдаётся только по IPv6, у VPS IPv6 нет → берём пулер
+# (IPv4) и переключаем транзакционный порт 6543 на session 5432 (pg_dump требует
+# session-режим). sslmode=require — Supabase всегда по SSL.
+POOL=$(docker exec brocar-app printenv DATABASE_POOLER_URL 2>/dev/null || true)
 for f in /var/www/brocar/.env /var/www/brocar/.env.local; do
-  if [ -z "$SRC" ] && [ -f "$f" ]; then
-    SRC=$(grep -E '^DATABASE_URL=' "$f" | head -1 | cut -d= -f2- | tr -d '"')
+  if [ -z "$POOL" ] && [ -f "$f" ]; then
+    POOL=$(grep -E '^DATABASE_POOLER_URL=' "$f" | head -1 | cut -d= -f2- | tr -d '"')
   fi
 done
-if [ -z "$SRC" ]; then echo "  ОШИБКА: DATABASE_URL не найден ни в контейнере, ни в .env"; exit 1; fi
-echo "  ок (источник найден)"
+if [ -z "$POOL" ]; then echo "  ОШИБКА: DATABASE_POOLER_URL не найден"; exit 1; fi
+SRC=$(echo "$POOL" | sed -E 's#:6543/#:5432/#')
+SRC="${SRC%%\?*}?sslmode=require"
+echo "  ок (источник: $(echo "$SRC" | sed -E 's#//[^@]+@#//***@#'))"
 
 line; echo "2) Проверяю, что источник дампится (pg_dump schema-only по products)"
 if ! docker run --rm "$IMG" pg_dump "$SRC" --schema-only -t public.products >/dev/null 2>/tmp/pgd_err; then

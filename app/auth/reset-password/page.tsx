@@ -2,18 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { translateAuthError } from "@/lib/auth-errors";
+import { updatePasswordWithToken, getBackend } from "@/lib/auth/client-actions";
 import { Lock, ArrowRight, CheckCircle2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -21,10 +18,15 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const router = useRouter();
 
-  // Клиент создаём только в браузере — на этой странице из URL автоматически
-  // подхватывается сессия восстановления (?code=... из письма).
+  // В supabase-режиме заранее инициализируем клиент — при создании он подхватывает
+  // recovery-сессию из URL (?code/#access_token из письма). В local-режиме токен
+  // берём из ?token= прямо при отправке, предзагрузка не нужна.
   useEffect(() => {
-    setSupabase(createClient());
+    getBackend().then((backend) => {
+      if (backend !== "local") {
+        import("@/lib/supabase/client").then(({ createClient }) => createClient());
+      }
+    });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,24 +41,19 @@ export default function ResetPasswordPage() {
       setError("Пароли не совпадают");
       return;
     }
-    if (!supabase) {
-      setError("Ошибка инициализации — обновите страницу");
-      return;
-    }
 
     setIsLoading(true);
     try {
-      const { error: updErr } = await supabase.auth.updateUser({ password });
+      // local: одноразовый токен из ссылки письма. supabase: не используется.
+      const token =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("token")
+          : null;
+
+      const { error: updErr } = await updatePasswordWithToken(password, token);
 
       if (updErr) {
-        const msg = (updErr.message ?? "").toLowerCase();
-        if (msg.includes("session") || msg.includes("missing") || msg.includes("jwt")) {
-          setError(
-            "Ссылка недействительна или устарела. Запросите письмо для сброса заново."
-          );
-        } else {
-          setError(translateAuthError(updErr.message, updErr.code));
-        }
+        setError(updErr);
         return;
       }
 

@@ -303,6 +303,67 @@ export async function sendOrderPlacedToCustomer(
 }
 
 /**
+ * Письмо «Сброс пароля» — со ссылкой, по которой можно задать новый пароль.
+ * Используется локальной авторизацией (self-host вместо Supabase Auth).
+ * Бросает ошибку при сбое SMTP — роут /api/auth/forgot-password её проглатывает
+ * (показываем «письмо отправлено» в любом случае — защита от перебора адресов).
+ */
+export async function sendPasswordResetEmail(
+  to: string,
+  resetUrl: string
+): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP не настроен — письмо сброса пароля не отправлено");
+    throw new Error("SMTP не настроен");
+  }
+  if (!isEmail(to)) throw new Error("Некорректный email");
+
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER!;
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "BroCar";
+  const logoUrl = "https://brocarparts.ru/Logo_Brocar.png";
+
+  const html = `
+  <div style="background:#f4f4f5;padding:24px 12px;font-family:Arial,sans-serif">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #eee;border-radius:12px;overflow:hidden">
+      <div style="background:#0d0d0d;padding:20px;text-align:center">
+        <img src="${logoUrl}" alt="${esc(siteName)}" width="96" height="96" style="display:inline-block;border-radius:50%" />
+      </div>
+      <div style="padding:28px 24px;color:#222">
+        <h2 style="color:#ea580c;margin:0 0 12px">Сброс пароля</h2>
+        <p style="margin:8px 0;line-height:1.6">
+          Вы (или кто-то) запросили сброс пароля для аккаунта <b>${esc(to)}</b> на ${esc(siteName)}.
+          Нажмите кнопку, чтобы задать новый пароль. Ссылка действует 1 час.
+        </p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${resetUrl}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:10px">
+            Задать новый пароль
+          </a>
+        </div>
+        <p style="margin:8px 0;color:#666;font-size:13px;line-height:1.6">
+          Если кнопка не работает, скопируйте ссылку в браузер:<br>
+          <a href="${resetUrl}" style="color:#ea580c;word-break:break-all">${esc(resetUrl)}</a>
+        </p>
+        <p style="margin:16px 0 0;color:#888;font-size:13px;line-height:1.6">
+          Если вы не запрашивали сброс — просто проигнорируйте это письмо, пароль останется прежним.
+        </p>
+      </div>
+      <div style="background:#f4f4f5;padding:18px 24px;color:#666;font-size:13px;text-align:center;border-top:1px solid #eee;line-height:1.7">
+        <div style="font-weight:bold;color:#333;margin-bottom:6px">${esc(siteName)} — автозапчасти, г. Екатеринбург</div>
+        <a href="mailto:info@brocarparts.ru" style="color:#ea580c;text-decoration:none">info@brocarparts.ru</a> · <a href="https://brocarparts.ru" style="color:#ea580c;text-decoration:none">brocarparts.ru</a>
+      </div>
+    </div>
+  </div>`;
+
+  await transporter.sendMail({
+    from: `"${siteName}" <${from}>`,
+    to,
+    subject: `Сброс пароля — ${siteName}`,
+    html,
+  });
+}
+
+/**
  * Письмо ПОКУПАТЕЛЮ: заказ готов к получению.
  */
 export async function sendOrderReadyToCustomer(

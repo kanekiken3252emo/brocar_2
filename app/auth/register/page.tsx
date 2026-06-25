@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { translateAuthError } from "@/lib/auth-errors";
+import { signUp } from "@/lib/auth/client-actions";
 import { UserPlus, Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
@@ -47,39 +46,17 @@ export default function RegisterPage() {
     }
 
     try {
-      const supabase = createClient();
-      
-      if (!supabase) {
-        setError("Ошибка инициализации");
-        return;
-      }
-      
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          // Куда вести из письма-подтверждения: наш callback обменяет код на
-          // сессию и пустит на главную уже залогиненным.
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error: signUpError, session } = await signUp(email, password);
 
       if (signUpError) {
-        setError(translateAuthError(signUpError.message, signUpError.code));
+        setError(signUpError);
         return;
       }
 
-      // При включённом подтверждении email Supabase НЕ отдаёт ошибку для уже
-      // существующего адреса (защита от перебора), но identities приходит пустым.
-      if (data.user && (data.user.identities?.length ?? 0) === 0) {
-        setError("Аккаунт с таким email уже существует");
-        return;
-      }
-
-      // Если подтверждение email отключено — Supabase сразу выдаёт сессию, то есть
-      // пользователь уже вошёл. Ведём на главную с уведомлением (полная навигация,
-      // чтобы сервер увидел свежие куки сессии).
-      if (data.session) {
+      // session=true — пользователь сразу вошёл (подтверждение email выключено).
+      // Ведём на главную с уведомлением (полная навигация, чтобы сервер увидел
+      // свежие куки сессии).
+      if (session) {
         try {
           sessionStorage.setItem(
             "brocar:flash",

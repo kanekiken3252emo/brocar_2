@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { translateAuthError } from "@/lib/auth-errors";
+import { requestPasswordReset } from "@/lib/auth/client-actions";
 import { KeyRound, Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
@@ -22,28 +21,15 @@ export default function ForgotPasswordPage() {
     setError("");
 
     try {
-      const supabase = createClient();
-      if (!supabase) {
-        setError("Ошибка инициализации");
-        return;
-      }
-
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email,
-        {
-          // Куда ведёт ссылка из письма. URL должен быть в списке разрешённых
-          // в Supabase → Authentication → URL Configuration → Redirect URLs.
-          redirectTo: `${window.location.origin}/auth/reset-password`,
-        }
-      );
+      const { error: resetError } = await requestPasswordReset(email);
 
       if (resetError) {
-        setError(translateAuthError(resetError.message, resetError.code));
+        setError(resetError);
         return;
       }
 
-      // Письмо отправлено (Supabase не сообщает, существует ли email —
-      // это защита от перебора, поэтому показываем успех в любом случае).
+      // Письмо отправлено. Существует ли email — не сообщаем (защита от перебора),
+      // поэтому показываем успех в любом случае.
       setSent(true);
     } catch (err) {
       setError("Не удалось отправить письмо — попробуйте ещё раз");

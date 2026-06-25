@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { translateAuthError } from "@/lib/auth-errors";
+import { signIn } from "@/lib/auth/client-actions";
 import { LogIn, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
@@ -23,21 +22,10 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const supabase = createClient();
-
-      if (!supabase) {
-        setError("Ошибка инициализации");
-        setIsLoading(false);
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: signInError } = await signIn(email, password);
 
       if (signInError) {
-        setError(translateAuthError(signInError.message, signInError.code));
+        setError(signInError);
         setIsLoading(false);
         return;
       }

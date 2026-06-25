@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { User, Phone, Mail, ArrowLeft, CheckCircle, Save } from "lucide-react";
 import Link from "next/link";
 
@@ -44,17 +43,14 @@ export default function ProfilePage() {
 
   const loadProfile = async () => {
     try {
-      const supabase = createClient();
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
+      const response = await fetch("/api/profile");
+
+      // 401 = не залогинен (проверка авторизации backend-agnostic, на сервере).
+      if (response.status === 401) {
         router.push("/auth/login");
         return;
       }
 
-      const response = await fetch("/api/profile");
-      
       if (!response.ok) {
         throw new Error("Failed to load profile");
       }

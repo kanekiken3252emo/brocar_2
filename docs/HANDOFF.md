@@ -67,12 +67,16 @@
 > - Откат: `cp .env.bak .env` + `docker compose up -d --force-recreate` → назад на Supabase (её данные при дампе не менялись).
 >
 > **ОСТАЛОСЬ (порядок согласован с владельцем):**
-> 1. **Фаза 2 — self-host авторизации (GoTrue)** на VPS, данные в VK. `auth.users` (емейлы/пароли)
->    ещё на Supabase в Ирландии — последний кусок 152-ФЗ. **Делаем ПЕРВЫМ.**
-> 2. **Уведомление РКН** (pd.rkn.gov.ru) — ПОСЛЕ Фазы 2, чтобы подать чистым «храним только в РФ»
+> 1. **Фаза 2 — авторизация в VK.** Решено НЕ поднимать GoTrue, а **встроить auth в сам
+>    сайт** (одна программа, меньше точек отказа на хрупком VPS). **КОД ГОТОВ** (ядро +
+>    API + рантайм-флаг `AUTH_BACKEND` + скрипты переноса; type-check и build зелёные).
+>    Осталось выполнить **cutover на VPS по [docs/AUTH-MIGRATION.md](AUTH-MIGRATION.md)**
+>    (создать таблицы в VK, перенести пользователей, поставить `AUTH_SECRET`, флипнуть
+>    `AUTH_BACKEND=local`). Откат — убрать флаг + перезапуск.
+> 2. **Уведомление РКН** (pd.rkn.gov.ru) — ПОСЛЕ cutover, чтобы подать чистым «храним только в РФ»
 >    (иначе пришлось бы декларировать трансграничную передачу из-за auth в Ирландии). Не затягивать.
 > 3. (Сделано) ~~Фикс fuzzy-поиска~~ — `<%` + GIN-индекс, опечатки 7.8с→~1.1с (×7).
-> 4. После ухода auth Supabase станет вообще не нужен (данные-доступ уже на drizzle/VK).
+> 4. После cutover Supabase станет вообще не нужен (данные-доступ уже на drizzle/VK).
 >
 > _Ниже — исторический план переноса (как делали), оставлен для справки._
 
@@ -101,33 +105,38 @@
 
 ---
 
-## 3. Авторизация (Supabase Auth → self-host) — что предстоит
+## 3. Авторизация (Supabase Auth → встроенная в сайт) — КОД ГОТОВ, ждёт cutover
 
-Сейчас вход/регистрация работают через **Supabase Auth (GoTrue), хостится у Supabase
-в Ирландии**. Для 152-ФЗ персональные данные (юзеры) тоже должны быть в РФ →
-self-host GoTrue на нашем VPS.
+**Решение (вместо GoTrue):** авторизацию встроили в сам сайт — отдельный сервис на
+VPS не поднимаем. Меньше точек отказа (на хрупком VPS уже ловили DNS-сбой), проще
+поддержка, всё в одном контейнере. Данные людей — в VK (Москва).
 
-### Объём (аудит этой сессии)
-`supabase.*` встречается в **19 файлах / 43 раза**. В основном это auth-флоу:
-`middleware.ts`, `lib/auth.ts`, `lib/api-auth.ts`, `app/auth/*` (login/register/
-reset/forgot/callback/confirm), `app/api/auth/signout`, `components/header.tsx`
-(logout), `components/logout-button.tsx`.
-Плюс несколько **чтений данных через `supabase.from(...)`**: `app/profile/page.tsx`,
-`app/dashboard/page.tsx`, `app/api/profile`, `app/api/garage/*` (читают `profiles`,
-гараж). Эти запросы идут через PostgREST Supabase — при полном уходе с Supabase их
-нужно либо переписать на drizzle (`db`), либо поднять PostgREST над VK PG.
+**Полная инструкция и шаги cutover → [docs/AUTH-MIGRATION.md](AUTH-MIGRATION.md).**
 
-### Шаги (черновик)
-1. Поднять GoTrue на VPS (docker), задать `JWT_SECRET`, перегенерировать `anon`/`service` ключи.
-2. Перенести таблицу `auth.users` (хэши паролей GoTrue совместимы — bcrypt).
-3. Настроить SMTP (для писем регистрации/сброса).
-4. Восстановить email-шаблоны из `docs/supabase-auth-emails.md` (их `pg_dump` НЕ захватит).
-5. Решить судьбу `supabase.from(...)`-чтений (drizzle vs PostgREST).
-6. Прогнать полный регресс: регистрация → письмо → вход → сброс пароля → выход.
+### Что сделано в коде
+- Таблицы `auth_users` (email + bcrypt-хеш) / `auth_tokens` (ссылки сброса) — в
+  `lib/db/schema.ts`. Ядро в `lib/auth/*` (password/session/tokens/users/cookies/config).
+- API `app/api/auth/{login,register,logout,forgot-password,reset-password,mode}`.
+- Рантайм-флаг **`AUTH_BACKEND`** (`local`|`supabase`) — переключает И чтение
+  (`lib/auth.ts`, `lib/api-auth.ts`, `middleware.ts`), И запись (страницы `app/auth/*`
+  через `lib/auth/client-actions.ts`, режим узнают у `/api/auth/mode` в рантайме).
+- `bcryptjs` проверяет хеши Supabase ($2a$) → **старые пароли подходят**. Тот же uuid
+  сохраняем → заказы/гараж/профиль остаются привязаны.
+- Письмо сброса — `lib/email.ts:sendPasswordResetEmail` (наш SMTP, отдельных настроек не надо).
+- Скрипты: `scripts/create-auth-tables.mjs`, `scripts/migrate-auth-users.mjs`.
 
-### Главный подводный камень
-Email-шаблоны (подтверждение регистрации + сброс пароля) **не в коде и не в БД**, а в
-настройках Supabase Auth. Бэкап уже сделан: `docs/supabase-auth-emails.md`. Не потерять.
+### Что осталось (на VPS, по AUTH-MIGRATION.md)
+1. Выкатить код (авто-деплой соберёт `jose`/`bcryptjs`).
+2. `docker exec brocar-app node scripts/create-auth-tables.mjs` — таблицы в VK.
+3. `migrate-auth-users.mjs` c `SOURCE_DB_URL` = Supabase (из `.env.bak`) — перенос людей.
+4. Поставить `AUTH_SECRET` (`openssl rand -base64 48`) в `/var/www/brocar/.env`.
+5. Флипнуть `AUTH_BACKEND=local` + `docker compose up -d`. Дымовой тест. Откат — убрать флаг.
+
+### Подводный камень (учтён)
+В нашем Dockerfile `next build` идёт БЕЗ env из compose (env_file — только рантайм),
+поэтому `NEXT_PUBLIC_*`-флаг был бы хрупким (впекается из in-image `.env.local`).
+Поэтому режим сделан чисто рантаймовым (`AUTH_BACKEND` + `/api/auth/mode`) — переключение
+без пересборки, откат мгновенный. Старые email-шаблоны Supabase больше не нужны (свои письма).
 
 ---
 

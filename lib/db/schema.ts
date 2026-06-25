@@ -14,6 +14,42 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+// Локальная авторизация (self-host вместо Supabase Auth — 152-ФЗ, данные в VK).
+// auth_users хранит логины: email + bcrypt-хеш пароля. id СОВПАДАЕТ с прежним
+// Supabase user id (uuid) — поэтому все ссылки (profiles.id, orders.user_id,
+// vehicles.user_id, carts.user_id) продолжают указывать на того же человека.
+// Включается флагом AUTH_BACKEND=local; пока supabase — таблица просто пустует.
+export const authUsers = pgTable("auth_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Храним email в нижнем регистре (нормализуем при записи и поиске).
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  // null = email ещё не подтверждён. У перенесённых из Supabase проставляем из
+  // их auth.users.email_confirmed_at — они смогут войти сразу.
+  emailConfirmedAt: timestamp("email_confirmed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// Одноразовые токены для писем: подтверждение email и сброс пароля. Храним
+// ХЕШ токена (sha256), а не сам токен — как и пароль. Сырой токен живёт только
+// в ссылке из письма. Истекают (expiresAt) и гасятся после использования (usedAt).
+export const authTokens = pgTable("auth_tokens", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").notNull(),
+  type: text("type").notNull(), // 'confirm' | 'reset'
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // Profiles table (User information)
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(), // References auth.users

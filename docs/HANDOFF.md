@@ -126,8 +126,10 @@ VPS не поднимаем. Меньше точек отказа (на хруп
 - Скрипты: `scripts/create-auth-tables.mjs`, `scripts/migrate-auth-users.mjs`.
 
 ### Что осталось (на VPS, по AUTH-MIGRATION.md)
-1. Выкатить код (авто-деплой соберёт `jose`/`bcryptjs`).
-2. `docker exec brocar-app node scripts/create-auth-tables.mjs` — таблицы в VK.
+1. Выкатить код (авто-деплой соберёт `jose`/`bcryptjs`). **СДЕЛАНО — коммит 564f343.**
+2. Создать таблицы в VK: `docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts` →
+   `docker exec -u root brocar-app node /app/scripts/create-auth-tables.mjs` (скрипты
+   НЕ в образе — копируем как ночной cron).
 3. `migrate-auth-users.mjs` c `SOURCE_DB_URL` = Supabase (из `.env.bak`) — перенос людей.
 4. Поставить `AUTH_SECRET` (`openssl rand -base64 48`) в `/var/www/brocar/.env`.
 5. Флипнуть `AUTH_BACKEND=local` + `docker compose up -d`. Дымовой тест. Откат — убрать флаг.

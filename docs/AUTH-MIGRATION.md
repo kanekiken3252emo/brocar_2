@@ -62,11 +62,17 @@ openssl rand -base64 48
 Запушить ветку → авто-деплой соберёт образ (поставит `jose`/`bcryptjs`). Убедись,
 что деплой прошёл и сайт открывается (он ещё на Supabase — ничего не изменилось).
 
+> Скрипты НЕ лежат в образе — как ночной cron, сначала копируем их в контейнер
+> (`docker cp`), потом запускаем по пути `/app/scripts/...`. Env (VK) уже в
+> контейнере из env_file. `postgres` берётся из `/app/node_modules` (есть в образе).
+
 ### 2. Создать таблицы в VK
-Внутри контейнера (там env = VK):
+Зайти по SSH (`ssh root@217.114.7.83`) и выполнить по очереди:
 
 ```
-docker exec brocar-app node scripts/create-auth-tables.mjs
+docker exec -u root brocar-app mkdir -p /app/scripts
+docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts
+docker exec -u root brocar-app node /app/scripts/create-auth-tables.mjs
 ```
 
 Ждём `🎉 Готово` (auth_users + auth_tokens + индексы).
@@ -74,10 +80,10 @@ docker exec brocar-app node scripts/create-auth-tables.mjs
 ### 3. Перенести пользователей из Supabase → VK
 Нужна строка подключения к Supabase — она сохранена в `/var/www/brocar/.env.bak`
 (это бэкап до переезда БД, там `DATABASE_POOLER_URL` = Supabase). Подставь её в
-`SOURCE_DB_URL`:
+`SOURCE_DB_URL` (скрипты уже скопированы на шаге 2):
 
 ```
-docker exec -e SOURCE_DB_URL="<строка Supabase из .env.bak>" brocar-app node scripts/migrate-auth-users.mjs
+docker exec -u root -e SOURCE_DB_URL="<строка Supabase из .env.bak>" brocar-app node /app/scripts/migrate-auth-users.mjs
 ```
 
 В выводе: `Найдено в Supabase: N`, `Перенесено: N`, `Итого в VK auth_users: N`.

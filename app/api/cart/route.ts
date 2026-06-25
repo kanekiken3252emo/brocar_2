@@ -69,33 +69,117 @@ async function upsertProductByArticle(input: {
   return inserted.id;
 }
 
-async function getOrCreateCart(userId: string | null, sessionId: string) {
-  // Try to find existing cart
-  let cart;
-
-  if (userId) {
-    cart = await db.query.carts.findFirst({
-      where: eq(carts.userId, userId),
+/**
+ * Переносит позиции из одной корзины в другую: одинаковый товар — суммируем
+ * количество, новый — просто перевешиваем на целевую. Источник после вызова
+ * можно удалять.
+ */
+async function mergeCartItems(fromCartId: number, toCartId: number) {
+  const fromItems = await db.query.cartItems.findMany({
+    where: eq(cartItems.cartId, fromCartId),
+  });
+  for (const it of fromItems) {
+    const existing = await db.query.cartItems.findFirst({
+      where: and(
+        eq(cartItems.cartId, toCartId),
+        eq(cartItems.productId, it.productId)
+      ),
     });
-  } else {
-    cart = await db.query.carts.findFirst({
+    if (existing) {
+      await db
+        .update(cartItems)
+        .set({ qty: existing.qty + it.qty })
+        .where(eq(cartItems.id, existing.id));
+      await db.delete(cartItems).where(eq(cartItems.id, it.id));
+    } else {
+      await db
+        .update(cartItems)
+        .set({ cartId: toCartId })
+        .where(eq(cartItems.id, it.id));
+    }
+  }
+}
+
+/**
+ * Находит/создаёт корзину пользователя. Ключевая идея персистентности: у
+ * залогиненного корзина несёт ОБА ключа — userId И sessionId. Тогда:
+ *   • гость добавил товары и залогинился → гостевая корзина (по sessionId)
+ *     сливается в корзину аккаунта (а не теряется);
+ *   • юзера выкинуло с аккаунта (токен истёк) → он снова «гость» с тем же
+ *     sessionId, и та же корзина находится по sessionId (а не сбрасывается).
+ * Кука session_id живёт всегда (см. setSessionCookie), и для залогиненных тоже.
+ */
+async function getOrCreateCart(userId: string | null, sessionId: string) {
+  // Гость — корзина по sessionId.
+  if (!userId) {
+    let cart = await db.query.carts.findFirst({
       where: eq(carts.sessionId, sessionId),
     });
+    if (!cart) {
+      [cart] = await db.insert(carts).values({ sessionId }).returning();
+    }
+    return cart;
   }
 
-  // Create cart if it doesn't exist
-  if (!cart) {
-    const [newCart] = await db
-      .insert(carts)
-      .values({
-        userId: userId || null,
-        sessionId: userId ? null : sessionId,
-      })
+  // Залогинен. Сводим корзину аккаунта и гостевую (если есть) в одну строку.
+  let userCart = await db.query.carts.findFirst({
+    where: eq(carts.userId, userId),
+  });
+  const sessionCart = await db.query.carts.findFirst({
+    where: eq(carts.sessionId, sessionId),
+  });
+
+  // Нет корзины аккаунта, но есть гостевая → «присваиваем» её юзеру
+  // (оставляя sessionId — чтобы пережить будущий разлогин).
+  if (!userCart && sessionCart) {
+    [userCart] = await db
+      .update(carts)
+      .set({ userId })
+      .where(eq(carts.id, sessionCart.id))
       .returning();
-    cart = newCart;
+    return userCart!;
   }
 
-  return cart;
+  // Совсем нет корзины → создаём сразу с обоими ключами.
+  if (!userCart) {
+    const [created] = await db
+      .insert(carts)
+      .values({ userId, sessionId })
+      .returning();
+    return created;
+  }
+
+  // Корзина аккаунта есть. Если отдельная гостевая — сливаем её и удаляем.
+  if (sessionCart && sessionCart.id !== userCart.id) {
+    await mergeCartItems(sessionCart.id, userCart.id);
+    if (!userCart.promoCode && sessionCart.promoCode) {
+      await db
+        .update(carts)
+        .set({ promoCode: sessionCart.promoCode })
+        .where(eq(carts.id, userCart.id));
+    }
+    await db.delete(carts).where(eq(carts.id, sessionCart.id));
+  }
+
+  // Гарантируем, что корзина аккаунта несёт текущий sessionId (для разлогина).
+  if (userCart.sessionId !== sessionId) {
+    [userCart] = await db
+      .update(carts)
+      .set({ sessionId })
+      .where(eq(carts.id, userCart.id))
+      .returning();
+  }
+
+  return userCart;
+}
+
+/** Кука гостевой сессии — ставится всегда (в т.ч. залогиненным), 30 дней. */
+function setSessionCookie(response: NextResponse, sessionId: string) {
+  response.cookies.set("session_id", sessionId, {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+  });
 }
 
 async function getCartWithItems(cartId: number) {
@@ -186,14 +270,8 @@ export async function GET() {
 
     const response = NextResponse.json(cartData || { items: [], subtotal: 0, total: 0 });
 
-    // Set session cookie if not authenticated
-    if (!user) {
-      response.cookies.set("session_id", sessionId, {
-        httpOnly: true,
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-      });
-    }
+    // Куку ставим всегда — она якорь корзины и при логине, и после разлогина.
+    setSessionCookie(response, sessionId);
 
     return response;
   } catch (error) {
@@ -211,7 +289,9 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     let sessionId = cookieStore.get("session_id")?.value;
 
-    if (!sessionId && !user) {
+    // sessionId нужен всегда (и залогиненным) — он якорь корзины для слияния
+    // при логине и для сохранения после разлогина.
+    if (!sessionId) {
       sessionId = generateSessionId();
     }
 
@@ -259,13 +339,7 @@ export async function POST(request: NextRequest) {
 
       const cartData = await getCartWithItems(cart.id);
       const response = NextResponse.json(cartData);
-      if (!user) {
-        response.cookies.set("session_id", sessionId!, {
-          httpOnly: true,
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30,
-        });
-      }
+      setSessionCookie(response, sessionId);
       return response;
     }
 
@@ -341,16 +415,7 @@ export async function POST(request: NextRequest) {
 
     const cartData = await getCartWithItems(cart.id);
     const response = NextResponse.json(cartData);
-
-    // Set session cookie if not authenticated
-    if (!user) {
-      response.cookies.set("session_id", sessionId!, {
-        httpOnly: true,
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-      });
-    }
-
+    setSessionCookie(response, sessionId);
     return response;
   } catch (error) {
     if (error instanceof z.ZodError) {

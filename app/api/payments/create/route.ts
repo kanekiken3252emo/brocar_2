@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { createPayment, toAmountValue, type Receipt } from "@/lib/yookassa";
 import { publicBaseUrl } from "@/lib/site-url";
+import { applyPercentDiscount, round2 } from "@/lib/promo";
 
 const createPaymentSchema = z.object({
   orderId: z.number(),
@@ -69,16 +70,49 @@ export async function POST(request: NextRequest) {
         ? parseInt(process.env.PAYMENT_TAX_SYSTEM_CODE, 10)
         : undefined;
 
+      // ЮKassa ждёт в amount цену за ЕДИНИЦУ и требует, чтобы Σ(amount*qty)
+      // ровно равнялось сумме платежа. Скидку по промокоду раскладываем
+      // позиционно тем же методом, что и заказ; копеечный остаток (округления /
+      // легаси-заказы) кладём в последнюю позицию — тогда сумма чека сходится с
+      // суммой платежа до копейки. Раньше тут была цена×кол-во как «за единицу»
+      // и без учёта скидки → ЮKassa билась 400 (receipt.items.amount).
+      const pct = order.discountPct ? parseFloat(order.discountPct) : 0;
+      const { lines } = applyPercentDiscount(
+        order.items.map((it) => ({ price: parseFloat(it.price), qty: it.qty })),
+        pct
+      );
+      const entries = order.items.map((it, i) => ({
+        description: it.name.slice(0, 128),
+        qty: it.qty,
+        unit: lines[i].unit,
+      }));
+      const sum = round2(
+        entries.reduce((s, e) => s + round2(e.unit * e.qty), 0)
+      );
+      const remainder = round2(amount - sum);
+      if (remainder !== 0 && entries.length) {
+        const last = entries[entries.length - 1];
+        if (last.qty === 1) {
+          last.unit = round2(last.unit + remainder);
+        } else {
+          // qty>1: выделяем 1 шт. отдельной строкой с поправкой, чтобы amount
+          // оставался корректной ценой за единицу и сумма сошлась точно.
+          last.qty -= 1;
+          entries.push({
+            description: last.description,
+            qty: 1,
+            unit: round2(last.unit + remainder),
+          });
+        }
+      }
+
       receipt = {
         customer: { email: user.email ?? undefined },
         tax_system_code: taxSystemCode,
-        items: order.items.map((item) => ({
-          description: item.name.slice(0, 128),
-          quantity: item.qty.toFixed(2),
-          amount: {
-            value: toAmountValue(parseFloat(item.price) * item.qty),
-            currency: "RUB",
-          },
+        items: entries.map((e) => ({
+          description: e.description,
+          quantity: e.qty.toFixed(2),
+          amount: { value: toAmountValue(e.unit), currency: "RUB" },
           vat_code: vatCode,
           payment_subject: "commodity", // товар
           payment_mode: "full_payment", // полный расчёт

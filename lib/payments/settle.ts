@@ -3,7 +3,7 @@ import { orders, carts, cartItems, profiles } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getPayment } from "@/lib/yookassa";
 import { STATUS_AFTER_PAYMENT } from "@/lib/order-status";
-import { sendOrderNotification } from "@/lib/email";
+import { sendOrderNotification, sendOrderPlacedToCustomer } from "@/lib/email";
 
 /**
  * Статусы, из которых заказ ещё можно перевести оплатой. Защита от того, чтобы
@@ -71,17 +71,27 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
     // UPDATE по PRE_PAYMENT_STATUSES), поэтому повторные сверки писем не дублируют.
     // Сбой почты не должен ломать приёмку оплаты — только логируем.
     if (paid) {
-      try {
-        const full = await db.query.orders.findFirst({
-          where: eq(orders.id, orderId),
-          with: { items: true },
-        });
-        const profile = paid.userId
-          ? await db.query.profiles
-              .findFirst({ where: eq(profiles.id, paid.userId) })
-              .catch(() => null)
-          : null;
-        if (full) {
+      const full = await db.query.orders.findFirst({
+        where: eq(orders.id, orderId),
+        with: { items: true },
+      });
+      const profile = paid.userId
+        ? await db.query.profiles
+            .findFirst({ where: eq(profiles.id, paid.userId) })
+            .catch(() => null)
+        : null;
+
+      if (full) {
+        const emailItems = full.items.map((it) => ({
+          name: it.name,
+          article: it.article,
+          brand: it.brand,
+          qty: it.qty,
+          price: it.price,
+        }));
+
+        // Письмо магазину «ОПЛАЧЕН». Сбой почты не должен ломать приёмку оплаты.
+        try {
           await sendOrderNotification(
             {
               orderId: full.id,
@@ -94,19 +104,27 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
               whatsapp: profile?.whatsapp,
               vk: profile?.vk,
               maxMessenger: profile?.maxMessenger,
-              items: full.items.map((it) => ({
-                name: it.name,
-                article: it.article,
-                brand: it.brand,
-                qty: it.qty,
-                price: it.price,
-              })),
+              items: emailItems,
             },
             { kind: "paid" }
           );
+        } catch (mailError) {
+          console.error("Paid order notification email failed:", mailError);
         }
-      } catch (mailError) {
-        console.error("Paid order notification email failed:", mailError);
+
+        // Письмо ПОКУПАТЕЛЮ «заказ принят в работу» — теперь на УСПЕШНОЙ ОПЛАТЕ
+        // (раньше слалось при создании заказа, до оплаты). Отдельный try, чтобы
+        // сбой одного письма не мешал другому.
+        try {
+          await sendOrderPlacedToCustomer({
+            to: profile?.contactEmail || profile?.email || "",
+            orderId: full.id,
+            total: parseFloat(full.total),
+            items: emailItems,
+          });
+        } catch (mailError) {
+          console.error("Customer paid confirmation email failed:", mailError);
+        }
       }
     }
 

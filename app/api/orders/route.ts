@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { carts, orders, orderItems, profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
-import { sendOrderNotification, sendOrderPlacedToCustomer } from "@/lib/email";
+import { sendOrderNotification } from "@/lib/email";
 import { validatePromo, discountAmount } from "@/lib/promo";
 
 /**
@@ -134,17 +134,8 @@ export async function POST() {
       console.error("Shop order notification email failed:", mailError);
     }
 
-    // Подтверждение покупателю на его почту (contactEmail приоритетнее).
-    try {
-      await sendOrderPlacedToCustomer({
-        to: profile?.contactEmail || user.email || profile?.email || "",
-        orderId: order.id,
-        total,
-        items: emailItems,
-      });
-    } catch (mailError) {
-      console.error("Customer order confirmation email failed:", mailError);
-    }
+    // Письмо покупателю «заказ принят в работу» теперь шлётся на УСПЕШНОЙ ОПЛАТЕ
+    // (см. lib/payments/settle.ts), а не при создании заказа до оплаты.
 
     return NextResponse.json({ orderId: order.id, total });
   } catch (error) {

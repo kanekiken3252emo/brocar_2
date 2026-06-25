@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { orders, carts, cartItems } from "@/lib/db/schema";
+import { orders, carts, cartItems, profiles } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getPayment } from "@/lib/yookassa";
 import { STATUS_AFTER_PAYMENT } from "@/lib/order-status";
+import { sendOrderNotification } from "@/lib/email";
 
 /**
  * Статусы, из которых заказ ещё можно перевести оплатой. Защита от того, чтобы
@@ -65,6 +66,50 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
             .where(eq(carts.id, cart.id));
       }
     }
+
+    // Письмо магазину «ОПЛАЧЕН» — только на самом переходе (paid вернулся из
+    // UPDATE по PRE_PAYMENT_STATUSES), поэтому повторные сверки писем не дублируют.
+    // Сбой почты не должен ломать приёмку оплаты — только логируем.
+    if (paid) {
+      try {
+        const full = await db.query.orders.findFirst({
+          where: eq(orders.id, orderId),
+          with: { items: true },
+        });
+        const profile = paid.userId
+          ? await db.query.profiles
+              .findFirst({ where: eq(profiles.id, paid.userId) })
+              .catch(() => null)
+          : null;
+        if (full) {
+          await sendOrderNotification(
+            {
+              orderId: full.id,
+              total: parseFloat(full.total),
+              customerEmail: profile?.email ?? "—",
+              customerName: profile?.fullName,
+              customerPhone: profile?.phone,
+              contactEmail: profile?.contactEmail,
+              telegram: profile?.telegram,
+              whatsapp: profile?.whatsapp,
+              vk: profile?.vk,
+              maxMessenger: profile?.maxMessenger,
+              items: full.items.map((it) => ({
+                name: it.name,
+                article: it.article,
+                brand: it.brand,
+                qty: it.qty,
+                price: it.price,
+              })),
+            },
+            { kind: "paid" }
+          );
+        }
+      } catch (mailError) {
+        console.error("Paid order notification email failed:", mailError);
+      }
+    }
+
     return { orderId, status: STATUS_AFTER_PAYMENT, paymentStatus: payment.status };
   }
 

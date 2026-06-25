@@ -135,6 +135,30 @@ export default async function OrderDetailPage({
                   <AwaitingRefresher />
                   <CancelOrderButton orderId={order.id} />
                 </div>
+
+                {/* «Оплатил, а статус не сменился» — страховка на случай, если
+                    вебхук/сверка ЮKassa не отработали. */}
+                <div className="mt-2 w-full rounded-xl border border-neutral-700/60 bg-neutral-900/40 p-4 text-center">
+                  <p className="text-sm text-neutral-300">
+                    Оплатили, но статус не меняется уже несколько минут?
+                  </p>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    Свяжитесь с нами — подтвердим оплату вручную:{" "}
+                    <a
+                      href="tel:+79326006015"
+                      className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
+                    >
+                      +7 (932) 600‑60‑15
+                    </a>{" "}
+                    или{" "}
+                    <a
+                      href="tel:+73433822062"
+                      className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
+                    >
+                      8 (343) 382‑20‑62
+                    </a>
+                  </p>
+                </div>
               </div>
             </div>
           )}

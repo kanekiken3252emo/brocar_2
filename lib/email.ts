@@ -65,7 +65,11 @@ function formatRub(n: number): string {
  * Шлёт магазину письмо о новом заказе. Бросает ошибку при сбое —
  * вызывающий код должен сам решить, критично это или нет.
  */
-export async function sendOrderNotification(data: OrderEmailData): Promise<void> {
+export async function sendOrderNotification(
+  data: OrderEmailData,
+  opts: { kind?: "new" | "paid" } = {}
+): Promise<void> {
+  const isPaid = opts.kind === "paid";
   const transporter = getTransporter();
   if (!transporter) {
     console.warn("SMTP не настроен — уведомление о заказе не отправлено");
@@ -103,7 +107,7 @@ export async function sendOrderNotification(data: OrderEmailData): Promise<void>
 
   const html = `
   <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#222">
-    <h2 style="color:#ea580c">Новый заказ №${data.orderId}</h2>
+    <h2 style="color:${isPaid ? "#16a34a" : "#ea580c"}">${isPaid ? "✅ Заказ ОПЛАЧЕН" : "Новый заказ"} №${data.orderId}</h2>
     <p style="margin:4px 0"><b>Сумма:</b> ${formatRub(data.total)}</p>
     <p style="margin:4px 0"><b>Покупатель:</b> ${esc(data.customerName ?? "—")}</p>
     <p style="margin:4px 0"><b>Телефон:</b> ${esc(data.customerPhone ?? "—")}</p>
@@ -134,7 +138,9 @@ export async function sendOrderNotification(data: OrderEmailData): Promise<void>
     from: `"BroCar — заказы" <${from}>`,
     to,
     replyTo: data.customerEmail,
-    subject: `Новый заказ №${data.orderId} на ${formatRub(data.total)}`,
+    subject: isPaid
+      ? `✅ ОПЛАЧЕН заказ №${data.orderId} на ${formatRub(data.total)}`
+      : `Новый заказ №${data.orderId} на ${formatRub(data.total)}`,
     html,
   });
 }

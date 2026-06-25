@@ -7,8 +7,11 @@
  */
 import { randomBytes, createHash } from "node:crypto";
 
-/** Срок жизни ссылки сброса/подтверждения — 1 час. */
+/** Срок жизни ссылки сброса пароля — 1 час. */
 export const TOKEN_TTL_MS = 60 * 60 * 1000;
+
+/** Срок жизни ссылки подтверждения email — 24 часа (письмо могут открыть не сразу). */
+export const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Генерирует криптослучайный токен для ссылки (url-safe, ~43 символа). */
 export function generateToken(): string {

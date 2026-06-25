@@ -3,6 +3,7 @@ import { z } from "zod";
 import { findUserByEmail } from "@/lib/auth/users";
 import { verifyPassword } from "@/lib/auth/password";
 import { setSessionCookie } from "@/lib/auth/cookies";
+import { requireEmailConfirm } from "@/lib/auth/config";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      process.env.AUTH_REQUIRE_EMAIL_CONFIRM === "true" &&
-      !user.emailConfirmedAt
-    ) {
+    if (requireEmailConfirm() && !user.emailConfirmedAt) {
       return NextResponse.json(
         {
           error:

@@ -9,3 +9,12 @@
 export function isLocalAuth(): boolean {
   return process.env.AUTH_BACKEND === "local";
 }
+
+/**
+ * Требовать подтверждение email перед входом для НОВЫХ регистраций.
+ * По умолчанию ВКЛ (как было на Supabase). Отключить: AUTH_REQUIRE_EMAIL_CONFIRM=false.
+ * Перенесённые из Supabase уже подтверждены (email_confirmed_at) — их не касается.
+ */
+export function requireEmailConfirm(): boolean {
+  return process.env.AUTH_REQUIRE_EMAIL_CONFIRM !== "false";
+}

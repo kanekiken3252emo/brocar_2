@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
-import { createUser, normalizeEmail } from "@/lib/auth/users";
+import { createUser, createAuthToken, normalizeEmail } from "@/lib/auth/users";
 import { hashPassword } from "@/lib/auth/password";
 import { setSessionCookie } from "@/lib/auth/cookies";
+import { requireEmailConfirm } from "@/lib/auth/config";
+import { generateToken, hashToken, CONFIRM_TTL_MS } from "@/lib/auth/tokens";
+import { sendEmailConfirmation } from "@/lib/email";
+import { publicBaseUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +22,14 @@ export async function POST(request: NextRequest) {
     const { email, password } = schema.parse(await request.json());
 
     const passwordHash = await hashPassword(password);
-    // По умолчанию новый аккаунт сразу подтверждён (вход сразу). Включается
-    // обязательное подтверждение через AUTH_REQUIRE_EMAIL_CONFIRM=true.
-    const autoConfirm = process.env.AUTH_REQUIRE_EMAIL_CONFIRM !== "true";
+    // По умолчанию требуем подтверждение email перед входом (как было на Supabase).
+    // Отключается через AUTH_REQUIRE_EMAIL_CONFIRM=false.
+    const requireConfirm = requireEmailConfirm();
 
     const user = await createUser({
       email,
       passwordHash,
-      emailConfirmedAt: autoConfirm ? new Date() : null,
+      emailConfirmedAt: requireConfirm ? null : new Date(),
     });
 
     if (!user) {
@@ -47,12 +51,27 @@ export async function POST(request: NextRequest) {
       console.error("Register: profile create skipped:", profileErr);
     }
 
-    if (autoConfirm) {
+    if (!requireConfirm) {
       await setSessionCookie({ id: user.id, email: user.email });
       return NextResponse.json({ ok: true, session: true });
     }
 
-    // Подтверждение включено: аккаунт создан, но вход после подтверждения email.
+    // Требуется подтверждение: создаём токен и шлём письмо со ссылкой. Сбой SMTP
+    // не валит регистрацию (аккаунт создан, письмо можно перезапросить) — логируем.
+    const token = generateToken();
+    await createAuthToken({
+      userId: user.id,
+      type: "confirm",
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + CONFIRM_TTL_MS),
+    });
+    const confirmUrl = `${publicBaseUrl(request)}/auth/confirm?token=${token}`;
+    try {
+      await sendEmailConfirmation(user.email, confirmUrl);
+    } catch (mailErr) {
+      console.error("Confirmation email failed:", mailErr);
+    }
+
     return NextResponse.json({ ok: true, session: false });
   } catch (e) {
     if (e instanceof z.ZodError) {

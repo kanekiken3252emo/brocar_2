@@ -121,11 +121,30 @@ export const productImages = pgTable(
   })
 );
 
+// Промокоды. Создаёт админ (/admin/promos): код, процент скидки, срок действия.
+// Скидка применяется к сумме корзины при оформлении заказа (серверно).
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  // Храним в верхнем регистре; сравнение тоже по верхнему (см. lib/promo).
+  code: text("code").notNull().unique(),
+  discountPct: numeric("discount_pct").notNull(), // 1..100
+  active: boolean("active").default(true).notNull(),
+  // Срок действия. null = без ограничения с этой стороны.
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // Carts table
 export const carts = pgTable("carts", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   userId: uuid("user_id"),
   sessionId: text("session_id"),
+  // Применённый к корзине промокод (в верхнем регистре). null = без скидки.
+  // Хранится серверно при корзине: переживает переход корзина→оформление.
+  promoCode: text("promo_code"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -155,7 +174,12 @@ export const orders = pgTable("orders", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   userId: uuid("user_id").notNull(),
   status: text("status").default("pending").notNull(),
+  // total — ИТОГОВАЯ сумма к оплате (уже со скидкой). Скидку фиксируем снимком
+  // в заказ: subtotal = total + discountAmount.
   total: numeric("total").default("0").notNull(),
+  promoCode: text("promo_code"), // применённый код (null = без промо)
+  discountPct: numeric("discount_pct"), // % на момент заказа
+  discountAmount: numeric("discount_amount").default("0").notNull(), // ₽ скидки
   paymentId: text("payment_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()

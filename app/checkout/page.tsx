@@ -18,7 +18,9 @@ interface CartItem {
 }
 interface CartData {
   items: CartItem[];
+  subtotal: number;
   total: number;
+  promo?: { code: string; discountPct: number; discountAmount: number } | null;
 }
 
 /**
@@ -269,6 +271,16 @@ export default function CheckoutPage() {
                       </div>
                     ))}
                   </div>
+                  {cart?.promo && (
+                    <div className="flex justify-between text-sm border-t border-neutral-800 pt-3">
+                      <span className="text-green-400">
+                        Скидка ({cart.promo.code}, −{cart.promo.discountPct}%)
+                      </span>
+                      <span className="text-green-400 font-medium">
+                        −{formatPrice(cart.promo.discountAmount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t border-neutral-800 pt-3 flex justify-between">
                     <span className="text-white font-semibold">Итого</span>
                     <span className="text-orange-500 font-bold text-xl">

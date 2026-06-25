@@ -18,6 +18,7 @@
     "db:import-all": "node --env-file=.env.local scripts/import-all-from-email.mjs",
     "db:warm-images": "node --env-file=.env.local scripts/warm-product-images.mjs",
     "db:stories": "node --env-file=.env.local scripts/create-stories-table.mjs",
+    "db:promos": "node --env-file=.env.local scripts/create-promos.mjs",
     "s3:cors": "node --env-file=.env.local scripts/set-s3-cors.mjs",
     "db:catalog-idx": "node --env-file=.env.local scripts/add-catalog-indexes.mjs",
     "db:reclaim-bloat": "node --env-file=.env.local scripts/reclaim-index-bloat.mjs",

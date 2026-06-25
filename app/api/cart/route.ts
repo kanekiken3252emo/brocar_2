@@ -6,6 +6,7 @@ import { carts, cartItems, products } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { generateSessionId } from "@/lib/utils";
+import { validatePromo, discountAmount } from "@/lib/promo";
 
 const addToCartSchema = z.object({
   action: z.enum(["add", "remove", "update"]),
@@ -126,16 +127,39 @@ async function getCartWithItems(cartId: number) {
     },
   }));
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.product.price * item.qty,
-    0
+  // Суммируем с округлением каждой позиции до копеек — так же, как при
+  // создании заказа (см. /api/orders), чтобы предпросмотр совпал с чеком.
+  const subtotal = Number(
+    items
+      .reduce((sum, item) => sum + Number((item.product.price * item.qty).toFixed(2)), 0)
+      .toFixed(2)
   );
+
+  // Применённый промокод (хранится при корзине). Валидируем серверно: если код
+  // отключили/истёк после применения — скидку не показываем, total = subtotal.
+  let promo: { code: string; discountPct: number; discountAmount: number } | null =
+    null;
+  if (cart.promoCode) {
+    const check = await validatePromo(cart.promoCode);
+    if (check.ok) {
+      const amount = discountAmount(subtotal, check.promo.discountPct);
+      if (amount > 0)
+        promo = {
+          code: check.promo.code,
+          discountPct: check.promo.discountPct,
+          discountAmount: amount,
+        };
+    }
+  }
+
+  const total = Number((subtotal - (promo?.discountAmount ?? 0)).toFixed(2));
 
   return {
     id: cart.id,
     items,
     subtotal,
-    total: subtotal, // Can add shipping, tax, etc. here
+    promo,
+    total,
   };
 }
 

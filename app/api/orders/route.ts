@@ -4,6 +4,7 @@ import { carts, orders, orderItems, profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { sendOrderNotification, sendOrderPlacedToCustomer } from "@/lib/email";
+import { validatePromo, discountAmount } from "@/lib/promo";
 
 /**
  * Создаёт заказ из корзины текущего пользователя.
@@ -39,12 +40,36 @@ export async function POST() {
     // Считаем сумму на сервере (не доверяем клиенту).
     // Округляем КАЖДУЮ позицию до копеек и суммируем — так сумма заказа
     // гарантированно совпадёт с суммой позиций чека (требование 54-ФЗ/ЮKassa).
-    const total = cart.items.reduce((sum, item) => {
-      const line = Number(
-        (parseFloat(item.product.ourPrice) * item.qty).toFixed(2)
-      );
-      return sum + line;
-    }, 0);
+    const subtotal = Number(
+      cart.items
+        .reduce((sum, item) => {
+          const line = Number(
+            (parseFloat(item.product.ourPrice) * item.qty).toFixed(2)
+          );
+          return sum + line;
+        }, 0)
+        .toFixed(2)
+    );
+
+    // Промокод применяем СЕРВЕРНО из корзины (carts.promo_code) и заново
+    // валидируем на момент заказа: код мог истечь/выключиться после применения.
+    // Снимок скидки (код, %, ₽) фиксируем в заказ.
+    let appliedPromo: string | null = null;
+    let appliedPct: number | null = null;
+    let discount = 0;
+    if (cart.promoCode) {
+      const check = await validatePromo(cart.promoCode);
+      if (check.ok) {
+        const amount = discountAmount(subtotal, check.promo.discountPct);
+        if (amount > 0) {
+          appliedPromo = check.promo.code;
+          appliedPct = check.promo.discountPct;
+          discount = amount;
+        }
+      }
+    }
+
+    const total = Number((subtotal - discount).toFixed(2));
 
     // Создаём заказ
     const [order] = await db
@@ -53,6 +78,9 @@ export async function POST() {
         userId: user.id,
         status: "pending",
         total: total.toFixed(2),
+        promoCode: appliedPromo,
+        discountPct: appliedPct != null ? appliedPct.toString() : null,
+        discountAmount: discount.toFixed(2),
       })
       .returning();
 

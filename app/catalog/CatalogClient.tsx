@@ -773,6 +773,9 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
                   <SupplierItemCard
                     key={`${group.article}-${group.brand}`}
                     group={group}
+                    // В каталоге кнопку «в корзину» с карточки убрали — клик по
+                    // карточке всегда ведёт на страницу товара (там и покупка).
+                    showAddToCart={false}
                     // Первые 8 карточек — это первый экран (xl:grid-cols-4 ×
                     // 2 ряда). priority даёт next/image preload-подсказку,
                     // что ускоряет LCP — Lighthouse как раз выбирает одну из

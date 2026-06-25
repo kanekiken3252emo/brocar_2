@@ -56,6 +56,13 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
       });
       if (cart) {
         await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+        // Снимаем промокод вместе с очисткой корзины — иначе он «прилипнет»
+        // к следующему заказу. Скидка уже зафиксирована снимком в оплаченном заказе.
+        if (cart.promoCode)
+          await db
+            .update(carts)
+            .set({ promoCode: null })
+            .where(eq(carts.id, cart.id));
       }
     }
     return { orderId, status: STATUS_AFTER_PAYMENT, paymentStatus: payment.status };

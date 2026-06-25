@@ -38,11 +38,18 @@ interface CartItem {
   product: CartProduct;
 }
 
+interface CartPromo {
+  code: string;
+  discountPct: number;
+  discountAmount: number;
+}
+
 interface CartData {
   id?: number;
   items: CartItem[];
   subtotal: number;
   total: number;
+  promo?: CartPromo | null;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -228,6 +235,9 @@ export default function CartPage() {
   const [fetchStatus, setFetchStatus] = useState<"loading" | "ok" | "error">("loading");
   const [mutating, setMutating] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -267,6 +277,45 @@ export default function CartPage() {
       /* ignore */
     } finally {
       setMutating(false);
+    }
+  }
+
+  async function applyPromo(e: React.FormEvent) {
+    e.preventDefault();
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+    setPromoBusy(true);
+    setPromoError(null);
+    try {
+      const res = await fetch("/api/promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.ok) {
+        setPromoError(data.error || "Не удалось применить промокод");
+        return;
+      }
+      setPromoInput("");
+      await fetchCart(); // перечитываем корзину со скидкой и новым итогом
+    } catch {
+      setPromoError("Не удалось применить промокод");
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
+  async function removePromo() {
+    setPromoBusy(true);
+    setPromoError(null);
+    try {
+      await fetch("/api/promo", { method: "DELETE" });
+      await fetchCart();
+    } catch {
+      /* ignore */
+    } finally {
+      setPromoBusy(false);
     }
   }
 
@@ -376,12 +425,75 @@ export default function CartPage() {
                       <span className="text-neutral-400">Доставка</span>
                       <span className="text-neutral-500">Рассчитывается</span>
                     </div>
+                    {cart?.promo && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-400 inline-flex items-center gap-1">
+                          Скидка ({cart.promo.code}, −{cart.promo.discountPct}%)
+                        </span>
+                        <span className="text-green-400 font-medium">
+                          −{formatPrice(cart.promo.discountAmount)}
+                        </span>
+                      </div>
+                    )}
                     <div className="border-t border-neutral-800 pt-3 flex justify-between">
                       <span className="text-white font-semibold">Итого</span>
                       <span className="text-orange-500 font-bold text-xl">
                         {formatPrice(cart?.total ?? 0)}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Промокод */}
+                  <div className="mb-5">
+                    {cart?.promo ? (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-green-500/30 bg-green-500/5 px-3 py-2.5">
+                        <span className="text-sm text-green-400 inline-flex items-center gap-1.5 min-w-0">
+                          <Tag className="h-4 w-4 shrink-0" />
+                          <span className="font-mono font-semibold truncate">
+                            {cart.promo.code}
+                          </span>
+                          <span className="text-neutral-400">применён</span>
+                        </span>
+                        <button
+                          onClick={removePromo}
+                          disabled={promoBusy}
+                          className="text-neutral-400 hover:text-red-400 transition-colors shrink-0 disabled:opacity-50"
+                          title="Убрать промокод"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={applyPromo} className="space-y-1.5">
+                        <div className="flex gap-2">
+                          <input
+                            value={promoInput}
+                            onChange={(e) => {
+                              setPromoInput(e.target.value.toUpperCase());
+                              if (promoError) setPromoError(null);
+                            }}
+                            placeholder="Промокод"
+                            maxLength={40}
+                            className="flex-1 min-w-0 rounded-xl border border-neutral-700 bg-neutral-800/50 px-3 py-2.5 text-sm text-white font-mono placeholder:font-sans placeholder:text-neutral-500 focus:border-orange-500 focus:outline-none transition-colors"
+                          />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={promoBusy || !promoInput.trim()}
+                            className="shrink-0"
+                          >
+                            {promoBusy ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Применить"
+                            )}
+                          </Button>
+                        </div>
+                        {promoError && (
+                          <p className="text-xs text-red-400">{promoError}</p>
+                        )}
+                      </form>
+                    )}
                   </div>
 
                   <Button

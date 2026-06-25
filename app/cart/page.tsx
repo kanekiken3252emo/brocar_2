@@ -389,7 +389,7 @@ export default function CartPage() {
                 />
               ))}
 
-              <div className="flex justify-between items-center pt-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-2 justify-between items-center pt-2">
                 <Link href="/catalog">
                   <Button variant="ghost" size="sm" className="gap-2 text-neutral-400 hover:text-white">
                     <ChevronRight className="h-4 w-4 rotate-180" />
@@ -402,7 +402,7 @@ export default function CartPage() {
                       items.forEach((i) => handleRemove(i.productId));
                     }
                   }}
-                  className="text-xs text-neutral-600 hover:text-red-400 transition-colors flex items-center gap-1"
+                  className="text-xs text-neutral-600 hover:text-red-400 transition-colors flex items-center gap-1 shrink-0 whitespace-nowrap"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Очистить корзину

@@ -13,10 +13,6 @@ declare global {
       S3_SECRET_KEY?: string;
       S3_PUBLIC_BASE?: string;
       DATABASE_URL: string;
-      VENDOR_A_URL: string;
-      VENDOR_A_KEY: string;
-      VENDOR_B_URL: string;
-      VENDOR_B_KEY: string;
       PAYMENT_PROVIDER: "yookassa" | "cloudpayments";
       PAYMENT_SHOP_ID: string;
       PAYMENT_SECRET_KEY: string;
@@ -27,7 +23,6 @@ declare global {
       PAYMENT_TAX_SYSTEM_CODE?: string; // система налогообложения (1=ОСН, 2=УСН доход, ...)
       NEXT_PUBLIC_SITE_NAME: string;
       NEXT_PUBLIC_SITE_DOMAIN: string;
-      CRON_SECRET_TOKEN?: string;
       // SMTP для уведомлений о заказах (почта домена на Beget)
       SMTP_HOST?: string;
       SMTP_PORT?: string;

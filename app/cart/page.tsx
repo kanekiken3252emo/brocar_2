@@ -18,7 +18,9 @@ import {
   PackageOpen,
   Tag,
   Phone,
+  Truck,
 } from "lucide-react";
+import { formatDeliveryDays } from "@/lib/utils";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,7 @@ interface CartItem {
   id: number;
   productId: number;
   qty: number;
+  deliveryDays?: number | null;
   product: CartProduct;
 }
 
@@ -80,8 +83,8 @@ function EmptyCart() {
       </div>
       <h2 className="text-2xl font-bold text-white mb-2">Корзина пуста</h2>
       <p className="text-neutral-400 max-w-sm mb-6 leading-relaxed">
-        Добавьте запчасти из каталога или оформите запрос по VIN‑коду —
-        мы подберём нужные детали.
+        Добавьте запчасти из каталога или оформите запрос по VIN‑коду — мы
+        подберём нужные детали.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
@@ -120,13 +123,17 @@ function EmptyCart() {
         ].map((h) => (
           <div
             key={h.title}
-            className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 text-left hover:border-orange-500/30 transition-colors"
+            className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 text-left hover:border-orange-500/30 transition-colors flex flex-col sm:flex-row sm:items-center gap-3"
           >
-            <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3">
+            <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center shrink-0">
               {h.icon}
             </div>
-            <p className="font-semibold text-white text-sm mb-1">{h.title}</p>
-            <p className="text-neutral-400 text-xs leading-relaxed">{h.desc}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-white text-sm mb-1">{h.title}</p>
+              <p className="text-neutral-400 text-xs leading-relaxed">
+                {h.desc}
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -177,8 +184,16 @@ function CartItemRow({
               Под заказ
             </span>
           )}
+          {item.deliveryDays != null && (
+            <span className="text-xs text-neutral-300 bg-neutral-800 rounded-md px-2 py-0.5 inline-flex items-center gap-1">
+              <Truck className="h-3 w-3 text-orange-500" />
+              {formatDeliveryDays(item.deliveryDays)}
+            </span>
+          )}
         </div>
-        <p className="text-white font-medium leading-snug">{item.product.name}</p>
+        <p className="text-white font-medium leading-snug">
+          {item.product.name}
+        </p>
         <p className="text-orange-500 font-bold text-lg mt-1">
           {formatPrice(item.product.price)}
         </p>
@@ -232,7 +247,9 @@ function CartItemRow({
 
 export default function CartPage() {
   const [cart, setCart] = useState<CartData | null>(null);
-  const [fetchStatus, setFetchStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [fetchStatus, setFetchStatus] = useState<"loading" | "ok" | "error">(
+    "loading"
+  );
   const [mutating, setMutating] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [promoInput, setPromoInput] = useState("");
@@ -360,11 +377,17 @@ export default function CartPage() {
               <ShoppingCart className="h-5 w-5 text-orange-500" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-white">Корзина</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-white">
+                Корзина
+              </h1>
               {!isEmpty && (
                 <p className="text-neutral-400 text-sm mt-0.5">
                   {items.length}{" "}
-                  {items.length === 1 ? "позиция" : items.length < 5 ? "позиции" : "позиций"}
+                  {items.length === 1
+                    ? "позиция"
+                    : items.length < 5
+                      ? "позиции"
+                      : "позиций"}
                 </p>
               )}
             </div>
@@ -391,7 +414,11 @@ export default function CartPage() {
 
               <div className="flex flex-wrap gap-x-4 gap-y-2 justify-between items-center pt-2">
                 <Link href="/catalog">
-                  <Button variant="ghost" size="sm" className="gap-2 text-neutral-400 hover:text-white">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-neutral-400 hover:text-white"
+                  >
                     <ChevronRight className="h-4 w-4 rotate-180" />
                     Продолжить покупки
                   </Button>
@@ -414,12 +441,18 @@ export default function CartPage() {
             <div className="space-y-4">
               <Card className="border-neutral-800 bg-neutral-900 sticky top-4">
                 <CardContent className="p-6">
-                  <h2 className="font-bold text-white text-lg mb-5">Итог заказа</h2>
+                  <h2 className="font-bold text-white text-lg mb-5">
+                    Итог заказа
+                  </h2>
 
                   <div className="space-y-3 mb-5">
                     <div className="flex justify-between text-sm">
-                      <span className="text-neutral-400">Товары ({items.length} поз.)</span>
-                      <span className="text-white font-medium">{formatPrice(cart?.subtotal ?? 0)}</span>
+                      <span className="text-neutral-400">
+                        Товары ({items.length} поз.)
+                      </span>
+                      <span className="text-white font-medium">
+                        {formatPrice(cart?.subtotal ?? 0)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-neutral-400">Доставка</span>
@@ -525,17 +558,24 @@ export default function CartPage() {
               {/* Help */}
               <Card className="border-orange-500/20 bg-orange-500/5">
                 <CardContent className="p-5">
-                  <p className="text-sm font-medium text-white mb-1">Нужна помощь?</p>
+                  <p className="text-sm font-medium text-white mb-1">
+                    Нужна помощь?
+                  </p>
                   <p className="text-xs text-neutral-400 mb-3">
                     Наши специалисты помогут подобрать нужные запчасти
                   </p>
-                  <a href="tel:+79326006015" className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5">
+                  <a
+                    href="tel:+79326006015"
+                    className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5"
+                  >
                     <Phone className="h-3.5 w-3.5" />
                     +7 (932) 600‑60‑15
                   </a>
-                  <a href="tel:+73433822062" className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5 mt-1.5">
-                    <Phone className="h-3.5 w-3.5" />
-                    8 (343) 382‑20‑62
+                  <a
+                    href="tel:+73433822062"
+                    className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5 mt-1.5"
+                  >
+                    <Phone className="h-3.5 w-3.5" />8 (343) 382‑20‑62
                   </a>
                 </CardContent>
               </Card>

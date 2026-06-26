@@ -49,51 +49,46 @@ export default function GuidesPage() {
 
       <div className="container mx-auto px-4 pb-20">
         <div className="max-w-5xl mx-auto space-y-12">
-          {groups.map((group) => (
-            <section key={group.category}>
-              <h2 className="text-2xl font-bold text-white mb-5">
-                {group.category}
-              </h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {group.guides.map((g) => {
-                  const Icon = guideIcon(g.icon);
-                  const ready = isGuideReady(g);
-                  return (
-                    <Link
-                      key={g.slug}
-                      href={`/guides/${g.slug}`}
-                      className="group block"
-                    >
-                      <Card className="border-neutral-800 bg-neutral-900 hover:border-orange-500/40 transition-colors h-full">
-                        <CardContent className="p-5 flex flex-col h-full">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="w-11 h-11 bg-orange-500/15 rounded-xl flex items-center justify-center shrink-0">
-                              <Icon className="h-5 w-5 text-orange-500" />
-                            </div>
-                            {!ready && (
-                              <span className="text-[11px] font-medium text-neutral-400 bg-neutral-800 rounded-full px-2 py-0.5">
-                                Скоро
-                              </span>
-                            )}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups
+              .flatMap((group) => group.guides)
+              .map((g) => {
+                const Icon = guideIcon(g.icon);
+                const ready = isGuideReady(g);
+                return (
+                  <Link
+                    key={g.slug}
+                    href={`/guides/${g.slug}`}
+                    className="group block"
+                  >
+                    <Card className="border-neutral-800 bg-neutral-900 hover:border-orange-500/40 transition-colors h-full">
+                      <CardContent className="p-5 flex flex-col h-full">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="w-11 h-11 bg-orange-500/15 rounded-xl flex items-center justify-center shrink-0">
+                            <Icon className="h-5 w-5 text-orange-500" />
                           </div>
-                          <h3 className="font-semibold text-white mb-1.5 group-hover:text-orange-400 transition-colors">
-                            {g.title}
-                          </h3>
-                          <p className="text-neutral-400 text-sm leading-relaxed flex-1">
-                            {g.excerpt}
-                          </p>
-                          <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-orange-500 group-hover:gap-2 transition-all">
-                            Читать
-                            <ArrowRight className="h-4 w-4" />
-                          </span>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                          {!ready && (
+                            <span className="text-[11px] font-medium text-neutral-400 bg-neutral-800 rounded-full px-2 py-0.5">
+                              Скоро
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-white mb-1.5 group-hover:text-orange-400 transition-colors">
+                          {g.title}
+                        </h3>
+                        <p className="text-neutral-400 text-sm leading-relaxed flex-1">
+                          {g.excerpt}
+                        </p>
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-orange-500 group-hover:gap-2 transition-all">
+                          Читать
+                          <ArrowRight className="h-4 w-4" />
+                        </span>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+          </div>
 
           {/* CTA */}
           <Card className="border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-orange-600/5">

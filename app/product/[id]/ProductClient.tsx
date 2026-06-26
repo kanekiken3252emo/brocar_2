@@ -242,7 +242,8 @@ export default function ProductClient({
 
   // Отображаемые поля: пока живой опрос идёт — берём из серверного шелла,
   // после загрузки — из живого ответа поставщиков.
-  const displayBrand = product?.brand?.name || shell.brand || "Неизвестный бренд";
+  const displayBrand =
+    product?.brand?.name || shell.brand || "Неизвестный бренд";
   const displayName = product?.name || shell.name || productId;
   const imageBrand = shell.brand || brand || product?.brand?.name || "";
 
@@ -261,7 +262,10 @@ export default function ProductClient({
   // поэтому дешёвый может оказаться вне топ-3 — всегда показываем его рядом с
   // тремя лучшими, и на него ведёт подсказка «есть дешевле — от X ₽».
   const cheapestOffer = product?.offers?.length
-    ? product.offers.reduce((m, o) => (o.price < m.price ? o : m), product.offers[0])
+    ? product.offers.reduce(
+        (m, o) => (o.price < m.price ? o : m),
+        product.offers[0]
+      )
     : null;
   let visibleOffers = product?.offers ?? [];
   if (!showAllOffers && product?.offers) {
@@ -342,7 +346,8 @@ export default function ProductClient({
                       loading && product ? "opacity-60" : "opacity-100"
                     }`}
                   >
-                    {(displayPrice ?? minPrice)!.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
+                    {(displayPrice ?? minPrice)!.toLocaleString("ru-RU")}{" "}
+                    <span className="text-xl text-neutral-400">₽</span>
                   </div>
                   {/* Подсказка про более дешёвый вариант — только когда выбранный
                       оффер дороже минимума. Клик выбирает самый дешёвый оффер:
@@ -363,7 +368,9 @@ export default function ProductClient({
               ) : (
                 <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-5 md:p-6">
                   <div className="text-sm text-neutral-400 mb-1">Цена</div>
-                  <div className="text-2xl font-bold text-neutral-300">По запросу</div>
+                  <div className="text-2xl font-bold text-neutral-300">
+                    По запросу
+                  </div>
                 </div>
               )}
 
@@ -389,7 +396,9 @@ export default function ProductClient({
                     }`}
                   >
                     <CheckCircle className="w-5 h-5" />
-                    <span className="font-semibold">В наличии: {totalStock} шт.</span>
+                    <span className="font-semibold">
+                      В наличии: {totalStock} шт.
+                    </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-neutral-400 bg-neutral-800 border border-neutral-700 px-4 py-2 rounded-xl">
@@ -406,8 +415,16 @@ export default function ProductClient({
                   <span className="text-sm text-neutral-400">Гарантия</span>
                 </div>
                 <div className="flex items-center gap-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl p-3">
-                  <Truck className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm text-neutral-400">Доставка</span>
+                  <Truck className="w-5 h-5 text-orange-500 shrink-0" />
+                  <span className="text-sm text-neutral-400">
+                    Доставка
+                    {selectedOffer && (
+                      <span className="text-white font-medium">
+                        {" · "}
+                        {formatDeliveryDays(selectedOffer.average_period)}
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -447,148 +464,164 @@ export default function ProductClient({
               />
             </button>
             {!offersCollapsed && (
-            <>
-              {/* Mobile cards */}
-              <div className="md:hidden divide-y divide-neutral-800">
-                {visibleOffers.map((offer, index) => (
-                  <div
-                    key={index}
-                    className={`p-4 ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
-                      </div>
-                      <span className="text-base font-bold text-white">
-                        {offer.price.toLocaleString("ru-RU")} ₽
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
-                      <span>{offer.quantity} шт.</span>
-                      <span>{formatDeliveryDays(offer.average_period)}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${
-                          offer.reliability >= 90 ? "bg-green-500" : offer.reliability >= 70 ? "bg-yellow-500" : "bg-red-500"
-                        }`} />
-                        {offer.reliability}%
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setSelectedOffer(offer)}
-                      className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        selectedOffer === offer
-                          ? "bg-orange-500 text-white"
-                          : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
-                      }`}
+              <>
+                {/* Mobile cards */}
+                <div className="md:hidden divide-y divide-neutral-800">
+                  {visibleOffers.map((offer, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
                     >
-                      {selectedOffer === offer ? "Выбрано" : "Выбрать"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-neutral-800/50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Склад
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Количество
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Цена
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Срок
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Надежность
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                        Действие
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800">
-                    {visibleOffers.map((offer, index) => (
-                      <tr
-                        key={index}
-                        className={`hover:bg-neutral-800/50 transition-colors ${
-                          selectedOffer === offer ? "bg-orange-500/10" : ""
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-neutral-500" />
+                          <span className="text-sm text-neutral-300">
+                            {offer.warehouse.name}
+                          </span>
+                        </div>
+                        <span className="text-base font-bold text-white">
+                          {offer.price.toLocaleString("ru-RU")} ₽
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
+                        <span>{offer.quantity} шт.</span>
+                        <span>{formatDeliveryDays(offer.average_period)}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              offer.reliability >= 90
+                                ? "bg-green-500"
+                                : offer.reliability >= 70
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
+                            }`}
+                          />
+                          {offer.reliability}%
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedOffer(offer)}
+                        className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
+                          selectedOffer === offer
+                            ? "bg-orange-500 text-white"
+                            : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
                         }`}
                       >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-neutral-500" />
-                            <span className="text-sm text-neutral-300">{offer.warehouse.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-neutral-300">
-                          {offer.quantity} шт.
-                          {offer.available_more && (
-                            <span className="text-green-400 ml-1">+</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-white">
-                          {offer.price.toLocaleString("ru-RU")} ₽
-                        </td>
-                        <td className="px-6 py-4 text-sm text-neutral-300">
-                          {formatDeliveryDays(offer.average_period)}
-                          {offer.is_transit && (
-                            <span className="ml-2 text-xs text-orange-400">(в пути)</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-2 bg-neutral-700 rounded-full overflow-hidden w-20">
-                              <div
-                                className={`h-full ${
-                                  offer.reliability >= 90
-                                    ? "bg-green-500"
-                                    : offer.reliability >= 70
-                                    ? "bg-yellow-500"
-                                    : "bg-red-500"
-                                }`}
-                                style={{ width: `${offer.reliability}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-neutral-400">{offer.reliability}%</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => setSelectedOffer(offer)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                              selectedOffer === offer
-                                ? "bg-orange-500 text-white"
-                                : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
-                            }`}
-                          >
-                            {selectedOffer === offer ? "Выбрано" : "Выбрать"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        {selectedOffer === offer ? "Выбрано" : "Выбрать"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
 
-              {product.offers.length > 3 && (
-                <button
-                  onClick={() => setShowAllOffers(!showAllOffers)}
-                  className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-neutral-400 hover:text-orange-400 bg-neutral-800/30 hover:bg-neutral-800/60 border-t border-neutral-800 transition-colors"
-                >
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showAllOffers ? "rotate-180" : ""}`} />
-                  {showAllOffers
-                    ? "Свернуть"
-                    : `Показать все ${product.offers.length} предложений`}
-                </button>
-              )}
-            </>
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-neutral-800/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                          Склад
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                          Количество
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                          Цена
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                          Срок
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                          Надежность
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                          Действие
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-800">
+                      {visibleOffers.map((offer, index) => (
+                        <tr
+                          key={index}
+                          className={`hover:bg-neutral-800/50 transition-colors ${
+                            selectedOffer === offer ? "bg-orange-500/10" : ""
+                          }`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-neutral-500" />
+                              <span className="text-sm text-neutral-300">
+                                {offer.warehouse.name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-neutral-300">
+                            {offer.quantity} шт.
+                            {offer.available_more && (
+                              <span className="text-green-400 ml-1">+</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-semibold text-white">
+                            {offer.price.toLocaleString("ru-RU")} ₽
+                          </td>
+                          <td className="px-6 py-4 text-sm text-neutral-300">
+                            {formatDeliveryDays(offer.average_period)}
+                            {offer.is_transit && (
+                              <span className="ml-2 text-xs text-orange-400">
+                                (в пути)
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-neutral-700 rounded-full overflow-hidden w-20">
+                                <div
+                                  className={`h-full ${
+                                    offer.reliability >= 90
+                                      ? "bg-green-500"
+                                      : offer.reliability >= 70
+                                        ? "bg-yellow-500"
+                                        : "bg-red-500"
+                                  }`}
+                                  style={{ width: `${offer.reliability}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-neutral-400">
+                                {offer.reliability}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => setSelectedOffer(offer)}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                selectedOffer === offer
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
+                              }`}
+                            >
+                              {selectedOffer === offer ? "Выбрано" : "Выбрать"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {product.offers.length > 3 && (
+                  <button
+                    onClick={() => setShowAllOffers(!showAllOffers)}
+                    className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-neutral-400 hover:text-orange-400 bg-neutral-800/30 hover:bg-neutral-800/60 border-t border-neutral-800 transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${showAllOffers ? "rotate-180" : ""}`}
+                    />
+                    {showAllOffers
+                      ? "Свернуть"
+                      : `Показать все ${product.offers.length} предложений`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -621,7 +654,9 @@ export default function ProductClient({
         {originals.length > 0 && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
             <div className="px-6 py-4 border-b border-neutral-800">
-              <h2 className="text-xl font-bold text-white">Оригинальные номера</h2>
+              <h2 className="text-xl font-bold text-white">
+                Оригинальные номера
+              </h2>
             </div>
             <div className="px-6 py-4 flex flex-wrap gap-2">
               {originals.slice(0, 40).map((o, i) => (

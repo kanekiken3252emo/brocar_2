@@ -120,6 +120,36 @@ export default function ContactsPage() {
             </Card>
           </div>
 
+          {/* QR на сайт — наведи камеру, откроется brocarparts.ru.
+              Белая подложка обязательна: на тёмном фоне QR не сканируется. */}
+          <Card className="border-neutral-800 bg-neutral-900 mb-12">
+            <CardContent className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8">
+              <a
+                href="https://brocarparts.ru"
+                className="bg-white rounded-2xl p-3 shrink-0 ring-1 ring-neutral-200"
+                aria-label="Открыть сайт brocarparts.ru"
+              >
+                <NextImage
+                  src="/brocar-qr.svg"
+                  alt="QR-код на сайт brocarparts.ru"
+                  width={150}
+                  height={150}
+                  unoptimized
+                  className="w-32 h-32 md:w-36 md:h-36"
+                />
+              </a>
+              <div className="text-center sm:text-left">
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Наш сайт в телефоне
+                </h3>
+                <p className="text-neutral-400 leading-relaxed">
+                  Наведите камеру телефона на QR-код — откроется brocarparts.ru.
+                  Сохраните, чтобы заказывать запчасти в любой момент.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Address Card */}
           <Card className="border-neutral-800 bg-neutral-900 mb-12">
             <CardHeader>

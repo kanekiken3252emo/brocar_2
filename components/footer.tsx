@@ -147,6 +147,28 @@ export function Footer() {
                 Работаем с системой маркировки «Честный ЗНАК»
               </p>
             </div>
+
+            {/* QR на сайт — наведи камеру телефона, откроется brocarparts.ru.
+                Белая подложка обязательна: на тёмном фоне QR не сканируется. */}
+            <div className="mt-4 flex items-center gap-3">
+              <a
+                href="https://brocarparts.ru"
+                className="bg-white rounded-xl p-2 shrink-0 ring-1 ring-neutral-200"
+                aria-label="Открыть сайт brocarparts.ru"
+              >
+                <Image
+                  src="/brocar-qr.svg"
+                  alt="QR-код на сайт brocarparts.ru"
+                  width={80}
+                  height={80}
+                  unoptimized
+                  className="w-20 h-20"
+                />
+              </a>
+              <p className="text-neutral-500 text-xs leading-relaxed max-w-[160px]">
+                Наведите камеру телефона — откроется наш сайт
+              </p>
+            </div>
           </div>
 
           {/* Catalog */}

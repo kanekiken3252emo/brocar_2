@@ -50,7 +50,10 @@ CREATE TABLE IF NOT EXISTS cart_items (
   id BIGSERIAL PRIMARY KEY,
   cart_id BIGINT NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
   product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  qty INTEGER NOT NULL DEFAULT 1
+  qty INTEGER NOT NULL DEFAULT 1,
+  price NUMERIC,          -- снимок НАШЕЙ цены оффера строки (миграция 20260626000000)
+  delivery_days INTEGER,  -- срок доставки позиции на момент добавления
+  supplier TEXT           -- реальный поставщик/склад (серверно, для письма магазину)
 );
 
 -- Orders table

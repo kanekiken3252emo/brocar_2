@@ -43,9 +43,13 @@ export async function POST() {
     const subtotal = Number(
       cart.items
         .reduce((sum, item) => {
-          const line = Number(
-            (parseFloat(item.product.ourPrice) * item.qty).toFixed(2)
-          );
+          // Цена позиции = СНИМОК строки корзины (item.price); легаси-строки без
+          // снимка — текущая цена товара (фоллбэк).
+          const unit =
+            item.price != null
+              ? parseFloat(item.price)
+              : parseFloat(item.product.ourPrice);
+          const line = Number((unit * item.qty).toFixed(2));
           return sum + line;
         }, 0)
         .toFixed(2)
@@ -93,7 +97,7 @@ export async function POST() {
         article: item.product.article,
         brand: item.product.brand,
         qty: item.qty,
-        price: item.product.ourPrice,
+        price: item.price ?? item.product.ourPrice,
       }))
     );
 
@@ -111,7 +115,7 @@ export async function POST() {
       article: item.product.article,
       brand: item.product.brand,
       qty: item.qty,
-      price: item.product.ourPrice,
+      price: item.price ?? item.product.ourPrice,
       supplier: item.supplier,
       deliveryDays: item.deliveryDays,
     }));

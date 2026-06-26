@@ -37,6 +37,8 @@ interface CartItem {
   id: number;
   productId: number;
   qty: number;
+  /** Снимок цены оффера этой строки (та, что в сумме и в заказе). */
+  price: number;
   deliveryDays?: number | null;
   product: CartProduct;
 }
@@ -195,7 +197,7 @@ function CartItemRow({
           {item.product.name}
         </p>
         <p className="text-orange-500 font-bold text-lg mt-1">
-          {formatPrice(item.product.price)}
+          {formatPrice(item.price)}
         </p>
       </div>
 
@@ -204,7 +206,7 @@ function CartItemRow({
         {/* Quantity */}
         <div className="flex items-center gap-2 bg-neutral-800 border border-neutral-700 rounded-xl p-1">
           <button
-            onClick={() => onUpdateQty(item.productId, item.qty - 1)}
+            onClick={() => onUpdateQty(item.id, item.qty - 1)}
             disabled={loading || item.qty <= 1}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Уменьшить"
@@ -215,7 +217,7 @@ function CartItemRow({
             {item.qty}
           </span>
           <button
-            onClick={() => onUpdateQty(item.productId, item.qty + 1)}
+            onClick={() => onUpdateQty(item.id, item.qty + 1)}
             disabled={loading}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Увеличить"
@@ -227,10 +229,10 @@ function CartItemRow({
         {/* Subtotal + remove */}
         <div className="flex items-center gap-3 sm:flex-row-reverse">
           <p className="text-neutral-300 font-semibold tabular-nums">
-            {formatPrice(item.product.price * item.qty)}
+            {formatPrice(item.price * item.qty)}
           </p>
           <button
-            onClick={() => onRemove(item.productId)}
+            onClick={() => onRemove(item.id)}
             disabled={loading}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-40 transition-colors"
             aria-label="Удалить"
@@ -273,10 +275,10 @@ export default function CartPage() {
     fetchCart();
   }, [fetchCart]);
 
-  async function handleUpdate(productId: number, qty: number) {
+  async function handleUpdate(cartItemId: number, qty: number) {
     setMutating(true);
     try {
-      const data = await apiCart({ action: "update", productId, qty });
+      const data = await apiCart({ action: "update", cartItemId, qty });
       setCart(data);
     } catch {
       /* ignore */
@@ -285,10 +287,10 @@ export default function CartPage() {
     }
   }
 
-  async function handleRemove(productId: number) {
+  async function handleRemove(cartItemId: number) {
     setMutating(true);
     try {
-      const data = await apiCart({ action: "remove", productId });
+      const data = await apiCart({ action: "remove", cartItemId });
       setCart(data);
     } catch {
       /* ignore */
@@ -424,9 +426,13 @@ export default function CartPage() {
                   </Button>
                 </Link>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm("Очистить корзину?")) {
-                      items.forEach((i) => handleRemove(i.productId));
+                      // По одной строке (по id), последовательно — чтобы
+                      // параллельные POST'ы не гонялись за итоговой корзиной.
+                      for (const i of items) {
+                        await handleRemove(i.id);
+                      }
                     }
                   }}
                   className="text-xs text-neutral-600 hover:text-red-400 transition-colors flex items-center gap-1 shrink-0 whitespace-nowrap"

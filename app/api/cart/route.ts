@@ -10,7 +10,11 @@ import { validatePromo, discountAmount } from "@/lib/promo";
 
 const addToCartSchema = z.object({
   action: z.enum(["add", "remove", "update"]),
-  productId: z.number(),
+  // "add" (легаси) адресует товар по productId; "remove"/"update" — КОНКРЕТНУЮ
+  // строку корзины по cartItemId (один артикул может быть в нескольких строках
+  // с разными офферами/ценами, productId уже не уникален для строки).
+  productId: z.number().optional(),
+  cartItemId: z.number().optional(),
   qty: z.number().min(1).optional(),
 });
 
@@ -196,26 +200,36 @@ async function getCartWithItems(cartId: number) {
 
   if (!cart) return null;
 
-  const items = cart.items.map((item) => ({
-    id: item.id,
-    productId: item.productId,
-    qty: item.qty,
-    deliveryDays: item.deliveryDays,
-    product: {
-      id: item.product.id,
-      article: item.product.article,
-      brand: item.product.brand,
-      name: item.product.name,
-      price: parseFloat(item.product.ourPrice),
-      stock: item.product.stock,
-    },
-  }));
+  const items = cart.items.map((item) => {
+    // Цена строки = СНИМОК (item.price), зафиксированный при добавлении. Для
+    // легаси-строк без снимка — текущая цена товара (фоллбэк). Именно она идёт
+    // в сумму корзины и в заказ.
+    const linePrice =
+      item.price != null
+        ? parseFloat(item.price)
+        : parseFloat(item.product.ourPrice);
+    return {
+      id: item.id,
+      productId: item.productId,
+      qty: item.qty,
+      price: linePrice,
+      deliveryDays: item.deliveryDays,
+      product: {
+        id: item.product.id,
+        article: item.product.article,
+        brand: item.product.brand,
+        name: item.product.name,
+        price: linePrice,
+        stock: item.product.stock,
+      },
+    };
+  });
 
   // Суммируем с округлением каждой позиции до копеек — так же, как при
   // создании заказа (см. /api/orders), чтобы предпросмотр совпал с чеком.
   const subtotal = Number(
     items
-      .reduce((sum, item) => sum + Number((item.product.price * item.qty).toFixed(2)), 0)
+      .reduce((sum, item) => sum + Number((item.price * item.qty).toFixed(2)), 0)
       .toFixed(2)
   );
 
@@ -311,10 +325,16 @@ export async function POST(request: NextRequest) {
         stock: data.stock,
       });
 
+      // Снимок цены оффера. ТОТ ЖЕ оффер (тот же артикул + та же цена) суммирует
+      // количество; ДРУГОЙ оффер того же артикула (другая цена) становится
+      // ОТДЕЛЬНОЙ строкой — иначе 400 + 100 затирались бы в 2×100.
+      const priceSnapshot = data.ourPrice.toFixed(2);
+
       const existingItem = await db.query.cartItems.findFirst({
         where: and(
           eq(cartItems.cartId, cart.id),
-          eq(cartItems.productId, productId)
+          eq(cartItems.productId, productId),
+          eq(cartItems.price, priceSnapshot)
         ),
       });
 
@@ -332,6 +352,7 @@ export async function POST(request: NextRequest) {
           cartId: cart.id,
           productId,
           qty: data.qty,
+          price: priceSnapshot,
           deliveryDays: data.deliveryDays ?? null,
           supplier: data.supplier ?? null,
         });
@@ -350,7 +371,13 @@ export async function POST(request: NextRequest) {
     // Handle different actions
     switch (validatedData.action) {
       case "add": {
-        // Check if item already exists in cart
+        // Легаси-путь по productId (UI добавляет через addFromSupplier).
+        if (validatedData.productId == null) {
+          return NextResponse.json(
+            { error: "productId required for add" },
+            { status: 400 }
+          );
+        }
         const existingItem = await db.query.cartItems.findFirst({
           where: and(
             eq(cartItems.cartId, cart.id),
@@ -359,13 +386,11 @@ export async function POST(request: NextRequest) {
         });
 
         if (existingItem) {
-          // Update quantity
           await db
             .update(cartItems)
             .set({ qty: existingItem.qty + (validatedData.qty || 1) })
             .where(eq(cartItems.id, existingItem.id));
         } else {
-          // Add new item
           await db.insert(cartItems).values({
             cartId: cart.id,
             productId: validatedData.productId,
@@ -376,26 +401,38 @@ export async function POST(request: NextRequest) {
       }
 
       case "remove": {
+        // Удаляем КОНКРЕТНУЮ строку по её id (scoped к корзине пользователя).
+        if (validatedData.cartItemId == null) {
+          return NextResponse.json(
+            { error: "cartItemId required for remove" },
+            { status: 400 }
+          );
+        }
         await db
           .delete(cartItems)
           .where(
             and(
               eq(cartItems.cartId, cart.id),
-              eq(cartItems.productId, validatedData.productId)
+              eq(cartItems.id, validatedData.cartItemId)
             )
           );
         break;
       }
 
       case "update": {
+        if (validatedData.cartItemId == null) {
+          return NextResponse.json(
+            { error: "cartItemId required for update" },
+            { status: 400 }
+          );
+        }
         if (validatedData.qty === 0) {
-          // Remove item if qty is 0
           await db
             .delete(cartItems)
             .where(
               and(
                 eq(cartItems.cartId, cart.id),
-                eq(cartItems.productId, validatedData.productId)
+                eq(cartItems.id, validatedData.cartItemId)
               )
             );
         } else {
@@ -405,7 +442,7 @@ export async function POST(request: NextRequest) {
             .where(
               and(
                 eq(cartItems.cartId, cart.id),
-                eq(cartItems.productId, validatedData.productId)
+                eq(cartItems.id, validatedData.cartItemId)
               )
             );
         }

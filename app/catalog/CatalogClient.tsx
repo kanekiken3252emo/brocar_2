@@ -95,8 +95,9 @@ function isFreeText(query: string): boolean {
  *   "ALSP085"            → { article: "ALSP085" }
  *   "MILES ALSP085"      → { article: "ALSP085", brand: "MILES" }
  *   "0986452041 Bosch"   → { article: "0986452041", brand: "Bosch" }
- *   "KE100 LFW/X"        → { article: "KE100 LFW/X" }  (LFW/X со слэшем — часть артикула)
- *   "XYG KE100 LFW/X"    → { article: "KE100 LFW/X", brand: "XYG" }
+ *   "1336 CC" / "1336-CC"→ { article: "1336CC" }  (CC — короткий хвост артикула, НЕ бренд)
+ *   "KE100 LFW/X"        → { article: "KE100LFW/X" }  (слэш сохраняем — часть артикула)
+ *   "XYG KE100 LFW/X"    → { article: "KE100LFW/X", brand: "XYG" }
  *   "MILES SUPER ALSP085"→ { article: "ALSP085", brand: "MILES SUPER" }
  *   "масляный фильтр"    → { isText: true }
  */
@@ -109,19 +110,32 @@ function parseQuery(query: string): {
   if (!q) return { isText: true };
   if (/[а-яёА-ЯЁ]/.test(q)) return { isText: true };
 
+  // Канонизация артикула для поставщиков: убираем пробелы/дефисы/точки внутри
+  // (1 457 429 870 == 1457429870, 1336-CC == 1336CC — поставщики хранят слитно),
+  // но СЛЭШ оставляем — он может быть значимой частью артикула (XYG LFW/X ≠ LFWX).
+  const canonArticle = (s: string) => s.replace(/[\s.\-]+/g, "");
+
   const tokens = q.split(/\s+/).filter(Boolean);
-  if (tokens.length === 1) return { article: tokens[0], isText: false };
+  if (tokens.length === 1)
+    return { article: canonArticle(tokens[0]), isText: false };
 
-  // Бренд = токен из чисто латинских букв (без цифр, без спецсимволов).
-  // Артикул = всё остальное (содержит цифру либо спецсимвол - / _ . и т.п.).
-  const isPureLetters = (s: string) => /^[a-zA-Z]+$/.test(s);
-  const articleTokens = tokens.filter((t) => !isPureLetters(t));
-  const brandTokens = tokens.filter(isPureLetters);
+  // Бренд = токен из чисто латинских букв ДЛИНОЙ ≥3 (Bosch, MILES, XYG, NGK…).
+  // Короткие буквенные хвосты (CC, X, AB) — это часть артикула, а НЕ бренд:
+  // иначе «1336 CC» теряет «CC» и ищет чужой артикул «1336».
+  const isBrandToken = (s: string) => /^[a-zA-Z]{3,}$/.test(s);
+  const articleTokens = tokens.filter((t) => !isBrandToken(t));
+  const brandTokens = tokens.filter(isBrandToken);
 
-  // Совсем нет «не-буквенных» токенов — это слова, ищем как текст.
+  // Совсем нет «артикульных» токенов — это слова, ищем как текст.
   if (articleTokens.length === 0) return { isText: true };
 
-  const article = articleTokens.join(" ");
+  // Бренд снимаем только если рядом есть «настоящий» артикул (с цифрой):
+  // «MILES ALSP085» → brand=MILES, art=ALSP085; но «ABC DEF» (два буквенных
+  // слова без цифр) → текстовый поиск, бренд не выдёргиваем.
+  const hasNumericArticle = articleTokens.some((t) => /\d/.test(t));
+  if (!hasNumericArticle && brandTokens.length > 0) return { isText: true };
+
+  const article = canonArticle(articleTokens.join(" "));
   const brand = brandTokens.length > 0 ? brandTokens.join(" ") : undefined;
 
   return { article, brand, isText: false };

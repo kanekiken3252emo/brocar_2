@@ -153,14 +153,14 @@ certbot --nginx -d твой-домен.ru -d www.твой-домен.ru
 cd /var/www/brocar
 docker compose restart
 
-# Обновить приложение (после изменений в коде)
-cd /var/www/brocar
-git pull                      # если используешь git
-docker compose up -d --build  # пересобрать и запустить
-# Примечание: в проде это происходит автоматически через
-# /usr/local/bin/brocar-deploy.sh — запускается из cron раз в минуту,
-# подхватывает новые коммиты из origin/main и пересобирает контейнер.
-# Логи деплоя: tail -f /var/log/brocar-deploy.log
+# Обновить приложение (после изменений в коде) — деплой РУЧНОЙ:
+/usr/local/bin/brocar-manual-deploy.sh 2>&1 | tee -a /var/log/brocar-deploy.log
+# Скрипт делает git reset --hard origin/main (обязательно — ночные cron берут
+# scripts/ и lib/ с диска /var/www/brocar), проверяет свободную RAM перед сборкой
+# и пересобирает контейнер. Исходник: scripts/manual-deploy.sh. Подробности и
+# как убрать старый авто-деплой — в CRON.md, раздел «Ручной деплой».
+# Авто-сборка раз в минуту УБРАНА: npm run build на проде спайком памяти ронял
+# контейнер (ERR_CONNECTION_CLOSED).
 
 # Посмотреть логи
 docker compose logs -f

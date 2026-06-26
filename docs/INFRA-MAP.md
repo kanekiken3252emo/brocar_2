@@ -12,7 +12,7 @@
 | **Приложение (сайт)** | **VPS `217.114.7.83`** (Docker, nginx) | Next.js-сервер. Сюда же после Фазы 2 встанет GoTrue (авторизация) |
 | **Картинки товаров** | **VK Object Storage (S3), Москва** (`brocar-product-images.hb.ru-msk.vkcloud-storage.ru`) | Фото товаров |
 | **Почта** | **beget** (`info@brocarparts.ru`, imap/smtp.beget.com) | Приём прайс-листов поставщиков + отправка писем |
-| **Код / деплой** | **GitHub** (`kanekiken3252emo/brocar_2`) | Исходники. Авто-деплой на VPS по cron (`brocar-deploy.sh`) |
+| **Код / деплой** | **GitHub** (`kanekiken3252emo/brocar_2`) | Исходники. Деплой РУЧНОЙ: `scripts/manual-deploy.sh` (`git reset --hard` + build + `up -d`). Авто-деплой убран. См. `CRON.md` |
 | **Домен / DNS** | `brocarparts.ru` → nginx на VPS | Точка входа сайта |
 
 ## Персональные данные (для 152-ФЗ) — где именно

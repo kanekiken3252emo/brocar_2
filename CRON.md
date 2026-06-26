@@ -3,27 +3,36 @@
 > Это **документация уже работающей схемы** на VPS (`217.114.7.83`, `/var/www/brocar`).
 > Сам crontab живёт на сервере (`crontab -l` под root) — здесь он зафиксирован,
 > чтобы знание не потерялось, если сервер придётся поднимать заново.
-> **Менять ничего не требуется** — схема сама использует свежий код.
+> **Деплой теперь РУЧНОЙ** (авто-сборка раз в минуту убрана — она спайком памяти
+> от `npm run build` на проде роняла контейнер, см. раздел «Ручной деплой» ниже).
 
-## Почему мусор Армтека не вернётся
+## Почему мусор Армтека не вернётся (и что изменилось без авто-деплоя)
 
-Ключевой момент: **импорт всегда исполняет последнюю версию кода.**
+Ключевой момент: **импорт исполняет ту версию кода, что лежит в `/var/www/brocar`.**
 
-1. Деплой-cron раз в минуту делает `git reset --hard origin/main` → папка
-   `/var/www/brocar` на сервере всегда равна последнему коммиту `main`.
-2. Импорт-cron перед запуском копирует свежие `scripts/` и `lib/` в контейнер
-   (`docker cp`) и только потом запускает импортёр **внутри** контейнера.
+1. Импорт/прогрев-cron перед запуском копируют `scripts/` и `lib/` в контейнер
+   (`docker cp /var/www/brocar/...`) и только потом запускают скрипт **внутри**
+   контейнера. То есть берут код **с диска `/var/www/brocar`**, а не из git.
+2. Раньше этот диск держал свежим авто-деплой (`git reset --hard origin/main` раз
+   в минуту). **Авто-деплой убран** → теперь диск обновляется ТОЛЬКО ручным
+   деплоем.
 
-Версионного дрейфа нет. Баг был не в устаревшей копии на каком-то ПК, а в самом
-импортёре в репозитории (Армтек сменил формат прайса на 12 колонок — маппинг
-колонок не обновили). После фикса в `main` cron берёт исправленный код сам.
+⚠️ **Поэтому ручной деплой ОБЯЗАН делать `git fetch && git reset --hard origin/main`**
+(он встроен в `scripts/manual-deploy.sh`). Если задеплоить картинку без git-sync —
+папка `/var/www/brocar` застынет, и ночные cron начнут `docker cp` **устаревших**
+скриптов: ровно тот «версионный дрейф», от которого мы и защищались.
+
+Баг Армтека был не в устаревшей копии, а в самом импортёре (Армтек сменил формат
+прайса на 12 колонок). Фикс в `main` доезжает до cron только после ручного деплоя.
 
 ## Расписание (crontab -l, root) — время серверное
 
 ```cron
-# Авто-деплой: каждую минуту. git fetch; если есть новый коммит в origin/main —
-# git reset --hard + docker compose up -d --build. Логи: /var/log/brocar-deploy.log
-* * * * * flock -n /var/lock/brocar.lock /usr/local/bin/brocar-deploy.sh >> /var/log/brocar-deploy.log 2>&1
+# АВТО-ДЕПЛОЙ УБРАН. Раньше тут была строка «* * * * * ... brocar-deploy.sh»,
+# которая раз в минуту делала docker compose up -d --build. Сборка Next (npm run
+# build, ~1.5-2 ГБ RAM) на проде при ~15 коммитах/день давала спайки памяти и
+# пересоздания контейнера → ERR_CONNECTION_CLOSED. Деплой теперь только руками:
+# см. раздел «Ручной деплой» (scripts/manual-deploy.sh).
 
 # 05:00 — импорт всех поставщиков из почты (Berg, ШАТЕ-М, Форум-Авто, Армтек, Россико)
 0 5 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app mkdir -p /app/scripts /app/lib && docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts && docker cp /var/www/brocar/lib/. brocar-app:/app/lib && docker exec -u root brocar-app sh -c '[ -d /app/scripts/node_modules/imapflow ] || (cd /app/scripts && npm init -y >/dev/null 2>&1 && npm i imapflow mailparser adm-zip exceljs postgres --no-audit --no-fund)' && docker exec -u root brocar-app node /app/scripts/import-all-from-email.mjs" >> /var/log/brocar-import.log 2>&1
@@ -31,12 +40,56 @@
 # 08:30 — отдельный прогон Армтека
 30 8 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app mkdir -p /app/scripts /app/lib && docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts && docker cp /var/www/brocar/lib/. brocar-app:/app/lib && docker exec -u root brocar-app sh -c '[ -d /app/scripts/node_modules/imapflow ] || (cd /app/scripts && npm init -y >/dev/null 2>&1 && npm i imapflow mailparser adm-zip exceljs postgres --no-audit --no-fund)' && docker exec -u root brocar-app node /app/scripts/import-armtek-from-email.mjs" >> /var/log/brocar-import.log 2>&1
 
-# 22:00 — прогрев картинок (S3), порция 30000, по localhost
-0 22 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app sh -c '[ -d /app/node_modules/postgres ] || { rm -rf /tmp/pg && mkdir -p /tmp/pg && cd /tmp/pg && npm i postgres@3.4.5 --no-save --no-audit --no-fund && cp -r /tmp/pg/node_modules/postgres /app/node_modules/postgres; }' && docker cp /var/www/brocar/scripts/warm-product-images.mjs brocar-app:/app/warm.mjs && docker exec -e WARM_LIMIT=30000 -e WARM_CONCURRENCY=6 -e WARM_BASE_URL=http://127.0.0.1:3000 brocar-app node /app/warm.mjs" >> /var/log/brocar-warm.log 2>&1
+# 22:00 — прогрев картинок (S3). ВАЖНО: concurrency=3 (было 6), limit=15000 (было
+# 30000). Прогрев дёргает /api/product-image внутри brocar-app, а там sharp —
+# WARM_CONCURRENCY = число одновременных sharp-операций в боевом контейнере.
+# 3 вместо 6 вдвое снижает спайк, при limit 15000 время прогона примерно прежнее
+# (прогрев инкрементный: NOT EXISTS пропускает уже прогретые товары, добирает за
+# несколько ночей). Доп. защита — sharp.concurrency(1) в lib/product-images.ts.
+# Проверь фактическое время в /var/log/brocar-warm.log: если стабильно
+# заканчивает до ~03:00, limit можно поднимать обратно к 30000.
+0 22 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app sh -c '[ -d /app/node_modules/postgres ] || { rm -rf /tmp/pg && mkdir -p /tmp/pg && cd /tmp/pg && npm i postgres@3.4.5 --no-save --no-audit --no-fund && cp -r /tmp/pg/node_modules/postgres /app/node_modules/postgres; }' && docker cp /var/www/brocar/scripts/warm-product-images.mjs brocar-app:/app/warm.mjs && docker exec -e WARM_LIMIT=15000 -e WARM_CONCURRENCY=3 -e WARM_BASE_URL=http://127.0.0.1:3000 brocar-app node /app/warm.mjs" >> /var/log/brocar-warm.log 2>&1
 ```
 
 Все задачи под одним `flock /var/lock/brocar.lock`, чтобы деплой и импорт не
 пересекались.
+
+## Ручной деплой (вместо убранного авто-деплоя)
+
+Деплой теперь руками. Один раз положи на VPS гард-скрипты из репозитория:
+
+```bash
+# Скопировать из репо в /usr/local/bin и сделать исполняемыми
+install -m 755 /var/www/brocar/scripts/manual-deploy.sh        /usr/local/bin/brocar-manual-deploy.sh
+install -m 755 /var/www/brocar/scripts/disable-autodeploy-cron.sh /usr/local/bin/brocar-disable-autodeploy.sh
+```
+
+**Шаг 1 — убрать строку авто-деплоя из crontab (один раз):**
+
+```bash
+# Сначала ПОСМОТРИ, что именно удалится (должна найтись ровно 1 строка):
+crontab -l | grep -n 'brocar-deploy.sh'
+# Гард-скрипт: делает бэкап crontab, удаляет только строку brocar-deploy.sh,
+# отказывается работать если совпадений не ровно одно (не затрёт import/warm):
+/usr/local/bin/brocar-disable-autodeploy.sh
+crontab -l        # проверь: строки 0 5 / 30 8 / 0 22 на месте, «* * * * *» нет
+```
+
+**Шаг 2 — выкатывать релиз так (каждый раз, когда хочешь обновить прод):**
+
+```bash
+/usr/local/bin/brocar-manual-deploy.sh 2>&1 | tee -a /var/log/brocar-deploy.log
+```
+
+Скрипт `manual-deploy.sh`: обязательно делает `git fetch && git reset --hard
+origin/main` (иначе ночные cron возьмут устаревшие скрипты — см. выше),
+проверяет свободную RAM перед сборкой (чтобы `npm run build` не уронил живой
+контейнер), собирает образ **вне** блокировки, и только секундный `up -d`
+(пересоздание контейнера) — под `flock`, чтобы не пересечься с импортом/прогревом.
+
+> Если поменял ТОЛЬКО `scripts/` или `lib/` (а не код сайта) — пересборка образа
+> не нужна, достаточно git-sync: `cd /var/www/brocar && git fetch origin && git
+> reset --hard origin/main`. Ночной cron сам `docker cp` свежие скрипты в контейнер.
 
 ## Полезное
 

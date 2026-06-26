@@ -142,6 +142,15 @@ async function uploadBufferToStorage(
     // а просто грузим оригинал без сжатия. Раньше статический import sharp
     // ронял ВСЕ роуты, использующие этот файл (категории/поиск/картинки).
     const sharp = (await import("sharp")).default;
+    // Глобально для процесса: 1 поток libvips на операцию + маленький кэш.
+    // Без этого КАЖДЫЙ sharp-вызов поднимает os.cpus().length потоков; при
+    // параллельном ночном прогреве (WARM_CONCURRENCY одновременных запросов к
+    // /api/product-image) это даёт WARM_CONCURRENCY × cores потоков и насыщает
+    // CPU внутри brocar-app → сервер «залипает» и рвёт соединения. Сеттеры
+    // идемпотентны (можно звать на каждый запрос). Тоже троттлит libvips у
+    // next/image в этом же процессе — осознанный компромисс ради стабильности.
+    sharp.concurrency(1);
+    sharp.cache({ files: 0, items: 50, memory: 50 }); // ~50 МБ потолок кэша
     outBuffer = await sharp(buffer)
       .resize(300, 300, { fit: "inside", withoutEnlargement: true })
       .webp({ quality: 72 })

@@ -154,8 +154,10 @@ VPS не поднимаем. Меньше точек отказа (на хруп
   + Армтек отдельно в 08:30 UTC). Идёт ~15–20 мин. В конце блок `==== ИТОГ ====`
   со статусами `✅/❌` по каждому поставщику.
 - `/var/log/brocar-warm.log` — **прогрев картинок товаров** в S3 (22:00 UTC).
-- `/var/log/brocar-deploy.log` — авто-деплой (каждую минуту: `git reset --hard origin/main`
-  + `docker compose up -d --build`). Расписание — в `CRON.md`.
+- `/var/log/brocar-deploy.log` — **ручной** деплой (`scripts/manual-deploy.sh`:
+  `git reset --hard origin/main` + проверка RAM + `docker compose build` + `up -d`).
+  Авто-деплой раз в минуту убран (спайк `npm run build` ронял прод). См. `CRON.md`
+  → «Ручной деплой».
 
 ### Как проверять (важно!)
 SSH-ключа с рабочих машин нет → подключается **пользователь сам** (password auth, пароль

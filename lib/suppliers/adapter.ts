@@ -155,7 +155,7 @@ export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
   const map = new Map<string, SupplierGroup>();
 
   for (const g of groups) {
-    const key = `${normalizeArticle(g.article)}|${brandKey(g.brand)}`;
+    const key = `${normalizeArticle(g.article)}|${brandKey(canonicalBrand(g.brand))}`;
     const existing = map.get(key);
 
     if (!existing) {
@@ -236,7 +236,7 @@ export function groupOffers(
   // именем («Р С С Р») победил бы чистый дубль («крюк») того же товара.
   const bestName = new Map<string, string>();
   for (const item of items) {
-    const key = `${normalizeArticle(item.article)}|${brandKey(item.brand)}`;
+    const key = `${normalizeArticle(item.article)}|${brandKey(canonicalBrand(item.brand))}`;
     const cand = repairSupplierName(item.name || "");
     const cur = bestName.get(key);
     if (cur === undefined || nameScore(cand) > nameScore(cur)) {
@@ -252,7 +252,10 @@ export function groupOffers(
     if (!Number.isFinite(item.stock) || item.stock <= 0) continue;
 
     const brand = canonicalBrand(item.brand);
-    const key = `${normalizeArticle(item.article)}|${brandKey(item.brand)}`;
+    // Ключ группировки по каноничному бренду: разные написания одного бренда
+    // (LAND ROVER / LANDROVER, и любые варианты из BRAND_MAP) дают один ключ и
+    // схлопываются в одну карточку, как и обещает их единое отображаемое имя.
+    const key = `${normalizeArticle(item.article)}|${brandKey(brand)}`;
 
     const offer: SupplierOffer = {
       supplier: item.supplier,

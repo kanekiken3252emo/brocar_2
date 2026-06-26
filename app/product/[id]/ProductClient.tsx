@@ -252,10 +252,14 @@ export default function ProductClient({
     ? Math.min(...product.offers.map((o) => o.price))
     : null;
 
-  // Самый дешёвый оффер — на него указывает «Цена от». Список отсортирован
-  // «в наличии → быстрее → дешевле», поэтому дешёвый может оказаться вне топ-3.
-  // Чтобы «Цена от X» не расходилась с видимыми строками, всегда показываем
-  // самый дешёвый оффер рядом с тремя лучшими (если он не попал в топ-3).
+  // Заголовочная цена = цена ВЫБРАННОГО оффера (та, что уйдёт в корзину), чтобы
+  // «карточка == корзина» при любом выборе. minPrice — только fallback, пока
+  // оффер не выбран, и для подсказки «есть дешевле» ниже.
+  const displayPrice = selectedOffer?.price ?? minPrice;
+
+  // Самый дешёвый оффер: список отсортирован «в наличии → быстрее → дешевле»,
+  // поэтому дешёвый может оказаться вне топ-3 — всегда показываем его рядом с
+  // тремя лучшими, и на него ведёт подсказка «есть дешевле — от X ₽».
   const cheapestOffer = product?.offers?.length
     ? product.offers.reduce((m, o) => (o.price < m.price ? o : m), product.offers[0])
     : null;
@@ -323,7 +327,7 @@ export default function ProductClient({
               ) : minPrice ? (
                 <div className="bg-gradient-to-r from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-5 md:p-6">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="text-sm text-neutral-400">Цена от</div>
+                    <div className="text-sm text-neutral-400">Цена</div>
                     {/* Пока идёт живой опрос поставщиков — показываем, что цифры
                         предварительные и уточняются (а не «глючат»). */}
                     {loading && product && (
@@ -338,8 +342,23 @@ export default function ProductClient({
                       loading && product ? "opacity-60" : "opacity-100"
                     }`}
                   >
-                    {minPrice.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
+                    {(displayPrice ?? minPrice)!.toLocaleString("ru-RU")} <span className="text-xl text-neutral-400">₽</span>
                   </div>
+                  {/* Подсказка про более дешёвый вариант — только когда выбранный
+                      оффер дороже минимума. Клик выбирает самый дешёвый оффер:
+                      заголовочная цена и корзина сразу станут этим минимумом. */}
+                  {minPrice != null &&
+                    displayPrice != null &&
+                    minPrice < displayPrice &&
+                    cheapestOffer && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOffer(cheapestOffer)}
+                        className="mt-2 inline-flex items-center text-sm text-orange-400 hover:text-orange-300 transition-colors"
+                      >
+                        есть дешевле — от {minPrice.toLocaleString("ru-RU")} ₽
+                      </button>
+                    )}
                 </div>
               ) : (
                 <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-5 md:p-6">

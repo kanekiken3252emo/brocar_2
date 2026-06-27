@@ -140,6 +140,9 @@ export default function ProductClient({
   // Пользовательская сортировка предложений (клик по заголовку / пилюле).
   const [sortKey, setSortKey] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Оффер, с которого переключились на «есть дешевле» — чтобы вернуться к нему
+  // (к быстрой доставке) одной кнопкой.
+  const [prevOffer, setPrevOffer] = useState<BergOffer | null>(null);
 
   const router = useRouter();
 
@@ -160,6 +163,7 @@ export default function ProductClient({
   useEffect(() => {
     setProduct(seedProduct);
     setSelectedOffer(seedProduct?.offers?.[0] ?? null);
+    setPrevOffer(null);
   }, [seedProduct]);
 
   useEffect(() => {
@@ -415,13 +419,52 @@ export default function ProductClient({
                   {minPrice != null &&
                     displayPrice != null &&
                     minPrice < displayPrice &&
-                    cheapestOffer && (
+                    cheapestOffer &&
+                    selectedOffer && (
                       <button
                         type="button"
-                        onClick={() => setSelectedOffer(cheapestOffer)}
-                        className="mt-2 inline-flex items-center text-sm text-orange-400 hover:text-orange-300 transition-colors"
+                        onClick={() => {
+                          setPrevOffer(selectedOffer);
+                          setSelectedOffer(cheapestOffer);
+                        }}
+                        className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left text-sm text-orange-400 hover:text-orange-300 transition-colors"
                       >
-                        есть дешевле — от {minPrice.toLocaleString("ru-RU")} ₽
+                        <span>
+                          есть дешевле — от {minPrice.toLocaleString("ru-RU")} ₽
+                        </span>
+                        {/* Честный компромисс: дешёвый оффер обычно едет дольше —
+                            показываем на сколько дней и какой будет срок. */}
+                        {cheapestOffer.average_period >
+                          selectedOffer.average_period && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-400/90">
+                            <Clock className="w-3 h-3 shrink-0" />
+                            но доставка дольше на{" "}
+                            {cheapestOffer.average_period -
+                              selectedOffer.average_period}{" "}
+                            дн. ({formatDeliveryDays(cheapestOffer.average_period)})
+                          </span>
+                        )}
+                      </button>
+                    )}
+
+                  {/* После переключения на дешёвый-но-долгий — кнопка вернуться к
+                      прежнему (быстрому) офферу одним кликом. */}
+                  {selectedOffer &&
+                    cheapestOffer &&
+                    selectedOffer === cheapestOffer &&
+                    prevOffer &&
+                    prevOffer !== cheapestOffer && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOffer(prevOffer);
+                          setPrevOffer(null);
+                        }}
+                        className="mt-2 inline-flex items-center gap-1.5 text-sm text-neutral-300 hover:text-white transition-colors"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                        вернуть как было — {prevOffer.price.toLocaleString("ru-RU")} ₽,{" "}
+                        {formatDeliveryDays(prevOffer.average_period)}
                       </button>
                     )}
                 </div>

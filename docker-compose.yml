@@ -21,6 +21,14 @@ services:
       # и т.д.
     env_file:
       - .env
+    # Ротация логов контейнера: json-логи Docker по умолчанию растут БЕСКОНЕЧНО и
+    # со временем забивают диск. Ограничиваем 3 файла × 10 МБ (макс. 30 МБ) — важно
+    # для автономной работы без присмотра.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - brocar-network
 

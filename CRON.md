@@ -119,3 +119,25 @@ docker exec -u root brocar-app node /app/scripts/inspect-armtek-columns.mjs
 Если Армтек снова сменит порядок колонок — поправить нужно `parseXlsx` в
 `scripts/import-armtek-from-email.mjs` (текущий маппинг: бренд=3, артикул=4,
 название=5, кол-во=8, цена=9), свериться через `inspect-armtek-columns.mjs`.
+
+## Авто-обслуживание (чтобы сервер жил без присмотра)
+
+Чтобы диск не забивался docker-образами/логами и проект работал автономно после
+передачи:
+
+- **Логи контейнера** ограничены ротацией в `docker-compose.yml`
+  (`logging: max-size 10m × max-file 3`). Применяется при пересоздании контейнера (деплой).
+- **Контейнер сам поднимается** после краша/перезагрузки (`restart: always`).
+- **SSL** продлевается автоматически (certbot). Проверка: `systemctl status certbot.timer`,
+  `certbot renew --dry-run`.
+- **Еженедельная авто-уборка** — `scripts/server-maintenance.sh`: чистит
+  неиспользуемые docker-образы/build-кэш (`docker system prune -af`; работающий
+  контейнер/образ/сеть и тома не трогает) и подрезает большие логи. Установка
+  (один раз, root):
+
+  ```bash
+  install -m 755 /var/www/brocar/scripts/server-maintenance.sh /usr/local/bin/brocar-maintenance.sh
+  ( crontab -l 2>/dev/null; echo '0 3 * * 0 flock -w 600 /var/lock/brocar.lock /usr/local/bin/brocar-maintenance.sh >> /var/log/brocar-maintenance.log 2>&1' ) | crontab -
+  ```
+
+После этого присматривать за сервером вручную не требуется.

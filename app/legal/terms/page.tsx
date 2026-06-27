@@ -4,8 +4,9 @@ import { FileText, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Условия использования",
-  description: "Условия использования сайта BroCar",
+  title: "Публичная оферта и условия использования",
+  description:
+    "Публичная оферта (договор розничной купли-продажи) и условия использования сайта BroCar — ИП Бакиров А.О.",
 };
 
 export default function TermsPage() {
@@ -13,67 +14,153 @@ export default function TermsPage() {
     <div className="min-h-screen bg-neutral-950">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
           <div className="mb-8">
-            <Link href="/" className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-4 transition-colors">
+            <Link
+              href="/"
+              className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-4 transition-colors"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               На главную
             </Link>
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center shrink-0">
                 <FileText className="h-6 w-6 text-orange-500" />
               </div>
               <h1 className="text-3xl md:text-4xl font-bold text-white">
-                Условия использования
+                Публичная оферта и условия использования
               </h1>
             </div>
-            <p className="text-neutral-400">
-              Последнее обновление: Январь 2026
-            </p>
+            <p className="text-neutral-400">Последнее обновление: 27 июня 2026 г.</p>
           </div>
 
           <Card className="border-neutral-800 bg-neutral-900">
-            <CardContent className="p-8 prose prose-invert max-w-none">
-              <h2 className="text-xl font-semibold text-white mb-4">1. Принятие условий</h2>
-              <p className="text-neutral-400 mb-6">
-                Используя сайт BroCar, вы соглашаетесь с настоящими условиями использования. 
-                Если вы не согласны с условиями, пожалуйста, не используйте наш сайт.
+            <CardContent className="p-6 md:p-8 prose prose-invert max-w-none text-neutral-300 leading-relaxed [&_h2]:text-white [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-3 [&_p]:mb-4 [&_li]:mb-1.5 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6">
+              <h2>1. Продавец</h2>
+              <p>
+                Продавец — Индивидуальный предприниматель Бакиров Артём Олегович,
+                ИНН 660308104039, ОГРНИП 324665800095141, адрес: 620000, г.
+                Екатеринбург, ул. Заводская, д. 16. Полные реквизиты — на странице{" "}
+                <Link
+                  href="/legal/requisites"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  «Реквизиты»
+                </Link>
+                .
               </p>
 
-              <h2 className="text-xl font-semibold text-white mb-4">2. Описание услуг</h2>
-              <p className="text-neutral-400 mb-6">
-                BroCar предоставляет платформу для поиска и заказа автозапчастей. 
-                Мы работаем с проверенными поставщиками для обеспечения качества товаров.
+              <h2>2. Предмет</h2>
+              <p>
+                Настоящий документ является публичной офертой (предложением
+                заключить договор розничной купли-продажи) в соответствии со ст.
+                437 ГК РФ. Оформляя заказ на сайте{" "}
+                <a
+                  href="https://brocarparts.ru"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  brocarparts.ru
+                </a>{" "}
+                (далее — «Сайт»), покупатель принимает (акцептует) условия
+                настоящей оферты. Продавец предоставляет платформу для подбора и
+                заказа автозапчастей и сопутствующих товаров.
               </p>
 
-              <h2 className="text-xl font-semibold text-white mb-4">3. Регистрация</h2>
-              <p className="text-neutral-400 mb-6">
-                Для оформления заказов необходима регистрация. Вы обязуетесь предоставлять 
-                достоверную информацию и поддерживать её актуальность.
+              <h2>3. Регистрация</h2>
+              <p>
+                Для оформления заказов может потребоваться регистрация. Покупатель
+                обязуется предоставлять достоверную информацию и поддерживать её
+                актуальность. Обработка персональных данных осуществляется согласно{" "}
+                <Link
+                  href="/legal/privacy"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  Политике обработки персональных данных
+                </Link>{" "}
+                и{" "}
+                <Link
+                  href="/legal/consent"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  Согласию на обработку ПДн
+                </Link>
+                .
               </p>
 
-              <h2 className="text-xl font-semibold text-white mb-4">4. Заказы и оплата</h2>
-              <ul className="list-disc list-inside text-neutral-400 mb-6 space-y-2">
-                <li>Все цены указаны в рублях и включают НДС</li>
-                <li>Заказ считается принятым после подтверждения</li>
-                <li>Мы оставляем за собой право отменить заказ при отсутствии товара</li>
+              <h2>4. Цена и оплата</h2>
+              <ul>
+                <li>Все цены указаны в рублях РФ.</li>
+                <li>
+                  Продавец применяет упрощённую систему налогообложения, в связи с
+                  чем товары <strong>НДС не облагаются</strong>.
+                </li>
+                <li>
+                  Оплата производится онлайн (банковской картой или через СБП) с
+                  использованием платёжного сервиса ЮKassa; также возможна оплата
+                  при самовывозе по согласованию.
+                </li>
+                <li>
+                  Заказ считается принятым после его подтверждения Продавцом;
+                  Продавец вправе отменить заказ при отсутствии товара у поставщика,
+                  вернув уплаченные средства.
+                </li>
               </ul>
 
-              <h2 className="text-xl font-semibold text-white mb-4">5. Доставка</h2>
-              <p className="text-neutral-400 mb-6">
-                Сроки и стоимость доставки зависят от региона и выбранного способа. 
-                Подробная информация предоставляется при оформлении заказа.
+              <h2>5. Доставка</h2>
+              <p>
+                Сроки и стоимость доставки зависят от региона, поставщика и
+                выбранного способа и сообщаются при оформлении заказа. Часть
+                позиций поставляется «под заказ» — ориентировочный срок указывается
+                в карточке товара и при оформлении.
               </p>
 
-              <h2 className="text-xl font-semibold text-white mb-4">6. Возврат товара</h2>
-              <p className="text-neutral-400 mb-6">
-                Возврат товара надлежащего качества возможен в течение 14 дней 
-                при сохранении товарного вида и упаковки.
+              <h2>6. Возврат товара</h2>
+              <p>
+                <strong>Товар надлежащего качества.</strong> Поскольку товар
+                продаётся дистанционным способом, покупатель вправе отказаться от
+                товара в любое время до его передачи, а после передачи — в течение{" "}
+                <strong>7 дней</strong> (ст. 26.1 Закона РФ «О защите прав
+                потребителей»). Если в момент доставки информация о порядке и
+                сроках возврата не была предоставлена в письменной форме, срок
+                возврата составляет 3 месяца. Возврат возможен при сохранении
+                товарного вида, потребительских свойств и упаковки. Не подлежит
+                возврату товар надлежащего качества, изготовленный/заказанный
+                индивидуально под покупателя. Денежные средства возвращаются не
+                позднее <strong>10 дней</strong> со дня предъявления требования, за
+                вычетом расходов Продавца на доставку возвращённого товара.
+              </p>
+              <p>
+                <strong>Товар ненадлежащего качества.</strong> При обнаружении
+                недостатков покупатель вправе предъявить требования,
+                предусмотренные ст. 18 Закона РФ «О защите прав потребителей»
+                (замена, соразмерное уменьшение цены, возврат уплаченной суммы и
+                др.).
               </p>
 
-              <h2 className="text-xl font-semibold text-white mb-4">7. Контакты</h2>
-              <p className="text-neutral-400">
-                По всем вопросам обращайтесь: <a href="mailto:info@brocarparts.ru" className="text-orange-500 hover:text-orange-400">info@brocarparts.ru</a>
+              <h2>7. Претензии</h2>
+              <p>
+                Претензии направляются на{" "}
+                <a
+                  href="mailto:info@brocarparts.ru"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  info@brocarparts.ru
+                </a>{" "}
+                либо по телефону{" "}
+                <a
+                  href="tel:+79326006015"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  +7 (932) 600-60-15
+                </a>
+                . Продавец рассматривает обращения в сроки, установленные
+                законодательством РФ.
+              </p>
+
+              <h2>8. Заключительные положения</h2>
+              <p>
+                Во всём, что не урегулировано настоящей офертой, стороны
+                руководствуются законодательством РФ. Продавец вправе изменять
+                условия оферты; актуальная редакция размещена на этой странице.
               </p>
             </CardContent>
           </Card>

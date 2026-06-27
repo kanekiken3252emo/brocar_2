@@ -224,7 +224,8 @@ export function Footer() {
               {[
                 { name: "Реквизиты", href: "/legal/requisites" },
                 { name: "Политика конфиденциальности", href: "/legal/privacy" },
-                { name: "Условия использования", href: "/legal/terms" },
+                { name: "Согласие на обработку ПДн", href: "/legal/consent" },
+                { name: "Оферта и условия", href: "/legal/terms" },
                 { name: "Cookie-файлы", href: "/legal/cookies" },
               ].map((item) => (
                 <li key={item.name}>

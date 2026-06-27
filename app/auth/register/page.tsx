@@ -40,7 +40,7 @@ export default function RegisterPage() {
     }
 
     if (!agreed) {
-      setError("Необходимо согласиться с политикой обработки персональных данных");
+      setError("Необходимо дать согласие на обработку персональных данных");
       setIsLoading(false);
       return;
     }
@@ -209,7 +209,7 @@ export default function RegisterPage() {
                     checked={agreed}
                     onChange={(e) => {
                       setAgreed(e.target.checked);
-                      if (error.includes("политикой")) setError("");
+                      if (error.includes("согласие")) setError("");
                     }}
                     disabled={isLoading || success}
                     className="sr-only"
@@ -230,14 +230,14 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <span className="text-sm text-neutral-400 leading-relaxed">
-                  Соглашаюсь на обработку персональных данных в соответствии с{" "}
+                  Я даю{" "}
                   <Link
-                    href="/legal/privacy"
+                    href="/legal/consent"
                     className="text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                     target="_blank"
                   >
-                    политикой конфиденциальности
+                    согласие на обработку персональных данных
                   </Link>
                 </span>
               </label>

@@ -15,9 +15,41 @@ import {
   Shield,
   Truck,
   ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
+
+// Сортировка предложений по клику на заголовок колонки. null = дефолтный порядок
+// (как пришло от сервера: «в наличии → быстрее → дешевле»).
+type SortField = "price" | "delivery" | "quantity" | "reliability";
+
+const SORT_OPTIONS: { key: SortField; label: string; defaultDir: "asc" | "desc" }[] =
+  [
+    { key: "price", label: "Цена", defaultDir: "asc" },
+    { key: "delivery", label: "Срок", defaultDir: "asc" },
+    { key: "quantity", label: "Кол-во", defaultDir: "desc" },
+    { key: "reliability", label: "Надёжность", defaultDir: "desc" },
+  ];
+
+function sortOffers(
+  offers: BergOffer[],
+  key: SortField | null,
+  dir: "asc" | "desc"
+): BergOffer[] {
+  if (!key) return offers;
+  const value = (o: BergOffer) =>
+    key === "price"
+      ? o.price
+      : key === "delivery"
+        ? o.average_period
+        : key === "quantity"
+          ? o.quantity
+          : o.reliability;
+  const sign = dir === "asc" ? 1 : -1;
+  return [...offers].sort((a, b) => (value(a) - value(b)) * sign);
+}
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
@@ -105,6 +137,9 @@ export default function ProductClient({
   );
   const [offersCollapsed, setOffersCollapsed] = useState(false);
   const [showAllOffers, setShowAllOffers] = useState(false);
+  // Пользовательская сортировка предложений (клик по заголовку / пилюле).
+  const [sortKey, setSortKey] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const router = useRouter();
 
@@ -267,13 +302,38 @@ export default function ProductClient({
         product.offers[0]
       )
     : null;
-  let visibleOffers = product?.offers ?? [];
-  if (!showAllOffers && product?.offers) {
-    visibleOffers = product.offers.slice(0, 3);
-    if (cheapestOffer && !visibleOffers.includes(cheapestOffer)) {
+  // Сортированный список (или дефолтный порядок сервера, если sortKey=null).
+  const sortedOffers = sortOffers(product?.offers ?? [], sortKey, sortDir);
+  let visibleOffers = sortedOffers;
+  if (!showAllOffers) {
+    visibleOffers = sortedOffers.slice(0, 3);
+    // В дефолтном порядке всегда показываем самый дешёвый рядом с топ-3. При
+    // активной сортировке порядок задаёт пользователь — не вмешиваемся.
+    if (!sortKey && cheapestOffer && !visibleOffers.includes(cheapestOffer)) {
       visibleOffers = [...visibleOffers, cheapestOffer];
     }
   }
+
+  // Клик по заголовку/пилюле: тот же столбец → переключить направление,
+  // другой → выбрать его с дефолтным направлением.
+  function toggleSort(key: SortField, defaultDir: "asc" | "desc") {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(defaultDir);
+    }
+  }
+  const sortIcon = (key: SortField) =>
+    sortKey === key ? (
+      sortDir === "asc" ? (
+        <ChevronUp className="w-3.5 h-3.5 text-orange-400" />
+      ) : (
+        <ChevronDown className="w-3.5 h-3.5 text-orange-400" />
+      )
+    ) : (
+      <ChevronsUpDown className="w-3.5 h-3.5 text-neutral-600" />
+    );
 
   return (
     <div className="min-h-screen bg-neutral-950">
@@ -465,6 +525,35 @@ export default function ProductClient({
             </button>
             {!offersCollapsed && (
               <>
+                {/* Mobile: панель сортировки (пилюли) */}
+                {product.offers.length > 1 && (
+                  <div className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-neutral-800 overflow-x-auto">
+                    <span className="text-xs text-neutral-500 shrink-0">
+                      Сортировать:
+                    </span>
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleSort(opt.key, opt.defaultDir)}
+                        className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                          sortKey === opt.key
+                            ? "bg-orange-500/15 border-orange-500/40 text-orange-300"
+                            : "bg-neutral-800 border-neutral-700 text-neutral-300"
+                        }`}
+                      >
+                        {opt.label}
+                        {sortKey === opt.key &&
+                          (sortDir === "asc" ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          ))}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Mobile cards */}
                 <div className="md:hidden divide-y divide-neutral-800">
                   {visibleOffers.map((offer, index) => (
@@ -521,17 +610,45 @@ export default function ProductClient({
                         <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                           Склад
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                          Количество
+                        <th className="px-6 py-4 text-left">
+                          <button
+                            type="button"
+                            onClick={() => toggleSort("quantity", "desc")}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
+                          >
+                            Количество
+                            {sortIcon("quantity")}
+                          </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                          Цена
+                        <th className="px-6 py-4 text-left">
+                          <button
+                            type="button"
+                            onClick={() => toggleSort("price", "asc")}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
+                          >
+                            Цена
+                            {sortIcon("price")}
+                          </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                          Срок
+                        <th className="px-6 py-4 text-left">
+                          <button
+                            type="button"
+                            onClick={() => toggleSort("delivery", "asc")}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
+                          >
+                            Срок
+                            {sortIcon("delivery")}
+                          </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                          Надежность
+                        <th className="px-6 py-4 text-left">
+                          <button
+                            type="button"
+                            onClick={() => toggleSort("reliability", "desc")}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
+                          >
+                            Надежность
+                            {sortIcon("reliability")}
+                          </button>
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                           Действие

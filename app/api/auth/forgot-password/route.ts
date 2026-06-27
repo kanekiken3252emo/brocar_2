@@ -3,7 +3,7 @@ import { z } from "zod";
 import { findUserByEmail, createAuthToken } from "@/lib/auth/users";
 import { generateToken, hashToken, TOKEN_TTL_MS } from "@/lib/auth/tokens";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { publicBaseUrl } from "@/lib/site-url";
+import { trustedBaseUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
         expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
       });
 
-      const resetUrl = `${publicBaseUrl(request)}/auth/reset-password?token=${token}`;
+      // Доверенный домен из настройки, НЕ из заголовков запроса — иначе
+      // подделанный X-Forwarded-Host увёл бы ссылку с токеном на чужой сайт.
+      const resetUrl = `${trustedBaseUrl()}/auth/reset-password?token=${token}`;
       try {
         await sendPasswordResetEmail(user.email, resetUrl);
       } catch (mailErr) {

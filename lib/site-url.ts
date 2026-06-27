@@ -22,6 +22,17 @@ export function publicBaseUrl(request: NextRequest): string {
     return `http://${host}`;
   }
   // 3) Иначе (за прокси без forwarded-host, Host = 0.0.0.0 и т.п.) — домен из env.
+  return trustedBaseUrl();
+}
+
+/**
+ * Доверенный базовый URL для ССЫЛОК В ПИСЬМАХ (сброс пароля, подтверждение email).
+ * В отличие от publicBaseUrl(), НЕ читает хост из заголовков запроса:
+ * X-Forwarded-Host подделывается клиентом, и тогда секретный токен в ссылке уехал
+ * бы на чужой домен (password-reset poisoning). Берём адрес ТОЛЬКО из доверенной
+ * настройки NEXT_PUBLIC_SITE_DOMAIN.
+ */
+export function trustedBaseUrl(): string {
   const domain = process.env.NEXT_PUBLIC_SITE_DOMAIN || "localhost:3000";
   return domain.startsWith("localhost") || domain.startsWith("127.")
     ? `http://${domain}`

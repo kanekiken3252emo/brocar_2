@@ -8,7 +8,7 @@ import { setSessionCookie } from "@/lib/auth/cookies";
 import { requireEmailConfirm } from "@/lib/auth/config";
 import { generateToken, hashToken, CONFIRM_TTL_MS } from "@/lib/auth/tokens";
 import { sendEmailConfirmation } from "@/lib/email";
-import { publicBaseUrl } from "@/lib/site-url";
+import { trustedBaseUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + CONFIRM_TTL_MS),
     });
-    const confirmUrl = `${publicBaseUrl(request)}/auth/confirm?token=${token}`;
+    // Доверенный домен из настройки, НЕ из заголовков запроса (см. forgot-password).
+    const confirmUrl = `${trustedBaseUrl()}/auth/confirm?token=${token}`;
     try {
       await sendEmailConfirmation(user.email, confirmUrl);
     } catch (mailErr) {

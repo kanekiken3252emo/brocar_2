@@ -558,6 +558,23 @@ export default function CartPage() {
                     Оплата онлайн картой или через СБП. Также можно оплатить
                     наличными при самовывозе — по телефону.
                   </p>
+                  <p className="text-xs text-neutral-500 text-center mt-2 leading-relaxed">
+                    Нажимая «Оформить и оплатить», вы принимаете{" "}
+                    <Link
+                      href="/legal/terms"
+                      className="text-orange-400/90 hover:text-orange-300 underline underline-offset-2"
+                    >
+                      условия оферты
+                    </Link>{" "}
+                    и даёте{" "}
+                    <Link
+                      href="/legal/consent"
+                      className="text-orange-400/90 hover:text-orange-300 underline underline-offset-2"
+                    >
+                      согласие на обработку персональных данных
+                    </Link>
+                    .
+                  </p>
                 </CardContent>
               </Card>
 

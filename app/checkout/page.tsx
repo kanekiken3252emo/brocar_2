@@ -343,6 +343,23 @@ export default function CheckoutPage() {
                   <p className="text-xs text-neutral-500 text-center">
                     Оплата онлайн картой или через СБП
                   </p>
+                  <p className="text-xs text-neutral-500 text-center mt-2 leading-relaxed">
+                    Нажимая «Перейти к оплате», вы принимаете{" "}
+                    <Link
+                      href="/legal/terms"
+                      className="text-orange-400/90 hover:text-orange-300 underline underline-offset-2"
+                    >
+                      условия оферты
+                    </Link>{" "}
+                    и даёте{" "}
+                    <Link
+                      href="/legal/consent"
+                      className="text-orange-400/90 hover:text-orange-300 underline underline-offset-2"
+                    >
+                      согласие на обработку персональных данных
+                    </Link>
+                    .
+                  </p>
                 </CardContent>
               </Card>
             </div>

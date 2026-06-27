@@ -11,6 +11,12 @@ import { AutotradeAdapter } from "./suppliers/autotrade";
 
 const BUCKET = "product-images";
 
+// Результат попытки источника: url картинки (или null) + был ли СБОЙ запроса к
+// источнику (в отличие от честного «картинки нет»). При errored=true мы НЕ пишем
+// negative-cache — иначе временный сбой внешнего API навсегда оставил бы товар
+// без фото.
+type ImageResult = { url: string | null; errored: boolean };
+
 // Прямые инстансы адаптеров, чтобы видеть публичные методы для картинок,
 // которых нет в типе SupplierAdapter.
 const shateM = new ShateMAdapter();
@@ -353,17 +359,17 @@ async function persistCache(
 async function tryShateM(
   brand: string,
   article: string
-): Promise<string | null> {
+): Promise<ImageResult> {
   try {
     const articleId = await shateM.findArticleId(article, brand);
-    if (!articleId) return null;
+    if (!articleId) return { url: null, errored: false };
 
     const contents = await shateM.getArticleContents(articleId);
     const imageContent = contents.find((c) => {
       const t = (c.contentType || "").toLowerCase();
       return t.includes("image") || t.includes("2d");
     });
-    if (!imageContent) return null;
+    if (!imageContent) return { url: null, errored: false };
 
     const content = await shateM.fetchContent(
       imageContent.contentId,
@@ -371,14 +377,22 @@ async function tryShateM(
       600,
       600
     );
-    if (!content) return null;
+    if (!content) return { url: null, errored: false };
 
     const base64 = content.data.replace(/^data:[^;]+;base64,/, "");
     const buffer = Buffer.from(base64, "base64");
-    return uploadBufferToStorage(brand, article, buffer, content.mimeType);
+    const stored = await uploadBufferToStorage(
+      brand,
+      article,
+      buffer,
+      content.mimeType
+    );
+    return { url: stored, errored: false };
   } catch (error) {
+    // Сбой ShATE-M (таймаут/нет ответа) → errored: НЕ кешируем «нет картинки»,
+    // товар переподтянется, когда источник оживёт.
     console.error("tryShateM error:", error);
-    return null;
+    return { url: null, errored: true };
   }
 }
 
@@ -393,10 +407,10 @@ async function tryShateM(
 async function tryArmtek(
   brand: string,
   article: string
-): Promise<string | null> {
+): Promise<ImageResult> {
   try {
     const artid = await armtek.getArtid(article, brand);
-    if (!artid) return null;
+    if (!artid) return { url: null, errored: false };
 
     for (const size of ["500x500", "230x230"]) {
       const imageUrl = ArmtekAdapter.buildImageUrl(artid, size);
@@ -409,12 +423,12 @@ async function tryArmtek(
         downloaded.buffer,
         downloaded.mimeType
       );
-      if (stored) return stored;
+      if (stored) return { url: stored, errored: false };
     }
-    return null;
+    return { url: null, errored: false };
   } catch (error) {
     console.error("tryArmtek error:", error);
-    return null;
+    return { url: null, errored: true };
   }
 }
 
@@ -430,23 +444,24 @@ async function tryArmtek(
 async function tryAutotrade(
   brand: string,
   article: string
-): Promise<string | null> {
+): Promise<ImageResult> {
   try {
     const imageUrl = await autotrade.getProductImageUrl(article, brand);
-    if (!imageUrl) return null;
+    if (!imageUrl) return { url: null, errored: false };
 
     const downloaded = await downloadImage(imageUrl);
-    if (!downloaded) return null;
+    if (!downloaded) return { url: null, errored: false };
 
-    return uploadBufferToStorage(
+    const stored = await uploadBufferToStorage(
       brand,
       article,
       downloaded.buffer,
       downloaded.mimeType
     );
+    return { url: stored, errored: false };
   } catch (error) {
     console.error("tryAutotrade error:", error);
-    return null;
+    return { url: null, errored: true };
   }
 }
 
@@ -457,31 +472,35 @@ async function tryAutotrade(
  * нельзя), но это безвредно: ключ один и тот же (brand/article.webp).
  */
 function firstImageHit(
-  sources: Array<{ source: string; run: () => Promise<string | null> }>
-): Promise<{ url: string | null; source: string }> {
+  sources: Array<{ source: string; run: () => Promise<ImageResult> }>
+): Promise<{ url: string | null; source: string; errored: boolean }> {
   return new Promise((resolve) => {
     let remaining = sources.length;
+    let errored = false;
     let done = false;
     if (remaining === 0) {
-      resolve({ url: null, source: "none" });
+      resolve({ url: null, source: "none", errored: false });
       return;
     }
     for (const { source, run } of sources) {
       run()
-        .then((url) => {
+        .then((res) => {
           if (done) return;
-          if (url) {
+          if (res.url) {
             done = true;
-            resolve({ url, source });
+            resolve({ url: res.url, source, errored });
             return;
           }
+          if (res.errored) errored = true;
           remaining -= 1;
-          if (remaining === 0) resolve({ url: null, source: "none" });
+          if (remaining === 0) resolve({ url: null, source: "none", errored });
         })
         .catch((err) => {
           console.error(`product-images: источник ${source} упал:`, err);
+          errored = true;
           remaining -= 1;
-          if (remaining === 0 && !done) resolve({ url: null, source: "none" });
+          if (remaining === 0 && !done)
+            resolve({ url: null, source: "none", errored });
         });
     }
   });
@@ -520,7 +539,7 @@ export async function getOrFetchProductImage(
   // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
   // быстрые. Возвращаем картинку, КАК ТОЛЬКО её нашёл первый из них. Все грузят
   // файл по одному ключу (brand/article.*), поэтому URL одинаковый.
-  let { url, source } = await firstImageHit([
+  let { url, source, errored } = await firstImageHit([
     { source: "armtek", run: () => tryArmtek(brand, article) },
     { source: "shate-m", run: () => tryShateM(brand, article) },
   ]);
@@ -528,13 +547,20 @@ export async function getOrFetchProductImage(
   // Тир 2: Autotrade — резерв, только если первые два не нашли. Бережём его
   // лимит 1 req/sec (иначе массовый прогрев упрётся в него и заденет каталог).
   if (!url) {
-    const autotradeUrl = await tryAutotrade(brand, article);
-    if (autotradeUrl) {
-      url = autotradeUrl;
+    const at = await tryAutotrade(brand, article);
+    if (at.url) {
+      url = at.url;
       source = "autotrade";
     }
+    errored = errored || at.errored;
   }
 
-  await persistCache(brand, article, url, source);
+  // Кешируем, ТОЛЬКО если нашли картинку ИЛИ её честно нет (без сбоев API). Если
+  // опрос упал с ошибкой (внешний источник лёг, как ShATE-M сейчас) — НЕ пишем
+  // negative-cache: товар переподтянется при следующем заходе, когда источник
+  // оживёт. Иначе временный сбой навсегда оставил бы товар без фото.
+  if (url || !errored) {
+    await persistCache(brand, article, url, source);
+  }
   return url;
 }

@@ -230,7 +230,9 @@ export class ShateMAdapter implements SupplierAdapter {
       if (axios.isAxiosError(error)) {
         console.error("ShATE-M getArticleContents error:", error.response?.status);
       }
-      return [];
+      // Пробрасываем: вызывающий (product-images.tryShateM) отличит «сбой API»
+      // от «картинки нет» и не отравит negative-cache при таймауте ShATE-M.
+      throw error;
     }
   }
 
@@ -289,7 +291,9 @@ export class ShateMAdapter implements SupplierAdapter {
       } else {
         console.error("ShATE-M fetchContent unexpected error:", error);
       }
-      return null;
+      // Пробрасываем (см. getArticleContents) — чтобы сбой не кешировался как
+      // «нет картинки».
+      throw error;
     }
   }
 

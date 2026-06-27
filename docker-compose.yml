@@ -7,8 +7,11 @@ services:
       dockerfile: Dockerfile
     container_name: brocar-app
     restart: always
+    # Слушаем только localhost — наружу :3000 закрыт, доступ только через nginx
+    # (TLS на 443). nginx проксирует на 127.0.0.1:3000. Раньше было "3000:3000"
+    # (0.0.0.0) — порт торчал в интернет в обход nginx/HTTPS.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
       # Добавь сюда свои переменные окружения из .env файла:

@@ -46,11 +46,12 @@ export function Footer() {
             <div className="absolute inset-0 bg-orange-500/15 rounded-full blur-2xl scale-110" />
             <div className="relative w-full h-full rounded-full bg-black ring-1 ring-neutral-800 overflow-hidden flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
               <Image
-                src="/Logo_Brocar.webp"
+                src="/Logo_Brocar-sm.webp"
                 alt="BroCar"
-                width={1200}
-                height={1200}
+                width={256}
+                height={256}
                 className="w-full h-full object-contain"
+                unoptimized
               />
             </div>
           </div>

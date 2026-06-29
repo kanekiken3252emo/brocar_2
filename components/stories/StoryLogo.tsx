@@ -82,13 +82,17 @@ export default function StoryLogo() {
 
   const img = (
     <Image
-      src="/Logo_Brocar.webp"
+      // Маленькая статичная версия + unoptimized: лого отдаётся напрямую как
+      // файл (6 КБ webp), минуя /_next/image. Так бренд-логотип не зависит от
+      // оптимизатора (sharp/AVIF/Accept) и не «икает» на отдельных устройствах
+      // (баг «битый логотип в Safari/Яндексе на iOS»). webp поддерживают iOS 14+.
+      src="/Logo_Brocar-sm.webp"
       alt="BroCar"
-      width={1200}
-      height={1200}
-      sizes="84px"
+      width={256}
+      height={256}
       className="w-full h-full object-contain brightness-125 md:brightness-100"
       priority
+      unoptimized
     />
   );
 

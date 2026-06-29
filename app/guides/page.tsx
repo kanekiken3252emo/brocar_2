@@ -1,10 +1,10 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, ArrowRight, Phone, BookOpen } from "lucide-react";
+import { ChevronRight, ArrowRight, BookOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { getGuidesByCategory, isGuideReady } from "@/lib/guides";
 import { guideIcon } from "./_icons";
+import ContactRequestForm from "@/components/contact-request-form";
 
 export const metadata: Metadata = {
   title: "Помощь с выбором",
@@ -47,9 +47,9 @@ export default function GuidesPage() {
         </div>
       </section>
 
-      <div className="container mx-auto px-4 pb-20">
-        <div className="max-w-5xl mx-auto space-y-12">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="container mx-auto px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {groups
               .flatMap((group) => group.guides)
               .map((g) => {
@@ -89,43 +89,11 @@ export default function GuidesPage() {
                 );
               })}
           </div>
-
-          {/* CTA */}
-          <Card className="border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-orange-600/5">
-            <CardContent className="p-8 md:p-10">
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">
-                    Не нашли ответ на свой вопрос?
-                  </h3>
-                  <p className="text-neutral-400">
-                    Позвоните нам — поможем подобрать нужную запчасть по марке,
-                    модели или VIN-коду.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-                  <a href="tel:+79326006015">
-                    <Button size="lg" className="gap-2 w-full sm:w-auto">
-                      <Phone className="h-4 w-4" />
-                      Позвонить
-                    </Button>
-                  </a>
-                  <Link href="/contacts">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="gap-2 w-full sm:w-auto"
-                    >
-                      Все контакты
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
+
+      {/* Контактная форма «Не нашли запчасть?» */}
+      <ContactRequestForm />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { ArrowRight, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BrandCatalogHero from "@/components/BrandCatalogHero";
 import { NewsSection } from "@/components/news-section";
+import ContactRequestForm from "@/components/contact-request-form";
 
 const FEATURES = [
   {
@@ -494,36 +495,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-10 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-r from-orange-500 to-orange-700 p-6 md:p-16">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-orange-600/50 to-transparent" />
-
-            <div className="relative z-10 max-w-2xl">
-              <h2 className="text-xl md:text-4xl font-bold text-white mb-2 md:mb-4">
-                Не нашли нужную запчасть?
-              </h2>
-              <p className="text-white/80 text-sm md:text-lg mb-4 md:mb-8">
-                Оставьте заявку, и мы поможем подобрать нужную деталь по VIN-коду.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-                <Link href="/catalog-vin" className="w-full sm:w-auto">
-                  <Button size="lg" variant="secondary" className="!bg-white !text-orange-600 hover:!bg-neutral-100 !border-0 w-full sm:w-auto">
-                    Запрос по VIN
-                  </Button>
-                </Link>
-                <Link href="/contacts" className="w-full sm:w-auto">
-                  <Button size="lg" variant="outline" className="!border-white !text-white hover:!bg-white/10 w-full sm:w-auto">
-                    Связаться с нами
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* CTA Section — контактная форма «Не нашли запчасть?» */}
+      <ContactRequestForm />
 
       <Suspense fallback={null}>
         <NewsSection />

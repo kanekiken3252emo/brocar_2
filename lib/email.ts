@@ -189,6 +189,50 @@ export async function sendVinRequestNotification(
   });
 }
 
+export interface PartRequestEmailData {
+  name: string;
+  phone: string;
+  query?: string | null;
+}
+
+/**
+ * Шлёт магазину заявку «Не нашли запчасть?» с формы в конце главной.
+ * Уходит на тот же ящик, что и заказы/заявки по VIN (ORDER_NOTIFICATION_EMAIL =
+ * info@brocarparts.ru). Бросает ошибку при сбое — роут сам решит, что вернуть.
+ */
+export async function sendPartRequestNotification(
+  data: PartRequestEmailData
+): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP не настроен — заявка с формы не отправлена");
+    throw new Error("SMTP не настроен");
+  }
+
+  const to = process.env.ORDER_NOTIFICATION_EMAIL || process.env.SMTP_USER!;
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER!;
+
+  const queryHtml = data.query
+    ? `<p style="margin:4px 0"><b>Запрос:</b><br>${esc(data.query).replace(/\n/g, "<br>")}</p>`
+    : `<p style="margin:4px 0;color:#888"><i>Запрос не указан</i></p>`;
+
+  const html = `
+  <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#222">
+    <h2 style="color:#ea580c">Новая заявка с сайта</h2>
+    <p style="margin:4px 0"><b>Имя:</b> ${esc(data.name)}</p>
+    <p style="margin:4px 0"><b>Телефон:</b> ${esc(data.phone)}</p>
+    ${queryHtml}
+    <p style="margin-top:16px;color:#888;font-size:12px">Заявка отправлена с формы «Не нашли запчасть?» на главной странице.</p>
+  </div>`;
+
+  await transporter.sendMail({
+    from: `"BroCar — заявка" <${from}>`,
+    to,
+    subject: `Заявка с сайта: ${data.name}`,
+    html,
+  });
+}
+
 // ── Письма ПОКУПАТЕЛЮ ────────────────────────────────────────────────────────
 
 export interface CustomerOrderEmailData {

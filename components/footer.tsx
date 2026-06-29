@@ -56,6 +56,9 @@ export function Footer() {
             </div>
           </div>
         </Link>
+        <p className="text-2xl md:text-3xl font-bold tracking-tight text-center bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+          Выбирай для себя лучшее
+        </p>
         <Link
           href="/"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-orange-500/20"

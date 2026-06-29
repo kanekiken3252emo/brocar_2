@@ -343,8 +343,8 @@ export function Header({ user }: HeaderProps) {
                 onMouseEnter={() => setIsCatalogOpen(true)}
                 onMouseLeave={() => setIsCatalogOpen(false)}
               >
-                <button className="flex items-center gap-2 px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors">
-                  <Menu className="h-5 w-5" />
+                <button className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
+                  <Menu className="h-5 w-5 shrink-0" />
                   КАТАЛОГИ
                   <ChevronDown className={`h-4 w-4 transition-transform ${isCatalogOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -380,7 +380,7 @@ export function Header({ user }: HeaderProps) {
 
               <Link
                 href="/catalog"
-                className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors"
+                className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap"
               >
                 КАТАЛОГ
               </Link>
@@ -388,22 +388,25 @@ export function Header({ user }: HeaderProps) {
               {/* Brand Catalog Dropdown */}
               <button
                 onClick={() => setIsBrandCatalogOpen(!isBrandCatalogOpen)}
-                className="flex items-center gap-2 px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors"
+                className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap"
               >
                 АВТОМАРКИ
                 <ChevronDown className={`h-4 w-4 transition-transform ${isBrandCatalogOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              <Link href="/catalog-vin" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
-                КАТАЛОГ ПО VIN
+              {/* Подписи укорачиваются на узких десктопах (lg–xl), на широких (xl+) — полные. */}
+              <Link href="/catalog-vin" className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
+                <span className="xl:hidden">ПО VIN</span>
+                <span className="hidden xl:inline">КАТАЛОГ ПО VIN</span>
               </Link>
-              <Link href="/guides" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
-                ПОМОЩЬ С ВЫБОРОМ
+              <Link href="/guides" className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
+                <span className="xl:hidden">ПОМОЩЬ</span>
+                <span className="hidden xl:inline">ПОМОЩЬ С ВЫБОРОМ</span>
               </Link>
-              <Link href="/about" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
+              <Link href="/about" className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
                 О НАС
               </Link>
-              <Link href="/contacts" className="px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors">
+              <Link href="/contacts" className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
                 КОНТАКТЫ
               </Link>
             </nav>
@@ -412,17 +415,17 @@ export function Header({ user }: HeaderProps) {
             <div className="hidden lg:flex items-center">
               {/* My Orders */}
               <Link href="/dashboard" className="group/orders">
-                <div className="relative px-5 h-12 flex items-center gap-2 font-semibold text-neutral-200 bg-neutral-800/70 border border-r-0 border-orange-500/30 hover:border-orange-500/70 hover:text-white transition-all cursor-pointer overflow-hidden">
+                <div className="relative px-3 xl:px-5 h-12 flex items-center gap-2 font-semibold text-neutral-200 bg-neutral-800/70 border border-r-0 border-orange-500/30 hover:border-orange-500/70 hover:text-white transition-all cursor-pointer overflow-hidden whitespace-nowrap">
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/10 to-orange-500/25 opacity-0 group-hover/orders:opacity-100 transition-opacity duration-300" />
-                  <ClipboardList className="h-4 w-4 text-orange-500 relative" />
+                  <ClipboardList className="h-4 w-4 text-orange-500 relative shrink-0" />
                   <span className="relative">МОИ ЗАКАЗЫ</span>
                 </div>
               </Link>
 
               {/* Garage */}
               <Link href="/garage">
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-6 h-12 flex items-center gap-2 font-semibold text-white transition-all shadow-lg shadow-orange-500/25 cursor-pointer">
-                  <Car className="h-4 w-4" />
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-4 xl:px-6 h-12 flex items-center gap-2 font-semibold text-white transition-all shadow-lg shadow-orange-500/25 cursor-pointer whitespace-nowrap">
+                  <Car className="h-4 w-4 shrink-0" />
                   ГАРАЖ
                 </div>
               </Link>

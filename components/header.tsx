@@ -146,8 +146,6 @@ export function Header({ user }: HeaderProps) {
   }, [pathname]);
 
   const handleLogout = async () => {
-    // Ленивый импорт: в supabase-режиме внутри подтянется тяжёлый supabase-js,
-    // в local-режиме — просто fetch на /api/auth/logout (без лишнего бандла).
     const { signOut } = await import("@/lib/auth/client-actions");
     await signOut();
     router.push("/");

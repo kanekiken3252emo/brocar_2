@@ -1,6 +1,5 @@
 import "server-only";
 import axios from "axios";
-import { createClient } from "@supabase/supabase-js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { eq, and, or } from "drizzle-orm";
 import { db } from "./db";
@@ -8,8 +7,6 @@ import { productImages } from "./db/schema";
 import { ShateMAdapter } from "./suppliers/shate-m";
 import { ArmtekAdapter } from "./suppliers/armtek";
 import { AutotradeAdapter } from "./suppliers/autotrade";
-
-const BUCKET = "product-images";
 
 // Результат попытки источника: url картинки (или null) + был ли СБОЙ запроса к
 // источнику (в отличие от честного «картинки нет»). При errored=true мы НЕ пишем
@@ -23,26 +20,8 @@ const shateM = new ShateMAdapter();
 const armtek = new ArmtekAdapter();
 const autotrade = new AutotradeAdapter();
 
-let cachedStorage: ReturnType<typeof createClient> | null = null;
-
-function getStorageClient() {
-  if (cachedStorage) return cachedStorage;
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    throw new Error(
-      "SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY обязательны для работы с product-images"
-    );
-  }
-  cachedStorage = createClient(url, serviceKey, {
-    auth: { persistSession: false },
-  });
-  return cachedStorage;
-}
-
 // ── S3-хранилище (VK Cloud Object Storage, S3-совместимое) ───────────────────
-// Если заданы S3_* переменные — картинки грузятся в S3 вместо Supabase Storage.
-// Так переезд бесшовный: пока ключи не прописаны, всё работает на Supabase.
+// Картинки грузятся в S3 (нужны S3_* env). Без них загрузка отключена.
 
 let cachedS3: S3Client | null = null;
 
@@ -172,23 +151,12 @@ async function uploadBufferToStorage(
 
   const path = `${safeSegment(brand) || "_"}/${safeSegment(article) || "_"}.${ext}`;
 
-  // Новое хранилище: S3 (VK Cloud), если заданы ключи. Иначе — Supabase Storage.
-  if (s3Configured()) {
-    return uploadBufferToS3(path, outBuffer, contentType);
-  }
-
-  const storage = getStorageClient();
-  const { error } = await storage.storage.from(BUCKET).upload(path, outBuffer, {
-    contentType,
-    upsert: true,
-  });
-  if (error) {
-    console.error("product-images upload error:", error.message);
+  // Картинки храним в S3 (VK Cloud Object Storage).
+  if (!s3Configured()) {
+    console.warn("S3 не настроен (S3_* env) — картинка не сохранена");
     return null;
   }
-
-  const { data } = storage.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl ?? null;
+  return uploadBufferToS3(path, outBuffer, contentType);
 }
 
 /**

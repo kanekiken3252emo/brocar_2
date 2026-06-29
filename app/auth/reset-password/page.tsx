@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { updatePasswordWithToken, getBackend } from "@/lib/auth/client-actions";
+import { updatePasswordWithToken } from "@/lib/auth/client-actions";
 import { Lock, ArrowRight, CheckCircle2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
@@ -17,17 +17,6 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [done, setDone] = useState(false);
   const router = useRouter();
-
-  // В supabase-режиме заранее инициализируем клиент — при создании он подхватывает
-  // recovery-сессию из URL (?code/#access_token из письма). В local-режиме токен
-  // берём из ?token= прямо при отправке, предзагрузка не нужна.
-  useEffect(() => {
-    getBackend().then((backend) => {
-      if (backend !== "local") {
-        import("@/lib/supabase/client").then(({ createClient }) => createClient());
-      }
-    });
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

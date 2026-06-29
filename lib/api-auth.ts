@@ -1,21 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
-import { isLocalAuth } from "@/lib/auth/config";
 import { readSessionUser } from "@/lib/auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Текущий пользователь для API: в local-режиме — наша cookie (JWT), в
- * supabase-режиме — Supabase. Возвращает { id, email } или null.
- */
+/** Текущий пользователь для API (наша cookie-сессия). { id, email } или null. */
 async function currentApiUser(): Promise<{ id: string; email: string } | null> {
-  if (isLocalAuth()) {
-    return readSessionUser();
-  }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user ? { id: user.id, email: user.email ?? "" } : null;
+  return readSessionUser();
 }
 
 /**
@@ -52,7 +40,6 @@ export function withAuth(
 
 /**
  * Опциональная авторизация - не блокирует запрос, если пользователя нет.
- * Используется для API, которые могут работать как с авторизацией, так и без.
  */
 export function withOptionalAuth(
   handler: (
@@ -71,9 +58,7 @@ export function withOptionalAuth(
   };
 }
 
-/**
- * Получить ID пользователя.
- */
+/** Получить ID пользователя. */
 export async function getUserId(): Promise<string | null> {
   try {
     const user = await currentApiUser();
@@ -84,9 +69,7 @@ export async function getUserId(): Promise<string | null> {
   }
 }
 
-/**
- * Проверить, авторизован ли пользователь.
- */
+/** Проверить, авторизован ли пользователь. */
 export async function isAuthenticated(): Promise<boolean> {
   try {
     const user = await currentApiUser();

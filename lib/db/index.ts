@@ -3,8 +3,8 @@ import postgres from "postgres";
 import * as schema from "./schema";
 import { trackQuery } from "@/lib/server-timing";
 
-// Приоритет: pooler (работает везде, и IPv4, и serverless) → direct (может
-// блокироваться сетью/провайдером). На Vercel добавь DATABASE_POOLER_URL.
+// Приоритет: DATABASE_POOLER_URL (если задан) → DATABASE_URL.
+// Сейчас БД на VK Cloud — direct-подключение по 5432.
 const connectionString =
   process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL!;
 

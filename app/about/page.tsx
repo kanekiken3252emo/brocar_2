@@ -154,7 +154,7 @@ export default function AboutPage() {
             {STEPS.map((step, index) => (
               <div key={step.number} className="relative">
                 <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 h-full hover:border-orange-500/50 transition-colors">
-                  <div className="text-5xl font-bold text-orange-500/20 mb-4">{step.number}</div>
+                  <div className="text-5xl font-bold text-orange-500/80 mb-4">{step.number}</div>
                   <h3 className="text-lg font-semibold text-white mb-2">{step.title}</h3>
                   <p className="text-neutral-400 text-sm">{step.description}</p>
                 </div>

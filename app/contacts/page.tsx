@@ -120,32 +120,86 @@ export default function ContactsPage() {
             </Card>
           </div>
 
-          {/* QR на сайт — наведи камеру, откроется brocarparts.ru.
-              Белая подложка обязательна: на тёмном фоне QR не сканируется. */}
+          {/* Соцсети — подписки (перенесены вверх, на место бывшего QR) */}
           <Card className="border-neutral-800 bg-neutral-900 mb-12">
-            <CardContent className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8">
-              <a
-                href="https://brocarparts.ru"
-                className="bg-white rounded-2xl p-3 shrink-0 ring-1 ring-neutral-200"
-                aria-label="Открыть сайт brocarparts.ru"
-              >
-                <NextImage
-                  src="/brocar-qr.svg"
-                  alt="QR-код на сайт brocarparts.ru"
-                  width={150}
-                  height={150}
-                  unoptimized
-                  className="w-32 h-32 md:w-36 md:h-36"
-                />
-              </a>
-              <div className="text-center sm:text-left">
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Наш сайт в телефоне
-                </h3>
-                <p className="text-neutral-400 leading-relaxed">
-                  Наведите камеру телефона на QR-код — откроется brocarparts.ru.
-                  Сохраните, чтобы заказывать запчасти в любой момент.
-                </p>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                  <ExternalLink className="h-6 w-6 text-orange-500" />
+                </div>
+                <span>Мы в соцсетях</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-neutral-400 mb-6">
+                Подписывайтесь, чтобы быть в курсе акций и новинок
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <a
+                  href="https://vk.com/brocarparts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#0077FF]/20 border border-neutral-700 hover:border-[#0077FF]/50 rounded-xl transition-all group"
+                >
+                  <div className="w-12 h-12 bg-[#0077FF]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#0077FF]/30">
+                    <VkIcon className="h-6 w-6 text-[#0077FF]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">ВКонтакте</p>
+                    <p className="text-sm text-neutral-400">@brocarparts</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://t.me/+79326006015"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#26A5E4]/20 border border-neutral-700 hover:border-[#26A5E4]/50 rounded-xl transition-all group"
+                >
+                  <div className="w-12 h-12 bg-[#26A5E4]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#26A5E4]/30">
+                    <TelegramIcon className="h-6 w-6 text-[#26A5E4]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">Telegram</p>
+                    <p className="text-sm text-neutral-400">Написать нам</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://max.ru/u/f9LHodD0cOJyCM-iI-thSudnwGSQgZEDcoy5mjTAej0FyZns3SJxhRFOZ-4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#1F7EFF]/20 border border-neutral-700 hover:border-[#1F7EFF]/50 rounded-xl transition-all group"
+                >
+                  <div className="w-12 h-12 bg-[#1F7EFF]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#1F7EFF]/30">
+                    <MaxIcon className="h-6 w-6 text-[#1F7EFF]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">MAX</p>
+                    <p className="text-sm text-neutral-400">Написать нам</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://2gis.ru/ekaterinburg/firm/70000001098987045"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#1DAD50]/20 border border-neutral-700 hover:border-[#1DAD50]/50 rounded-xl transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+                    <NextImage
+                      src="/2gis-footer.webp"
+                      alt="2ГИС"
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">2ГИС</p>
+                    <p className="text-sm text-neutral-400">Отзывы и маршрут</p>
+                  </div>
+                </a>
               </div>
             </CardContent>
           </Card>
@@ -255,90 +309,6 @@ export default function ContactsPage() {
                     ))}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Social Media */}
-          <Card className="border-neutral-800 bg-neutral-900 mb-12">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
-                  <ExternalLink className="h-6 w-6 text-orange-500" />
-                </div>
-                <span>Мы в соцсетях</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-neutral-400 mb-6">
-                Подписывайтесь, чтобы быть в курсе акций и новинок
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <a
-                  href="https://vk.com/brocarparts"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#0077FF]/20 border border-neutral-700 hover:border-[#0077FF]/50 rounded-xl transition-all group"
-                >
-                  <div className="w-12 h-12 bg-[#0077FF]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#0077FF]/30">
-                    <VkIcon className="h-6 w-6 text-[#0077FF]" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">ВКонтакте</p>
-                    <p className="text-sm text-neutral-400">@brocarparts</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://t.me/+79326006015"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#26A5E4]/20 border border-neutral-700 hover:border-[#26A5E4]/50 rounded-xl transition-all group"
-                >
-                  <div className="w-12 h-12 bg-[#26A5E4]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#26A5E4]/30">
-                    <TelegramIcon className="h-6 w-6 text-[#26A5E4]" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">Telegram</p>
-                    <p className="text-sm text-neutral-400">Написать нам</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://max.ru/u/f9LHodD0cOJyCM-iI-thSudnwGSQgZEDcoy5mjTAej0FyZns3SJxhRFOZ-4"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#1F7EFF]/20 border border-neutral-700 hover:border-[#1F7EFF]/50 rounded-xl transition-all group"
-                >
-                  <div className="w-12 h-12 bg-[#1F7EFF]/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-[#1F7EFF]/30">
-                    <MaxIcon className="h-6 w-6 text-[#1F7EFF]" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">MAX</p>
-                    <p className="text-sm text-neutral-400">Написать нам</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://2gis.ru/ekaterinburg/firm/70000001098987045"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#1DAD50]/20 border border-neutral-700 hover:border-[#1DAD50]/50 rounded-xl transition-all group"
-                >
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
-                    <NextImage
-                      src="/2gis-footer.webp"
-                      alt="2ГИС"
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">2ГИС</p>
-                    <p className="text-sm text-neutral-400">Отзывы и маршрут</p>
-                  </div>
-                </a>
               </div>
             </CardContent>
           </Card>

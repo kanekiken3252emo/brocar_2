@@ -10,7 +10,21 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/dashboard/", "/auth/"],
+      // Закрываем от индексации всё служебное и транзакционно-приватное:
+      // API, корзину/оформление/оплату, личные разделы и заказы, админку.
+      // Каталог, марки, категории, гайды, VIN — остаются открытыми.
+      disallow: [
+        "/api/",
+        "/admin/",
+        "/dashboard/",
+        "/auth/",
+        "/profile/",
+        "/garage/",
+        "/cart",
+        "/checkout",
+        "/payment",
+        "/order/",
+      ],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
   };

@@ -14,8 +14,29 @@ function s3PublicHost(): string {
 
 const s3Host = s3PublicHost();
 
+// Заголовки безопасности на все ответы. CSP сюда СОЗНАТЕЛЬНО не добавляем —
+// он легко ломает inline-стили/скрипты Next и требует отдельной аккуратной
+// настройки. HSTS реально работает только поверх HTTPS (на localhost браузер
+// его игнорирует), поэтому здесь он безвреден, а на проде даёт эффект.
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
+];
+
 const nextConfig: NextConfig = {
   output: "standalone", // Важно для Docker!
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   // sharp — нативный модуль. В standalone-трейсинг его платформенные бинарники
   // (@img/*, .node) не всегда попадают: JS-часть есть, а бинаря нет — и на проде
   // падает и наш import("sharp") (картинки сохранялись оригиналами вместо webp),

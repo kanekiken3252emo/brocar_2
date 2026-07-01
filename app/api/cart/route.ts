@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { generateSessionId } from "@/lib/utils";
 import { validatePromo, discountAmount } from "@/lib/promo";
+import { isReturnableSupplier } from "@/lib/suppliers/returns";
 
 const addToCartSchema = z.object({
   action: z.enum(["add", "remove", "update"]),
@@ -214,6 +215,9 @@ async function getCartWithItems(cartId: number) {
       qty: item.qty,
       price: linePrice,
       deliveryDays: item.deliveryDays,
+      // Возвратность позиции по поставщику (Берг → false). Саму строку supplier
+      // покупателю не отдаём — только этот флаг для политики возврата на оформлении.
+      returnable: isReturnableSupplier(item.supplier),
       product: {
         id: item.product.id,
         article: item.product.article,

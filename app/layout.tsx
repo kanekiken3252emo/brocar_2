@@ -61,6 +61,11 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "./",
   },
+  // Подтверждение прав в Яндекс.Вебмастере (мета-метод). Дублируется файлом
+  // public/yandex_94342307740d8160.html — верификация пройдёт любым способом.
+  verification: {
+    yandex: "94342307740d8160",
+  },
   robots: {
     index: true,
     follow: true,

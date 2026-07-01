@@ -150,16 +150,39 @@ function CartItemRow({
   onRemove,
   onUpdateQty,
   loading,
+  checked,
+  onToggleSelect,
 }: {
   item: CartItem;
   onRemove: (id: number) => void;
   onUpdateQty: (id: number, qty: number) => void;
   loading: boolean;
+  checked: boolean;
+  onToggleSelect: (id: number) => void;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row gap-4 p-5 bg-neutral-900 border border-neutral-800 rounded-2xl hover:border-neutral-700 transition-colors">
-      {/* Image */}
-      <ProductImage
+    <div
+      className={`flex gap-3 sm:gap-4 p-4 sm:p-5 bg-neutral-900 border rounded-2xl transition-colors ${
+        checked
+          ? "border-neutral-800 hover:border-neutral-700"
+          : "border-neutral-800/60"
+      }`}
+    >
+      {/* Чекбокс: отметить позицию для заказа. Снятые не попадают в заказ. */}
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => onToggleSelect(item.id)}
+        className="mt-1 h-5 w-5 accent-orange-500 shrink-0 cursor-pointer"
+        aria-label={checked ? "Убрать из заказа" : "Добавить в заказ"}
+      />
+      <div
+        className={`flex flex-col sm:flex-row gap-4 flex-1 min-w-0 transition-opacity ${
+          checked ? "" : "opacity-50"
+        }`}
+      >
+        {/* Image */}
+        <ProductImage
         brand={item.product.brand}
         article={item.product.article}
         alt={item.product.name}
@@ -241,6 +264,7 @@ function CartItemRow({
           </button>
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -254,6 +278,8 @@ export default function CartPage() {
   );
   const [mutating, setMutating] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  // Отмеченные позиции для заказа (id строк). null = ещё не инициализировано.
+  const [selected, setSelected] = useState<Set<number> | null>(null);
   const [promoInput, setPromoInput] = useState("");
   const [promoBusy, setPromoBusy] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -274,6 +300,38 @@ export default function CartPage() {
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
+
+  // Синхронизируем выбор с содержимым корзины: первая загрузка — все отмечены;
+  // далее сохраняем выбор, отбрасывая удалённые позиции.
+  useEffect(() => {
+    if (!cart) return;
+    const ids = cart.items.map((i) => i.id);
+    setSelected((prev) => {
+      if (prev === null) return new Set(ids);
+      const next = new Set<number>();
+      for (const id of ids) if (prev.has(id)) next.add(id);
+      return next;
+    });
+  }, [cart]);
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const base = prev ?? new Set((cart?.items ?? []).map((i) => i.id));
+      const next = new Set(base);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    const ids = (cart?.items ?? []).map((i) => i.id);
+    setSelected((prev) => {
+      const base = prev ?? new Set(ids);
+      const isAll = ids.length > 0 && ids.every((id) => base.has(id));
+      return isAll ? new Set<number>() : new Set(ids);
+    });
+  }
 
   async function handleUpdate(cartItemId: number, qty: number) {
     setMutating(true);
@@ -339,7 +397,16 @@ export default function CartPage() {
   }
 
   function handleCheckout() {
-    // Переходим на страницу оформления: там форма контактов + оплата
+    // В заказ уйдут только ОТМЕЧЕННЫЕ позиции — сохраняем их для /checkout.
+    const all = cart?.items ?? [];
+    const set = selected ?? new Set(all.map((i) => i.id));
+    const ids = all.filter((it) => set.has(it.id)).map((it) => it.id);
+    if (ids.length === 0) return;
+    try {
+      sessionStorage.setItem("checkout_item_ids", JSON.stringify(ids));
+    } catch {
+      /* приватный режим и т.п. — не критично, оформится вся корзина */
+    }
     setCheckingOut(true);
     window.location.href = "/checkout";
   }
@@ -356,6 +423,20 @@ export default function CartPage() {
 
   const items = cart?.items ?? [];
   const isEmpty = items.length === 0;
+
+  // Выбор и суммы по отмеченным позициям (итог платит только за них).
+  const selectedSet = selected ?? new Set(items.map((i) => i.id));
+  const selectedItems = items.filter((it) => selectedSet.has(it.id));
+  const allChecked =
+    items.length > 0 && selectedItems.length === items.length;
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+  const selSubtotal = round2(
+    selectedItems.reduce((s, it) => s + round2(it.price * it.qty), 0)
+  );
+  const selDiscount = cart?.promo
+    ? Math.min(round2((selSubtotal * cart.promo.discountPct) / 100), selSubtotal)
+    : 0;
+  const selTotal = round2(selSubtotal - selDiscount);
 
   return (
     <div className="min-h-screen bg-neutral-950">
@@ -404,6 +485,22 @@ export default function CartPage() {
           <div className="max-w-5xl mx-auto grid lg:grid-cols-3 gap-8">
             {/* Items */}
             <div className="lg:col-span-2 space-y-3">
+              {/* Выбрать все — в заказ уйдут только отмеченные позиции */}
+              <label className="flex items-center gap-3 px-1 pb-1 cursor-pointer select-none w-fit">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={toggleAll}
+                  className="h-5 w-5 accent-orange-500 shrink-0"
+                />
+                <span className="text-sm text-neutral-300">
+                  Выбрать все{" "}
+                  <span className="text-neutral-500">
+                    ({selectedItems.length} из {items.length})
+                  </span>
+                </span>
+              </label>
+
               {items.map((item) => (
                 <CartItemRow
                   key={item.id}
@@ -411,6 +508,8 @@ export default function CartPage() {
                   onRemove={handleRemove}
                   onUpdateQty={handleUpdate}
                   loading={mutating}
+                  checked={selectedSet.has(item.id)}
+                  onToggleSelect={toggleSelect}
                 />
               ))}
 
@@ -454,30 +553,30 @@ export default function CartPage() {
                   <div className="space-y-3 mb-5">
                     <div className="flex justify-between text-sm">
                       <span className="text-neutral-400">
-                        Товары ({items.length} поз.)
+                        Товары ({selectedItems.length} поз.)
                       </span>
                       <span className="text-white font-medium">
-                        {formatPrice(cart?.subtotal ?? 0)}
+                        {formatPrice(selSubtotal)}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-neutral-400">Доставка</span>
                       <span className="text-neutral-500">Рассчитывается</span>
                     </div>
-                    {cart?.promo && (
+                    {cart?.promo && selDiscount > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-green-400 inline-flex items-center gap-1">
                           Скидка ({cart.promo.code}, −{cart.promo.discountPct}%)
                         </span>
                         <span className="text-green-400 font-medium">
-                          −{formatPrice(cart.promo.discountAmount)}
+                          −{formatPrice(selDiscount)}
                         </span>
                       </div>
                     )}
                     <div className="border-t border-neutral-800 pt-3 flex justify-between">
                       <span className="text-white font-semibold">Итого</span>
                       <span className="text-orange-500 font-bold text-xl">
-                        {formatPrice(cart?.total ?? 0)}
+                        {formatPrice(selTotal)}
                       </span>
                     </div>
                   </div>
@@ -539,7 +638,7 @@ export default function CartPage() {
                     className="w-full gap-2"
                     size="lg"
                     onClick={handleCheckout}
-                    disabled={checkingOut || mutating}
+                    disabled={checkingOut || mutating || selectedItems.length === 0}
                   >
                     {checkingOut ? (
                       <>

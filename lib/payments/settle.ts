@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { orders, carts, cartItems, profiles } from "@/lib/db/schema";
+import { orders, orderItems, carts, cartItems, profiles } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getPayment } from "@/lib/yookassa";
 import { STATUS_AFTER_PAYMENT } from "@/lib/order-status";
@@ -54,12 +54,32 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
     if (paid?.userId) {
       const cart = await db.query.carts.findFirst({
         where: eq(carts.userId, paid.userId),
+        with: { items: true },
       });
       if (cart) {
-        await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
-        // Снимаем промокод вместе с очисткой корзины — иначе он «прилипнет»
-        // к следующему заказу. Скидка уже зафиксирована снимком в оплаченном заказе.
-        if (cart.promoCode)
+        // Удаляем из корзины ТОЛЬКО оплаченные позиции (совпадение товар+цена с
+        // позициями заказа). При частичном заказе (покупатель отметил не всё)
+        // неоплаченные товары остаются в корзине. Ключ (productId, price)
+        // уникален для строки корзины, поэтому совпадение однозначно.
+        const orderRows = await db
+          .select({ productId: orderItems.productId, price: orderItems.price })
+          .from(orderItems)
+          .where(eq(orderItems.orderId, orderId));
+        const key = (productId: number | null, price: unknown) =>
+          `${productId}|${parseFloat(String(price ?? "0"))}`;
+        const paidKeys = new Set(
+          orderRows.map((r) => key(r.productId, r.price))
+        );
+        const toDelete = cart.items
+          .filter((it) => paidKeys.has(key(it.productId, it.price)))
+          .map((it) => it.id);
+        if (toDelete.length)
+          await db.delete(cartItems).where(inArray(cartItems.id, toDelete));
+
+        // Промокод снимаем, только если корзина ОПУСТЕЛА — иначе оставшиеся
+        // товары сохраняют право применить его к следующему заказу. Скидка уже
+        // зафиксирована снимком в оплаченном заказе.
+        if (cart.promoCode && cart.items.length - toDelete.length === 0)
           await db
             .update(carts)
             .set({ promoCode: null })

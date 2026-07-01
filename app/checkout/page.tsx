@@ -64,6 +64,8 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
+  // Выбранные позиции корзины (галочки на странице корзины). null = все.
+  const [selectedIds, setSelectedIds] = useState<number[] | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -96,6 +98,30 @@ export default function CheckoutPage() {
     })();
   }, [router]);
 
+  // Забираем выбор позиций, сделанный в корзине (сохранён в sessionStorage).
+  // Нет выбора → оформляем всю корзину (обратная совместимость).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("checkout_item_ids");
+      const arr = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(arr))
+        setSelectedIds(arr.filter((n: unknown) => typeof n === "number"));
+    } catch {
+      /* игнорируем — берём всю корзину */
+    }
+  }, []);
+
+  // Позиции, идущие в заказ: выбранные в корзине (если есть) или все. Если выбор
+  // «протух» (ни один id не совпал с текущей корзиной) — берём всю корзину,
+  // чтобы не показать пустой заказ.
+  function getCheckoutItems() {
+    const all = cart?.items ?? [];
+    const filtered = selectedIds
+      ? all.filter((it) => selectedIds.includes(it.id))
+      : all;
+    return filtered.length ? filtered : all;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -104,9 +130,8 @@ export default function CheckoutPage() {
     if (!phone.trim()) return setError("Укажите телефон для связи");
     if (phone.replace(/\D/g, "").length !== 11)
       return setError("Проверьте номер телефона: нужно +7 и 10 цифр");
-    const hasNonStockNow = (cart?.items ?? []).some(
-      (it) => (it.deliveryDays ?? 0) >= 2
-    );
+    const orderItems = getCheckoutItems();
+    const hasNonStockNow = orderItems.some((it) => (it.deliveryDays ?? 0) >= 2);
     if (hasNonStockNow && !agreed)
       return setError("Подтвердите согласие с условиями заказа товара под заказ");
 
@@ -127,8 +152,12 @@ export default function CheckoutPage() {
         }),
       });
 
-      // 2. Создаём заказ
-      const orderRes = await fetch("/api/orders", { method: "POST" });
+      // 2. Создаём заказ — только из выбранных позиций (остальное остаётся в корзине)
+      const orderRes = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartItemIds: orderItems.map((it) => it.id) }),
+      });
       if (orderRes.status === 401) {
         router.push("/auth/login");
         return;
@@ -163,7 +192,18 @@ export default function CheckoutPage() {
     );
   }
 
-  const items = cart?.items ?? [];
+  const items = getCheckoutItems();
+  // Суммы считаем по ВЫБРАННЫМ позициям (на сервере при создании заказа
+  // пересчитается тем же методом — итог совпадёт).
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+  const subtotal = round2(
+    items.reduce((s, it) => s + round2(it.product.price * it.qty), 0)
+  );
+  const discount = cart?.promo
+    ? Math.min(round2((subtotal * cart.promo.discountPct) / 100), subtotal)
+    : 0;
+  const total = round2(subtotal - discount);
+
   // Есть ли в заказе товар «под заказ» (срок ≥ 2 дней) — тогда перед оплатой
   // показываем согласие с условиями и блокируем кнопку до отметки.
   const hasNonStock = items.some((it) => (it.deliveryDays ?? 0) >= 2);
@@ -279,20 +319,20 @@ export default function CheckoutPage() {
                       </div>
                     ))}
                   </div>
-                  {cart?.promo && (
+                  {cart?.promo && discount > 0 && (
                     <div className="flex justify-between text-sm border-t border-neutral-800 pt-3">
                       <span className="text-green-400">
                         Скидка ({cart.promo.code}, −{cart.promo.discountPct}%)
                       </span>
                       <span className="text-green-400 font-medium">
-                        −{formatPrice(cart.promo.discountAmount)}
+                        −{formatPrice(discount)}
                       </span>
                     </div>
                   )}
                   <div className="border-t border-neutral-800 pt-3 flex justify-between">
                     <span className="text-white font-semibold">Итого</span>
                     <span className="text-orange-500 font-bold text-xl">
-                      {formatPrice(cart?.total ?? 0)}
+                      {formatPrice(total)}
                     </span>
                   </div>
 
@@ -331,8 +371,6 @@ export default function CheckoutPage() {
                         Оформляя заказ, вы соглашаетесь со следующим:
                       </p>
                       <ul className="list-disc pl-4 space-y-1 text-xs text-neutral-400 mb-3">
-                        <li>от этого товара нельзя отказаться;</li>
-                        <li>вы обязуетесь принять и оплатить товар;</li>
                         <li>вы согласны со сроками доставки (срок указан в рабочих днях);</li>
                         <li>
                           описание товара и информация об аналогах носит

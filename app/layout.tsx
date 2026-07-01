@@ -48,7 +48,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteName} - Автозапчасти`,
+    default: `${siteName} — Качественные автозапчасти для вашего авто. Выбирай для себя лучшее!`,
     template: `%s | ${siteName}`,
   },
   description:

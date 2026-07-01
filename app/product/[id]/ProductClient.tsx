@@ -17,6 +17,8 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
@@ -143,6 +145,9 @@ export default function ProductClient({
   // Оффер, с которого переключились на «есть дешевле» — чтобы вернуться к нему
   // (к быстрой доставке) одной кнопкой.
   const [prevOffer, setPrevOffer] = useState<BergOffer | null>(null);
+  // Количество для добавления — своё у каждого оффера (ключ = индекс в
+  // product.offers, стабилен при сортировке). Дефолт 1.
+  const [qtyByOffer, setQtyByOffer] = useState<Record<number, number>>({});
 
   const router = useRouter();
 
@@ -238,19 +243,21 @@ export default function ProductClient({
     }
   };
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    if (!product || !selectedOffer) return;
-    flyToCart(e.currentTarget as HTMLElement);
+  // Кладём КОНКРЕТНЫЙ оффер в корзину (× qty) + анимация полёта к иконке корзины.
+  const addToCart = async (offer: BergOffer, el: HTMLElement, qty = 1) => {
+    if (!product) return;
+    flyToCart(el);
     try {
       await addSupplierItemToCart({
         article: product.article,
         brand: product.brand?.name || "",
         name: product.name,
-        ourPrice: selectedOffer.price,
-        supplierPrice: selectedOffer.price,
-        stock: selectedOffer.quantity,
-        deliveryDays: selectedOffer.average_period,
-        supplier: selectedOffer.supplier,
+        ourPrice: offer.price,
+        supplierPrice: offer.price,
+        stock: offer.quantity,
+        qty,
+        deliveryDays: offer.average_period,
+        supplier: offer.supplier,
       });
     } catch (err: any) {
       window.dispatchEvent(
@@ -259,6 +266,26 @@ export default function ProductClient({
         })
       );
     }
+  };
+
+  // Верхняя кнопка карточки — добавляет ВЫБРАННЫЙ оффер (1 шт.).
+  const handleAddToCart = (e: React.MouseEvent) => {
+    if (selectedOffer) addToCart(selectedOffer, e.currentTarget as HTMLElement);
+  };
+
+  // Кол-во для добавления — своё у каждого оффера (по его позиции в product.offers).
+  const offerIndex = (offer: BergOffer) => product?.offers?.indexOf(offer) ?? -1;
+  const offerQty = (offer: BergOffer) => qtyByOffer[offerIndex(offer)] ?? 1;
+  const changeQty = (offer: BergOffer, delta: number) => {
+    const idx = offerIndex(offer);
+    setQtyByOffer((m) => ({ ...m, [idx]: Math.max(1, (m[idx] ?? 1) + delta) }));
+  };
+
+  // Кнопка «В корзину» в строке предложения — кладёт ИМЕННО этот оффер в
+  // выбранном количестве (и синхронизирует выбор вверху), чтобы не листать наверх.
+  const addOfferToCart = (offer: BergOffer, e: React.MouseEvent) => {
+    setSelectedOffer(offer);
+    addToCart(offer, e.currentTarget as HTMLElement, offerQty(offer));
   };
 
   // Товара нет совсем (и сервер не дал шелл, и живой опрос не нашёл) — страница ошибки.
@@ -631,16 +658,37 @@ export default function ProductClient({
                           {offer.reliability}%
                         </span>
                       </div>
-                      <button
-                        onClick={() => setSelectedOffer(offer)}
-                        className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
-                          selectedOffer === offer
-                            ? "bg-orange-500 text-white"
-                            : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
-                        }`}
-                      >
-                        {selectedOffer === offer ? "Выбрано" : "Выбрать"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-neutral-800 border border-neutral-700 rounded-lg shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => changeQty(offer, -1)}
+                            disabled={offerQty(offer) <= 1}
+                            className="w-8 h-9 flex items-center justify-center text-neutral-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Уменьшить"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="w-8 text-center text-sm text-white font-medium tabular-nums">
+                            {offerQty(offer)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => changeQty(offer, 1)}
+                            className="w-8 h-9 flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
+                            aria-label="Увеличить"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <button
+                          onClick={(e) => addOfferToCart(offer, e)}
+                          className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center justify-center gap-1.5"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          В корзину
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -751,16 +799,37 @@ export default function ProductClient({
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <button
-                              onClick={() => setSelectedOffer(offer)}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                selectedOffer === offer
-                                  ? "bg-orange-500 text-white"
-                                  : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700 border border-neutral-700"
-                              }`}
-                            >
-                              {selectedOffer === offer ? "Выбрано" : "Выбрать"}
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center bg-neutral-800 border border-neutral-700 rounded-lg shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => changeQty(offer, -1)}
+                                  disabled={offerQty(offer) <= 1}
+                                  className="w-7 h-8 flex items-center justify-center text-neutral-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  aria-label="Уменьшить"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <span className="w-7 text-center text-sm text-white font-medium tabular-nums">
+                                  {offerQty(offer)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => changeQty(offer, 1)}
+                                  className="w-7 h-8 flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
+                                  aria-label="Увеличить"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
+                              <button
+                                onClick={(e) => addOfferToCart(offer, e)}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center gap-1.5 shrink-0"
+                              >
+                                <ShoppingCart className="h-4 w-4" />
+                                В корзину
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

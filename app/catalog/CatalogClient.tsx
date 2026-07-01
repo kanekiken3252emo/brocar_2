@@ -16,6 +16,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { getGuideForCategory } from "@/lib/guides";
+import { categoryCatalogUrl } from "@/lib/catalog/urls";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
@@ -141,14 +142,26 @@ function parseQuery(query: string): {
   return { article, brand, isText: false };
 }
 
-function CatalogContent({ initialData }: { initialData?: InitialData }) {
+function CatalogContent({
+  initialData,
+  brandParam,
+  categoryParam,
+}: {
+  initialData?: InitialData;
+  brandParam?: string;
+  categoryParam?: string;
+}) {
   const searchParams = useSearchParams();
 
   const vin = searchParams?.get("vin");
   const article = searchParams?.get("article");
-  const brand = searchParams?.get("brand");
+  // brand/category приходят ПРОПСОМ с сервера: чистый URL
+  // /catalog/brand|category/<slug> rewrite'ится в ?brand=/?category=, но
+  // клиентский useSearchParams видит только адресную строку (без query) — значит
+  // берём из пропса. Фолбэк на searchParams — для голого /catalog и совместимости.
+  const brand = brandParam ?? searchParams?.get("brand");
   const model = searchParams?.get("model");
-  const category = searchParams?.get("category");
+  const category = categoryParam ?? searchParams?.get("category");
   // Откуда пришли: при заходе из VIN-каталога (кнопка «Цены» на схеме узла)
   // ссылка несёт исходный VIN — он нужен только чтобы кнопка «Назад» вернула
   // на ту же схему, а не на главную. На выборку товаров не влияет.
@@ -729,7 +742,7 @@ function CatalogContent({ initialData }: { initialData?: InitialData }) {
               {categoryHub.map((c) => (
                 <Link
                   key={c.slug}
-                  href={`/catalog?category=${encodeURIComponent(c.slug)}`}
+                  href={categoryCatalogUrl(c.slug)}
                   className="group bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
                 >
                   <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
@@ -917,8 +930,12 @@ function bergResourcesToGroups(resources: BergResource[]): SupplierGroup[] {
 
 export default function CatalogClient({
   initialData,
+  brandParam,
+  categoryParam,
 }: {
   initialData?: InitialData;
+  brandParam?: string;
+  categoryParam?: string;
 }) {
   return (
     <Suspense
@@ -928,7 +945,11 @@ export default function CatalogClient({
         </div>
       }
     >
-      <CatalogContent initialData={initialData} />
+      <CatalogContent
+        initialData={initialData}
+        brandParam={brandParam}
+        categoryParam={categoryParam}
+      />
     </Suspense>
   );
 }

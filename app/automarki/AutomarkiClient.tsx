@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Car, Search } from "lucide-react";
+import { brandCatalogUrl } from "@/lib/catalog/urls";
 
 export interface CarBrand {
   slug: string;
@@ -77,7 +78,7 @@ export default function AutomarkiClient({
           {filtered.map((b) => (
             <Link
               key={b.slug}
-              href={`/catalog?brand=${encodeURIComponent(b.slug)}`}
+              href={brandCatalogUrl(b.slug)}
               className="group bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
             >
               <BrandLogo slug={b.slug} title={b.title} />

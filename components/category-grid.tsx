@@ -6,42 +6,42 @@ const CATEGORIES = [
   {
     name: "Тормозные колодки",
     img: "/tormoznaya-systema.png",
-    href: "/catalog?category=brake-pads",
+    href: "/catalog/category/brake-pads",
   },
   {
     name: "Масла моторные",
     img: "/oil.png",
-    href: "/catalog?category=engine-oils",
+    href: "/catalog/category/engine-oils",
   },
   {
     name: "Фильтры масляные",
     img: "/filtr.png",
-    href: "/catalog?category=oil-filters",
+    href: "/catalog/category/oil-filters",
   },
   {
     name: "Амортизаторы",
     img: "/amortizator.png",
-    href: "/catalog?category=shock-absorbers",
+    href: "/catalog/category/shock-absorbers",
   },
   {
     name: "Датчики",
     img: "/avtoelektrika.png",
-    href: "/catalog?category=sensors",
+    href: "/catalog/category/sensors",
   },
   {
     name: "Колёсные диски",
     img: "/lotoi-disk.png",
-    href: "/catalog?category=wheels",
+    href: "/catalog/category/wheels",
   },
   {
     name: "Ремни ГРМ",
     img: "/remen-grm.png",
-    href: "/catalog?category=belts",
+    href: "/catalog/category/belts",
   },
   {
     name: "Автохимия",
     img: "/avtoaksesuary.png",
-    href: "/catalog?category=accessories",
+    href: "/catalog/category/accessories",
   },
 ];
 

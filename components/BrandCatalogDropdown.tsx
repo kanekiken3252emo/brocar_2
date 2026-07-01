@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { X } from "lucide-react";
+import { brandCatalogUrl } from "@/lib/catalog/urls";
 
 // Brands grouped by letters
 const BRAND_GROUPS = {
@@ -87,7 +88,7 @@ export default function BrandCatalogDropdown({ isOpen, onClose }: BrandCatalogDr
                   {brands.map((brand) => (
                     <li key={brand}>
                       <Link
-                        href={`/catalog?brand=${encodeURIComponent(brand)}`}
+                        href={brandCatalogUrl(brand)}
                         className="text-sm text-neutral-400 hover:text-white transition-colors block py-0.5"
                         onClick={onClose}
                       >

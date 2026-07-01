@@ -19,6 +19,7 @@ import {
   type GuideBlock,
 } from "@/lib/guides";
 import { guideIcon } from "../_icons";
+import { categoryCatalogUrl } from "@/lib/catalog/urls";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   SITE_URL,
@@ -210,7 +211,7 @@ export default async function GuidePage({
                 <p className="text-neutral-200 font-medium flex-1">
                   Готовы выбрать? Посмотрите подходящие товары в каталоге.
                 </p>
-                <Link href={`/catalog?category=${guide.categorySlug}`}>
+                <Link href={categoryCatalogUrl(guide.categorySlug)}>
                   <Button className="gap-2 w-full sm:w-auto">
                     Перейти в каталог
                     <ArrowRight className="h-4 w-4" />

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { categoryCatalogUrl } from "@/lib/catalog/urls";
 import {
   Car,
   Plus,
@@ -323,7 +324,7 @@ export default function GarageClient({
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {MAINTENANCE.map((m) => (
-                <Link key={m.category} href={`/catalog?category=${m.category}`} className="group">
+                <Link key={m.category} href={categoryCatalogUrl(m.category)} className="group">
                   <div className="h-full bg-neutral-900 border border-neutral-800 hover:border-orange-500/50 transition-colors rounded-xl p-4 flex flex-col">
                     <p className="font-semibold text-white text-sm mb-1">{m.title}</p>
                     <p className="text-neutral-500 text-xs mb-3">{m.hint}</p>

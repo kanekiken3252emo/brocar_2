@@ -1,6 +1,7 @@
 import { MetadataRoute } from "next";
 import { GUIDES, isGuideReady } from "@/lib/guides";
 import { CATEGORY_META, CAR_BRAND_META } from "@/lib/catalog/classifier";
+import { brandCatalogUrl, categoryCatalogUrl } from "@/lib/catalog/urls";
 import { client } from "@/lib/db";
 
 // Карту сайта пересобираем не чаще раза в сутки (ISR): каталог и наличие меняются
@@ -82,7 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const categoryUrls: MetadataRoute.Sitemap = CATEGORY_META.filter((c) =>
     hasCategory(c.slug)
   ).map((c) => ({
-    url: `${baseUrl}/catalog?category=${encodeURIComponent(c.slug)}`,
+    url: `${baseUrl}${categoryCatalogUrl(c.slug)}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.8,
@@ -91,7 +92,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const brandUrls: MetadataRoute.Sitemap = CAR_BRAND_META.filter((b) =>
     hasBrand(b.slug)
   ).map((b) => ({
-    url: `${baseUrl}/catalog?brand=${encodeURIComponent(b.slug)}`,
+    url: `${baseUrl}${brandCatalogUrl(b.slug)}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.7,

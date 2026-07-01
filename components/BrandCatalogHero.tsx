@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { brandCatalogUrl } from "@/lib/catalog/urls";
 
 // Brands organized by columns (full text catalog)
 const BRAND_COLUMNS = [
@@ -102,7 +103,7 @@ export default function BrandCatalogHero() {
                     </Link>
                   ) : (
                     <Link
-                      href={`/catalog?brand=${encodeURIComponent(brand.name)}`}
+                      href={brandCatalogUrl(brand.name)}
                       className="text-sm text-neutral-400 hover:text-white transition-colors"
                     >
                       {brand.name}

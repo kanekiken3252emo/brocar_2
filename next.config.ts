@@ -46,13 +46,27 @@ const nextConfig: NextConfig = {
     // 301 www → non-www (устраняем дубль хоста). Работает при условии, что
     // nginx проксирует исходный Host (proxy_set_header Host $host) — тогда Next
     // видит www.<домен> и редиректит на канонический non-www.
+    // Редиректы старых /catalog?brand=/?category= → чистые пути делаем в
+    // middleware (там можно стрипнуть query и привести слаг к нижнему регистру).
     if (!isRealDomain) return [];
     return [
       {
         source: "/:path*",
-        has: [{ type: "host", value: `www.${siteDomain}` }],
+        has: [{ type: "host" as const, value: `www.${siteDomain}` }],
         destination: `https://${siteDomain}/:path*`,
         permanent: true,
+      },
+    ];
+  },
+  async rewrites() {
+    // Чистые лендинги каталога внутри обслуживаются той же /catalog-страницей
+    // с query-параметром (rewrite не меняет URL в адресной строке). Логику
+    // каталога/CatalogClient трогать не нужно.
+    return [
+      { source: "/catalog/brand/:slug", destination: "/catalog?brand=:slug" },
+      {
+        source: "/catalog/category/:slug",
+        destination: "/catalog?category=:slug",
       },
     ];
   },

@@ -185,7 +185,7 @@ export default function HomePage() {
 
           {/* Row 2 — Three medium cards + sidebar links */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-4 md:mb-5">
-            <Link href="/catalog?category=brake-fluids" className="group">
+            <Link href="/catalog/category/brake-fluids" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -202,7 +202,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=engine-oils" className="group md:col-span-2">
+            <Link href="/catalog/category/engine-oils" className="group md:col-span-2">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-amber-50 to-orange-50 flex flex-col md:flex-row items-center justify-center p-4 md:px-8">
                 <div className="flex-1 flex items-center justify-center min-h-0 w-full">
                   <Image
@@ -222,7 +222,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=transmission-oils" className="group col-span-2 md:col-span-1">
+            <Link href="/catalog/category/transmission-oils" className="group col-span-2 md:col-span-1">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -242,7 +242,7 @@ export default function HomePage() {
 
           {/* Row 3 — Accessories + sidebar + Tires & Wheels */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-4 md:mb-5">
-            <Link href="/catalog?category=accessories" className="group md:col-span-1">
+            <Link href="/catalog/category/accessories" className="group md:col-span-1">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-gradient-to-br from-teal-600 to-teal-800 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -259,7 +259,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=wipers" className="group">
+            <Link href="/catalog/category/wipers" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -276,7 +276,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=shock-absorbers" className="group">
+            <Link href="/catalog/category/shock-absorbers" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -291,7 +291,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=air-filters" className="group">
+            <Link href="/catalog/category/air-filters" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[250px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -309,7 +309,7 @@ export default function HomePage() {
 
           {/* Row 4 — Brake system + Lamps + Battery + Antifreeze */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-            <Link href="/catalog?category=brake-pads" className="group col-span-2">
+            <Link href="/catalog/category/brake-pads" className="group col-span-2">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex flex-col md:flex-row items-center justify-center p-4 md:px-8">
                 <div className="flex-1 flex items-center justify-center min-h-0 w-full">
                   <Image
@@ -329,7 +329,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=lamps" className="group">
+            <Link href="/catalog/category/lamps" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-neutral-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -344,7 +344,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=batteries" className="group">
+            <Link href="/catalog/category/batteries" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-teal-600 to-teal-800 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -362,7 +362,7 @@ export default function HomePage() {
 
           {/* Row 5 — Coolants + Washer fluid + All categories */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mt-4 md:mt-5">
-            <Link href="/catalog?category=coolants" className="group">
+            <Link href="/catalog/category/coolants" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-cyan-50 to-sky-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image
@@ -377,7 +377,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <Link href="/catalog?category=washer-fluids" className="group">
+            <Link href="/catalog/category/washer-fluids" className="group">
               <div className="relative overflow-hidden rounded-2xl h-[180px] md:h-[220px] bg-gradient-to-br from-sky-50 to-blue-100 flex flex-col items-center justify-center p-4">
                 <div className="flex-1 flex items-center justify-center">
                   <Image

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import CatalogClient, { type InitialData } from "./CatalogClient";
 import { getCategoryMeta, CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
+import { brandCatalogUrl, categoryCatalogUrl } from "@/lib/catalog/urls";
 
 // Базовый URL для серверного fetch к собственному API (внутри контейнера Next
 // слушает 127.0.0.1:3000). Переопределяется через INTERNAL_API_BASE при нужде.
@@ -34,22 +35,20 @@ export async function generateMetadata({
       title: `${title} — купить автозапчасти`,
       description:
         meta?.description ??
-        `${title}: оригинал и аналоги, наличие и цены, доставка по России. Подбор и заказ в Brocar.`,
-      alternates: {
-        canonical: `/catalog?category=${encodeURIComponent(category)}`,
-      },
+        `${title}: оригинальные запчасти, наличие и цены, доставка по России. Подбор и заказ в Brocar.`,
+      alternates: { canonical: categoryCatalogUrl(category) },
     };
   }
 
   if (brand && !category && !hasSearch) {
-    const meta = CAR_BRAND_META.find((b) => b.slug === brand);
-    const title = meta?.title ?? brand;
+    const meta = CAR_BRAND_META.find(
+      (b) => b.slug.toLowerCase() === brand.toLowerCase()
+    );
+    const title = meta?.title ?? brand.toUpperCase();
     return {
       title: `Запчасти для ${title}`,
-      description: `Автозапчасти для ${title}: оригинальные и аналоговые детали, подбор по каталогу и VIN, доставка по России. Заказывайте в Brocar.`,
-      alternates: {
-        canonical: `/catalog?brand=${encodeURIComponent(brand)}`,
-      },
+      description: `Автозапчасти для ${title}: оригинальные детали, подбор по каталогу и VIN, доставка по России. Заказывайте в Brocar.`,
+      alternates: { canonical: brandCatalogUrl(brand) },
     };
   }
 
@@ -146,14 +145,16 @@ export default async function CatalogPage({
     crumbs = [
       { name: "Главная", href: "/" },
       { name: "Каталог", href: "/catalog" },
-      { name: title, href: `/catalog?category=${encodeURIComponent(category)}` },
+      { name: title, href: categoryCatalogUrl(category) },
     ];
   } else if (brand && !category && noModifiers) {
-    const title = CAR_BRAND_META.find((b) => b.slug === brand)?.title ?? brand;
+    const title =
+      CAR_BRAND_META.find((b) => b.slug.toLowerCase() === brand.toLowerCase())
+        ?.title ?? brand.toUpperCase();
     crumbs = [
       { name: "Главная", href: "/" },
       { name: "Каталог", href: "/catalog" },
-      { name: title, href: `/catalog?brand=${encodeURIComponent(brand)}` },
+      { name: title, href: brandCatalogUrl(brand) },
     ];
   }
 
@@ -164,7 +165,11 @@ export default async function CatalogPage({
           <Breadcrumbs items={crumbs} />
         </div>
       )}
-      <CatalogClient initialData={initialData} />
+      <CatalogClient
+        initialData={initialData}
+        brandParam={brand}
+        categoryParam={category}
+      />
     </>
   );
 }

@@ -14,6 +14,11 @@ function s3PublicHost(): string {
 
 const s3Host = s3PublicHost();
 
+// Домен сайта (без www). Нужен для 301 www → non-www ниже. На localhost
+// редирект не добавляем (незачем и некуда).
+const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || "localhost:3000";
+const isRealDomain = !siteDomain.startsWith("localhost");
+
 // Заголовки безопасности на все ответы. CSP сюда СОЗНАТЕЛЬНО не добавляем —
 // он легко ломает inline-стили/скрипты Next и требует отдельной аккуратной
 // настройки. HSTS реально работает только поверх HTTPS (на localhost браузер
@@ -36,6 +41,20 @@ const nextConfig: NextConfig = {
   output: "standalone", // Важно для Docker!
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
+  async redirects() {
+    // 301 www → non-www (устраняем дубль хоста). Работает при условии, что
+    // nginx проксирует исходный Host (proxy_set_header Host $host) — тогда Next
+    // видит www.<домен> и редиректит на канонический non-www.
+    if (!isRealDomain) return [];
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: `www.${siteDomain}` }],
+        destination: `https://${siteDomain}/:path*`,
+        permanent: true,
+      },
+    ];
   },
   // sharp — нативный модуль. В standalone-трейсинг его платформенные бинарники
   // (@img/*, .node) не всегда попадают: JS-часть есть, а бинаря нет — и на проде

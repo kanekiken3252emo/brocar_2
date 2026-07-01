@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { findDbProductGroup } from "@/lib/suppliers/db-group";
 import ProductClient, { type ProductShell } from "./ProductClient";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SITE_URL, productSchema } from "@/lib/seo/structured-data";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
@@ -84,7 +87,47 @@ export default async function ProductPage({
   const brand = typeof sp.brand === "string" ? sp.brand : "";
   const shell = await getShell(id, brand);
 
+  // Product-разметку отдаём только когда товар известен серверу (есть в каталоге):
+  // название/цена/наличие — из снимка шелла. Для «живых» артикулов (данные
+  // приходят клиентским опросом) разметку не выдумываем.
+  const offers = shell.group?.offers ?? [];
+  const price = offers.length
+    ? Math.min(...offers.map((o) => o.ourPrice))
+    : null;
+  const inStock = offers.some((o) => o.stock > 0);
+  const productPath = `/product/${encodeURIComponent(shell.article)}${
+    shell.brand ? `?brand=${encodeURIComponent(shell.brand)}` : ""
+  }`;
+
+  const crumbs = [
+    { name: "Главная", href: "/" },
+    { name: "Каталог", href: "/catalog" },
+    { name: shell.name || shell.article, href: productPath },
+  ];
+
   return (
-    <ProductClient article={decodeURIComponent(id)} brand={brand} shell={shell} />
+    <>
+      {shell.name && (
+        <JsonLd
+          data={productSchema({
+            article: shell.article,
+            brand: shell.brand,
+            name: shell.name,
+            image: shell.imageUrl,
+            url: `${SITE_URL}${productPath}`,
+            price,
+            inStock,
+          })}
+        />
+      )}
+      <div className="container mx-auto px-4 pt-6">
+        <Breadcrumbs items={crumbs} />
+      </div>
+      <ProductClient
+        article={decodeURIComponent(id)}
+        brand={brand}
+        shell={shell}
+      />
+    </>
   );
 }

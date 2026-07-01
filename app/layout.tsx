@@ -8,6 +8,8 @@ import { CookieBanner } from "@/components/cookie-banner";
 import CartToast from "@/components/CartToast";
 import FlashToast from "@/components/FlashToast";
 import NavProgress from "@/components/NavProgress";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { organizationSchema, websiteSchema } from "@/lib/seo/structured-data";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -69,6 +71,26 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // og:title / og:description Next сам подставит из title/description каждой
+  // страницы (шаблон «%s | BroCar» уже применён). Здесь — общие для всех полей:
+  // тип, имя сайта, локаль и картинка-превью (public/og-image.png, 1200×630).
+  openGraph: {
+    type: "website",
+    siteName,
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: `${siteName} — интернет-магазин автозапчастей`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -99,6 +121,8 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark">
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-neutral-950`}>
+        {/* Организация (AutoPartsStore) + сайт с поиском — на всех страницах. */}
+        <JsonLd data={[organizationSchema(), websiteSchema()]} />
         {/* Прогрев соединения к CDN картинок (React 19 поднимает link в <head>).
             Без crossOrigin — картинки грузятся обычным <img> в non-CORS режиме. */}
         {cdnOrigin && (

@@ -1,8 +1,65 @@
+import type { Metadata } from "next";
 import CatalogClient, { type InitialData } from "./CatalogClient";
+import { getCategoryMeta, CAR_BRAND_META } from "@/lib/catalog/classifier";
+import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 
 // Базовый URL для серверного fetch к собственному API (внутри контейнера Next
 // слушает 127.0.0.1:3000). Переопределяется через INTERNAL_API_BASE при нужде.
 const INTERNAL_BASE = process.env.INTERNAL_API_BASE || "http://127.0.0.1:3000";
+
+/**
+ * SEO-метаданные каталога. Каталог — одна страница с query-параметрами, поэтому
+ * canonical задаём вручную:
+ *  • заход в КАТЕГОРИЮ (?category=…) или МАРКУ (?brand=…) — это самостоятельный
+ *    лендинг (он же в sitemap): свой title/description и self-canonical на тот же
+ *    параметризованный URL, иначе корневой canonical «./» схлопнул бы его в /catalog;
+ *  • всё остальное (голый каталог, поиск по артикулу/VIN, фильтры/сортировка/
+ *    страницы) канонизируем в чистый /catalog — чтобы не плодить дубли.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const category = typeof sp.category === "string" ? sp.category : undefined;
+  const brand = typeof sp.brand === "string" ? sp.brand : undefined;
+  const hasSearch =
+    typeof sp.article === "string" || typeof sp.vin === "string";
+
+  if (category && !brand && !hasSearch) {
+    const meta = getCategoryMeta(category);
+    const title = meta?.title ?? category;
+    return {
+      title: `${title} — купить автозапчасти`,
+      description:
+        meta?.description ??
+        `${title}: оригинал и аналоги, наличие и цены, доставка по России. Подбор и заказ в Brocar.`,
+      alternates: {
+        canonical: `/catalog?category=${encodeURIComponent(category)}`,
+      },
+    };
+  }
+
+  if (brand && !category && !hasSearch) {
+    const meta = CAR_BRAND_META.find((b) => b.slug === brand);
+    const title = meta?.title ?? brand;
+    return {
+      title: `Запчасти для ${title}`,
+      description: `Автозапчасти для ${title}: оригинальные и аналоговые детали, подбор по каталогу и VIN, доставка по России. Заказывайте в Brocar.`,
+      alternates: {
+        canonical: `/catalog?brand=${encodeURIComponent(brand)}`,
+      },
+    };
+  }
+
+  return {
+    title: "Каталог автозапчастей",
+    description:
+      "Каталог автозапчастей Brocar: оригинал и аналоги, подбор по категории, марке авто и VIN-коду, наличие и доставка по России.",
+    alternates: { canonical: "/catalog" },
+  };
+}
 
 /**
  * Серверная обёртка каталога. Для «чистого» захода в КАТЕГОРИЮ (/catalog?category=…)
@@ -81,5 +138,33 @@ export default async function CatalogPage({
     // Сервер не смог подгрузить — не страшно: клиент догрузит сам, как раньше.
   }
 
-  return <CatalogClient initialData={initialData} />;
+  // Крошки — только для «чистого» захода в категорию/марку (это SEO-лендинги).
+  // Для поиска/VIN/фильтров иерархии нет — крошки не показываем.
+  let crumbs: Crumb[] | null = null;
+  if (category && !brand && noModifiers) {
+    const title = getCategoryMeta(category)?.title ?? category;
+    crumbs = [
+      { name: "Главная", href: "/" },
+      { name: "Каталог", href: "/catalog" },
+      { name: title, href: `/catalog?category=${encodeURIComponent(category)}` },
+    ];
+  } else if (brand && !category && noModifiers) {
+    const title = CAR_BRAND_META.find((b) => b.slug === brand)?.title ?? brand;
+    crumbs = [
+      { name: "Главная", href: "/" },
+      { name: "Каталог", href: "/catalog" },
+      { name: title, href: `/catalog?brand=${encodeURIComponent(brand)}` },
+    ];
+  }
+
+  return (
+    <>
+      {crumbs && (
+        <div className="container mx-auto px-4 pt-5">
+          <Breadcrumbs items={crumbs} />
+        </div>
+      )}
+      <CatalogClient initialData={initialData} />
+    </>
+  );
 }

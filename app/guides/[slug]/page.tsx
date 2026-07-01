@@ -19,6 +19,12 @@ import {
   type GuideBlock,
 } from "@/lib/guides";
 import { guideIcon } from "../_icons";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+  SITE_URL,
+  articleSchema,
+  breadcrumbSchema,
+} from "@/lib/seo/structured-data";
 
 export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
@@ -109,8 +115,30 @@ export default async function GuidePage({
     (g) => g.category === guide.category && g.slug !== guide.slug
   ).slice(0, 3);
 
+  // Хлебные крошки для разметки повторяют видимые выше (Главная → Помощь → статья).
+  const breadcrumbs = breadcrumbSchema([
+    { name: "Главная", url: `${SITE_URL}/` },
+    { name: "Помощь с выбором", url: `${SITE_URL}/guides` },
+    { name: guide.title, url: `${SITE_URL}/guides/${guide.slug}` },
+  ]);
+
   return (
     <div className="min-h-screen bg-neutral-950">
+      {/* Article — только для готовых статей (заглушки в индекс не идут). */}
+      <JsonLd
+        data={
+          ready
+            ? [
+                articleSchema({
+                  title: guide.title,
+                  description: guide.excerpt,
+                  slug: guide.slug,
+                }),
+                breadcrumbs,
+              ]
+            : breadcrumbs
+        }
+      />
       <div className="container mx-auto px-4 py-10 md:py-14">
         <div className="max-w-3xl mx-auto">
           {/* Хлебные крошки */}

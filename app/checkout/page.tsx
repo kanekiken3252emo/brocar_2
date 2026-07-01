@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { RETURN_WINDOW_DAYS } from "@/lib/suppliers/returns";
-import { ArrowLeft, Loader2, ShoppingBag, RotateCcw, Info } from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingBag, RotateCcw } from "lucide-react";
 
 interface CartItem {
   id: number;
@@ -208,10 +208,9 @@ export default function CheckoutPage() {
   // показываем согласие с условиями и блокируем кнопку до отметки.
   const hasNonStock = items.some((it) => (it.deliveryDays ?? 0) >= 2);
 
-  // Политика возврата по позициям: обычные товары возвратны (10–14 дней),
-  // товары Берга — нет (returnable === false). Показываем аккуратной заметкой.
+  // Есть ли возвратные позиции (обычные товары, не Берг) — тогда показываем
+  // заметку про возврат 10–14 дней. Невозвратные отдельно не помечаем.
   const hasReturnable = items.some((it) => it.returnable !== false);
-  const hasNonReturnable = items.some((it) => it.returnable === false);
 
   if (items.length === 0) {
     return (
@@ -336,29 +335,18 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
-                  {/* Политика возврата: обычные товары — 10–14 дней; товары Берга
-                      возврату надлежащего качества не подлежат. */}
-                  {(hasReturnable || hasNonReturnable) && (
-                    <div className="rounded-xl border border-neutral-800 bg-neutral-800/30 p-3 space-y-1.5">
-                      {hasReturnable && (
-                        <p className="flex items-start gap-2 text-xs text-neutral-300 leading-relaxed">
-                          <RotateCcw className="h-3.5 w-3.5 mt-0.5 shrink-0 text-green-400/80" />
-                          <span>
-                            Возврат товара надлежащего качества — в течение{" "}
-                            {RETURN_WINDOW_DAYS} дней.
-                          </span>
-                        </p>
-                      )}
-                      {hasNonReturnable && (
-                        <p className="flex items-start gap-2 text-xs text-neutral-400 leading-relaxed">
-                          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-yellow-500/80" />
-                          <span>
-                            {hasReturnable
-                              ? "Отдельные позиции в заказе возврату надлежащего качества не подлежат."
-                              : "Товар надлежащего качества возврату не подлежит."}
-                          </span>
-                        </p>
-                      )}
+                  {/* Возврат надлежащего качества (10–14 дней) — только для товаров,
+                      у которых он есть. Позиции без возврата отдельной «страшной»
+                      строкой не выделяем. */}
+                  {hasReturnable && (
+                    <div className="rounded-xl border border-neutral-800 bg-neutral-800/30 p-3">
+                      <p className="flex items-start gap-2 text-xs text-neutral-300 leading-relaxed">
+                        <RotateCcw className="h-3.5 w-3.5 mt-0.5 shrink-0 text-green-400/80" />
+                        <span>
+                          Возврат товара надлежащего качества — в течение{" "}
+                          {RETURN_WINDOW_DAYS} дней.
+                        </span>
+                      </p>
                     </div>
                   )}
 

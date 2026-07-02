@@ -37,6 +37,8 @@ export async function generateMetadata({
         meta?.description ??
         `${title}: оригинальные запчасти, наличие и цены, доставка по России. Подбор и заказ в Brocar.`,
       alternates: { canonical: categoryCatalogUrl(category) },
+      // Категории вне справочника в индекс не пускаем (тонкие/мусорные страницы).
+      ...(meta ? {} : { robots: { index: false, follow: false } }),
     };
   }
 
@@ -49,6 +51,9 @@ export async function generateMetadata({
       title: `Запчасти для ${title}`,
       description: `Автозапчасти для ${title}: оригинальные детали, подбор по каталогу и VIN, доставка по России. Заказывайте в Brocar.`,
       alternates: { canonical: brandCatalogUrl(brand) },
+      // Марки вне справочника (Baic/Москвич/опечатки) — страница работает, но
+      // в индекс не идёт: у неё нет товаров, это защита от мусора в поиске.
+      ...(meta ? {} : { robots: { index: false, follow: false } }),
     };
   }
 

@@ -40,14 +40,14 @@
 # 08:30 — отдельный прогон Армтека
 30 8 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app mkdir -p /app/scripts /app/lib && docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts && docker cp /var/www/brocar/lib/. brocar-app:/app/lib && docker exec -u root brocar-app sh -c '[ -d /app/scripts/node_modules/imapflow ] || (cd /app/scripts && npm init -y >/dev/null 2>&1 && npm i imapflow mailparser adm-zip exceljs postgres --no-audit --no-fund)' && docker exec -u root brocar-app node /app/scripts/import-armtek-from-email.mjs" >> /var/log/brocar-import.log 2>&1
 
-# 22:00 — прогрев картинок (S3). ВАЖНО: concurrency=3 (было 6), limit=15000 (было
-# 30000). Прогрев дёргает /api/product-image внутри brocar-app, а там sharp —
-# WARM_CONCURRENCY = число одновременных sharp-операций в боевом контейнере.
-# 3 вместо 6 вдвое снижает спайк, при limit 15000 время прогона примерно прежнее
-# (прогрев инкрементный: NOT EXISTS пропускает уже прогретые товары, добирает за
-# несколько ночей). Доп. защита — sharp.concurrency(1) в lib/product-images.ts.
-# Проверь фактическое время в /var/log/brocar-warm.log: если стабильно
-# заканчивает до ~03:00, limit можно поднимать обратно к 30000.
+# 22:00 — прогрев картинок (S3). concurrency=3 и limit=15000 были срезаны вдвое
+# под старый сервер (4 ГБ RAM): прогрев дёргает /api/product-image внутри
+# brocar-app, а там sharp — WARM_CONCURRENCY = число одновременных sharp-операций
+# в боевом контейнере. Доп. защита — sharp.concurrency(1) в lib/product-images.ts.
+# ПОСЛЕ АПГРЕЙДА СЕРВЕРА (12 ГБ / 6 ядер, июль 2026) можно вернуть полную
+# мощность — WARM_LIMIT=30000, WARM_CONCURRENCY=6 — одной командой:
+#   crontab -l | sed 's/WARM_LIMIT=15000/WARM_LIMIT=30000/; s/WARM_CONCURRENCY=3/WARM_CONCURRENCY=6/' | crontab -
+#   crontab -l | grep WARM   # проверить, что подставилось
 0 22 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app sh -c '[ -d /app/node_modules/postgres ] || { rm -rf /tmp/pg && mkdir -p /tmp/pg && cd /tmp/pg && npm i postgres@3.4.5 --no-save --no-audit --no-fund && cp -r /tmp/pg/node_modules/postgres /app/node_modules/postgres; }' && docker cp /var/www/brocar/scripts/warm-product-images.mjs brocar-app:/app/warm.mjs && docker exec -e WARM_LIMIT=15000 -e WARM_CONCURRENCY=3 -e WARM_BASE_URL=http://127.0.0.1:3000 brocar-app node /app/warm.mjs" >> /var/log/brocar-warm.log 2>&1
 ```
 

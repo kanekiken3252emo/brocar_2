@@ -10,6 +10,7 @@ import FlashToast from "@/components/FlashToast";
 import NavProgress from "@/components/NavProgress";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { organizationSchema, websiteSchema } from "@/lib/seo/structured-data";
+import YandexMetrika from "@/components/YandexMetrika";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -143,6 +144,8 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <CookieBanner />
+        {/* Метрика включается только при согласии на аналитические cookie. */}
+        <YandexMetrika />
         <CartToast />
         <FlashToast />
       </body>

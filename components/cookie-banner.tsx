@@ -38,6 +38,11 @@ function writeConsent(partial: { analytics: boolean; functional: boolean }) {
   } catch {
     // storage blocked — ignore
   }
+  // Сообщаем подписчикам (Яндекс.Метрика и т.п.): согласие изменилось — можно
+  // включаться сразу, без перезагрузки страницы.
+  window.dispatchEvent(
+    new CustomEvent("cookie-consent-changed", { detail: consent })
+  );
   return consent;
 }
 

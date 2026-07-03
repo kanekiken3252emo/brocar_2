@@ -127,14 +127,13 @@ async function uploadBufferToStorage(
     // а просто грузим оригинал без сжатия. Раньше статический import sharp
     // ронял ВСЕ роуты, использующие этот файл (категории/поиск/картинки).
     const sharp = (await import("sharp")).default;
-    // Глобально для процесса: 1 поток libvips на операцию + маленький кэш.
-    // Без этого КАЖДЫЙ sharp-вызов поднимает os.cpus().length потоков; при
-    // параллельном ночном прогреве (WARM_CONCURRENCY одновременных запросов к
-    // /api/product-image) это даёт WARM_CONCURRENCY × cores потоков и насыщает
-    // CPU внутри brocar-app → сервер «залипает» и рвёт соединения. Сеттеры
-    // идемпотентны (можно звать на каждый запрос). Тоже троттлит libvips у
-    // next/image в этом же процессе — осознанный компромисс ради стабильности.
-    sharp.concurrency(1);
+    // ВАЖНО: глобальный sharp.concurrency(1) ЗДЕСЬ БОЛЬШЕ НЕ СТАВИМ. Он душил
+    // и оптимизатор next/image в этом же процессе: после деплоя (кэш вариантов
+    // стёрт) утренний трафик пересчитывал десятки картинок главной через ОДИН
+    // поток libvips — картинки висели минутами, посетители видели «мёртвый
+    // сайт» (124×499 на /_next/image в логах nginx). На 6 ядрах дефолтная
+    // многопоточность libvips безопасна; параллельность НАШИХ обработок
+    // ограничена семафором MISS_LIMIT в getOrFetchProductImage.
     sharp.cache({ files: 0, items: 50, memory: 50 }); // ~50 МБ потолок кэша
     outBuffer = await sharp(buffer)
       .resize(300, 300, { fit: "inside", withoutEnlargement: true })
@@ -493,6 +492,15 @@ function firstImageHit(
  *
  * Поле product_images.source отражает, кто предоставил картинку.
  */
+// Семафор «промахов»: сколько товаров БЕЗ кэша обрабатываем одновременно
+// (походы к поставщикам + sharp + S3). Грид каталога с новыми товарами (после
+// утреннего импорта) даёт 20-40 одновременных запросов — без лимита они
+// лавиной шли к поставщикам и в sharp, вешая процесс. Сверх лимита сразу
+// отдаём null (плейсхолдер) БЕЗ negative-cache — товар доберётся следующим
+// заходом или ночным прогревом (WARM_CONCURRENCY=6 вписывается в лимит).
+const MISS_LIMIT = 6;
+let missInFlight = 0;
+
 export async function getOrFetchProductImage(
   brandRaw: string,
   articleRaw: string
@@ -504,31 +512,37 @@ export async function getOrFetchProductImage(
   const cached = await lookupCached(brand, article);
   if (cached.found) return cached.url;
 
-  // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
-  // быстрые. Возвращаем картинку, КАК ТОЛЬКО её нашёл первый из них. Все грузят
-  // файл по одному ключу (brand/article.*), поэтому URL одинаковый.
-  let { url, source, errored } = await firstImageHit([
-    { source: "armtek", run: () => tryArmtek(brand, article) },
-    { source: "shate-m", run: () => tryShateM(brand, article) },
-  ]);
+  if (missInFlight >= MISS_LIMIT) return null; // перегруз — не кэшируем, добор позже
+  missInFlight++;
+  try {
+    // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
+    // быстрые. Возвращаем картинку, КАК ТОЛЬКО её нашёл первый из них. Все грузят
+    // файл по одному ключу (brand/article.*), поэтому URL одинаковый.
+    let { url, source, errored } = await firstImageHit([
+      { source: "armtek", run: () => tryArmtek(brand, article) },
+      { source: "shate-m", run: () => tryShateM(brand, article) },
+    ]);
 
-  // Тир 2: Autotrade — резерв, только если первые два не нашли. Бережём его
-  // лимит 1 req/sec (иначе массовый прогрев упрётся в него и заденет каталог).
-  if (!url) {
-    const at = await tryAutotrade(brand, article);
-    if (at.url) {
-      url = at.url;
-      source = "autotrade";
+    // Тир 2: Autotrade — резерв, только если первые два не нашли. Бережём его
+    // лимит 1 req/sec (иначе массовый прогрев упрётся в него и заденет каталог).
+    if (!url) {
+      const at = await tryAutotrade(brand, article);
+      if (at.url) {
+        url = at.url;
+        source = "autotrade";
+      }
+      errored = errored || at.errored;
     }
-    errored = errored || at.errored;
-  }
 
-  // Кешируем, ТОЛЬКО если нашли картинку ИЛИ её честно нет (без сбоев API). Если
-  // опрос упал с ошибкой (внешний источник лёг, как ShATE-M сейчас) — НЕ пишем
-  // negative-cache: товар переподтянется при следующем заходе, когда источник
-  // оживёт. Иначе временный сбой навсегда оставил бы товар без фото.
-  if (url || !errored) {
-    await persistCache(brand, article, url, source);
+    // Кешируем, ТОЛЬКО если нашли картинку ИЛИ её честно нет (без сбоев API). Если
+    // опрос упал с ошибкой (внешний источник лёг, как ShATE-M сейчас) — НЕ пишем
+    // negative-cache: товар переподтянется при следующем заходе, когда источник
+    // оживёт. Иначе временный сбой навсегда оставил бы товар без фото.
+    if (url || !errored) {
+      await persistCache(brand, article, url, source);
+    }
+    return url;
+  } finally {
+    missInFlight--;
   }
-  return url;
 }

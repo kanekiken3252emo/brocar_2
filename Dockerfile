@@ -47,6 +47,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Каталог кэша оптимизатора next/image. Наружу маплен named-volume
+# (docker-compose) — кэш ПЕРЕЖИВАЕТ пересоздание контейнера. Раньше каждый
+# деплой стирал кэш, и утренний трафик заново пересчитывал все варианты
+# картинок главной через sharp — картинки висели, посетители видели белые
+# страницы. Каталог создаём с владельцем nextjs, чтобы volume унаследовал права.
+RUN mkdir -p .next/cache/images && chown -R nextjs:nodejs .next/cache
+
 USER nextjs
 
 EXPOSE 3000

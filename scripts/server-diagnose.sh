@@ -59,23 +59,21 @@ for f in "$AL" "$AL.1"; do [ -f "$f" ] && cat "$f"; done \
   | grep -oiE "yandex[a-z]*bot|googlebot|bingbot|ahrefsbot|semrushbot|mj12bot|petalbot|amazonbot|gptbot" \
   | sort | uniq -ci | sort -rn
 
-section "9. БД из контейнера: пинг + активные/зависшие запросы"
-docker exec brocar-app node -e "
-const t0 = Date.now();
-import('postgres').then(async ({ default: postgres }) => {
-  const url = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
-  const sql = postgres(url, { max: 1, connect_timeout: 10,
-    ssl: url.includes('sslmode=require') || url.includes('supabase.com') ? 'require' : undefined });
-  try {
-    await sql\`SELECT 1\`;
-    console.log('SELECT 1:', Date.now() - t0, 'ms (норма < 50мс; > 500мс = сеть/БД тупит)');
-    const act = await sql\`SELECT state, COUNT(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() GROUP BY state\`;
-    console.log('соединения по состояниям:', JSON.stringify(act));
-    const slow = await sql\`SELECT pid, EXTRACT(EPOCH FROM (now() - query_start))::int AS sec, LEFT(query, 100) AS q FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '5 seconds' ORDER BY query_start LIMIT 5\`;
-    console.log('запросы длиннее 5с прямо сейчас:', JSON.stringify(slow));
-  } catch (e) { console.log('DB ERROR:', e.message); }
-  finally { await sql.end({ timeout: 3 }); }
-});" 2>&1
+section "9. БД через приложение: /api/health?deep=1 (db.ms < 50 — норма)"
+curl -s -m 12 "http://127.0.0.1:3000/api/health?deep=1"; echo
+
+section "9б. Какие URL получали 499/5xx (что именно висело)"
+for f in "$AL" "$AL.1"; do [ -f "$f" ] && cat "$f"; done \
+  | awk '$9==499 || $9>=500 {print $9, $7}' | sort | uniq -c | sort -rn | head -15
+
+section "9в. Топ-IP: что качает и кем представляется"
+TOPIP=$(for f in "$AL" "$AL.1"; do [ -f "$f" ] && cat "$f"; done \
+  | awk '{print $1}' | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
+echo "топ-IP: $TOPIP — его URL:"
+for f in "$AL" "$AL.1"; do [ -f "$f" ] && cat "$f"; done \
+  | awk -v ip="$TOPIP" '$1==ip {print $7}' | sort | uniq -c | sort -rn | head -12
+echo "— его последний запрос целиком (UA в конце):"
+for f in "$AL" "$AL.1"; do [ -f "$f" ] && cat "$f"; done | awk -v ip="$TOPIP" '$1==ip' | tail -1
 
 section "10. CPU steal (виртуализация; st > 5% = сосед по хосту душит наш VPS)"
 vmstat 1 3 2>/dev/null | tail -2 || echo "(vmstat недоступен)"

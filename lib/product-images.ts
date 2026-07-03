@@ -47,6 +47,11 @@ function getS3Client(): S3Client {
     // VK Cloud адресует бакет как поддомен (bucket.hb.ru-msk...), это
     // virtual-hosted style → forcePathStyle=false.
     forcePathStyle: false,
+    // Таймауты обязательны: у AWS SDK по умолчанию сокет не ограничен — зависший
+    // S3-endpoint держал бы PutObject (и слот MISS_LIMIT загрузки картинки)
+    // бесконечно, плюс 3 ретрая. 3с на коннект, 10с на запрос, 1 ретрай.
+    requestHandler: { connectionTimeout: 3000, requestTimeout: 10000 },
+    maxAttempts: 2,
   });
   return cachedS3;
 }

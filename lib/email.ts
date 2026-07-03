@@ -45,6 +45,11 @@ function getTransporter() {
     port,
     secure: port === 465, // 465 — SSL; 587/2525 — STARTTLS
     auth: { user, pass },
+    // Дефолты nodemailer — 2 мин на коннект и 10 мин на сокет: недоступный SMTP
+    // вешал бы оформление заказа и формы на минуты. Ужимаем до разумного.
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 15000,
   });
 }
 

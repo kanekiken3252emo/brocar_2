@@ -101,6 +101,8 @@ export async function createPayment(
       "Idempotence-Key": randomUUID(),
     },
     body: JSON.stringify(body),
+    // Без таймаута зависшая ЮKassa держала бы хендлер до ~5 минут (дефолт undici).
+    signal: AbortSignal.timeout(10000),
   });
 
   const data = await res.json();
@@ -124,6 +126,7 @@ export async function getPayment(paymentId: string): Promise<YooKassaPayment> {
     headers: {
       Authorization: authHeader(),
     },
+    signal: AbortSignal.timeout(10000),
   });
 
   const data = await res.json();

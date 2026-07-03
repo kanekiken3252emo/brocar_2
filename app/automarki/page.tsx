@@ -21,8 +21,11 @@ const INTERNAL_BASE = process.env.INTERNAL_API_BASE || "http://127.0.0.1:3000";
 export default async function AutomarkiPage() {
   let initialBrands: CarBrand[] = [];
   try {
+    // Таймаут обязателен: зависший API (пул БД) не должен вешать SSR страницы
+    // на минуты — при истечении отдаём пустой список, клиент покажет заглушку.
     const res = await fetch(`${INTERNAL_BASE}/api/catalog/car-brands`, {
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(5000),
     });
     if (res.ok) {
       const data = await res.json();

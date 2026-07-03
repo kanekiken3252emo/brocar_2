@@ -120,7 +120,10 @@ async function getHandler(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim();
-    if (q.length < 2) {
+    // Минимум 3 символа: для ILIKE '%xx%' короче 3 символов GIN trgm-индекс не
+    // работает — планировщик уходит в seq scan по всей таблице (~866k строк),
+    // и несколько таких поисков разом занимали пул БД на секунды (сайт вставал).
+    if (q.length < 3) {
       return NextResponse.json(
         { groups: [], count: 0, mode: "exact" as Mode },
         { headers: { "Cache-Control": CACHE_LISTING } }
@@ -134,7 +137,9 @@ async function getHandler(request: NextRequest) {
     const sort = url.searchParams.get("sort") || "name"; // дефолт — по названию (тай-брейкер после релевантности)
 
     const qNorm = normalizeName(q);
-    const tokens = tokenize(qNorm);
+    // Токены короче 3 символов отбрасываем: ILIKE '%xx%' по ним не использует
+    // trgm-индекс (seq scan всей таблицы) — см. проверку q.length выше.
+    const tokens = tokenize(qNorm).filter((t) => t.length >= 3);
     const tokenConds =
       tokens.length === 0 ? [tokenCondition(qNorm)] : tokens.map(tokenCondition);
 

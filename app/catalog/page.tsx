@@ -99,11 +99,15 @@ export default async function CatalogPage({
   let initialData: InitialData | undefined;
   try {
     if (category && !brand && noModifiers) {
+      // ВАЖНО: таймаут на самозапрос. Без него зависший API-роут (пул БД занят)
+      // вешал SSR всех страниц каталога до 5 минут (дефолт undici) — соединения
+      // копились, nginx рвал их, посетители видели белые страницы. Лучше отдать
+      // страницу без initialData (клиент догрузит), чем повесить весь сайт.
       const res = await fetch(
         `${INTERNAL_BASE}/api/catalog/category/${encodeURIComponent(
           category
         )}?page=1&limit=20&sort=name`,
-        { next: { revalidate: 600 } }
+        { next: { revalidate: 600 }, signal: AbortSignal.timeout(5000) }
       );
       if (res.ok) {
         const data = await res.json();
@@ -122,7 +126,7 @@ export default async function CatalogPage({
         `${INTERNAL_BASE}/api/catalog/car-brand/${encodeURIComponent(
           brand
         )}?page=1&limit=20&sort=name`,
-        { next: { revalidate: 600 } }
+        { next: { revalidate: 600 }, signal: AbortSignal.timeout(5000) }
       );
       if (res.ok) {
         const data = await res.json();

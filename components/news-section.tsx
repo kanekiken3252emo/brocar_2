@@ -38,9 +38,17 @@ function formatDate(d: Date | string) {
 export async function NewsSection() {
   let items: Awaited<ReturnType<typeof getNews>> = [];
   try {
-    items = await getNews();
+    // Таймаут-гонка: при забитом пуле БД запрос висит в очереди и НЕ реджектится
+    // сам — без гонки главная страница висела бы вместе с каталогом (белый
+    // экран). Новости — некритичная секция: не успели за 3с — не показываем.
+    items = await Promise.race([
+      getNews(),
+      new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("news timeout")), 3000)
+      ),
+    ]);
   } catch {
-    return null; // БД недоступна — секцию просто не показываем
+    return null; // БД недоступна/медленна — секцию просто не показываем
   }
 
   if (items.length === 0) return null;

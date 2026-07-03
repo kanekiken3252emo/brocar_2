@@ -17,10 +17,16 @@ import { withServerTiming } from "@/lib/server-timing";
  *   /api/catalog/car-brand/BMW?category=brake-pads
  */
 // Кэш списка брендов запчастей по марке авто (availableBrands). Этот DISTINCT
-// читает ВСЕ строки марки из кучи (для Kia — 13005 строк, ~7с на холодном диске
-// Supabase) и был главным тормозом холодной загрузки страницы бренда. Меняется
-// только ночным импортом → держим в памяти 1ч (переживает nginx-кэш ответа).
-const availableBrandsCache = new Map<string, { brands: string[]; exp: number }>();
+// читает ВСЕ строки марки из кучи (для Kia — 13005 строк, ~7с на холодную) и был
+// главным тормозом холодной загрузки страницы бренда. Меняется только ночным
+// импортом → держим в памяти 1ч. Кэшируем ПРОМИС (in-flight dedup): раньше кэш
+// писался только по завершении запроса, и когда бот после деплоя обходил
+// 50 страниц марок из sitemap одновременно, каждый заход запускал СВОЙ
+// 7-секундный DISTINCT — пул БД исчерпывался, весь сайт вставал в очередь.
+const availableBrandsCache = new Map<
+  string,
+  { brands: Promise<string[]>; exp: number }
+>();
 
 async function getHandler(
   request: NextRequest,
@@ -87,24 +93,30 @@ async function getHandler(
     // (меняется только ночным импортом), иначе считаем и кладём в кэш.
     const abKey = `${carBrand}|${category ?? ""}`;
     const abHit = availableBrandsCache.get(abKey);
-    const availableBrandsPromise: Promise<string[]> =
-      abHit && abHit.exp > Date.now()
-        ? Promise.resolve(abHit.brands)
-        : db
-            .selectDistinct({ brand: products.brand })
-            .from(products)
-            .where(and(...baseConditions))
-            .then((rows) => {
-              const list = rows
-                .map((r) => r.brand)
-                .filter((b): b is string => Boolean(b))
-                .sort();
-              availableBrandsCache.set(abKey, {
-                brands: list,
-                exp: Date.now() + 3_600_000,
-              });
-              return list;
-            });
+    let availableBrandsPromise: Promise<string[]>;
+    if (abHit && abHit.exp > Date.now()) {
+      availableBrandsPromise = abHit.brands;
+    } else {
+      // Кладём промис в кэш ДО выполнения — параллельные запросы той же марки
+      // ждут один DISTINCT, а не запускают каждый свой.
+      availableBrandsPromise = db
+        .selectDistinct({ brand: products.brand })
+        .from(products)
+        .where(and(...baseConditions))
+        .then((rows) =>
+          rows
+            .map((r) => r.brand)
+            .filter((b): b is string => Boolean(b))
+            .sort()
+        );
+      availableBrandsCache.set(abKey, {
+        brands: availableBrandsPromise,
+        exp: Date.now() + 3_600_000,
+      });
+      // Ошибка не должна залипнуть в кэше на час — сносим запись, следующий
+      // запрос попробует заново.
+      availableBrandsPromise.catch(() => availableBrandsCache.delete(abKey));
+    }
 
     // Главный запрос + count + availableBrands независимы → один Promise.all.
     // Раньше шли ПОСЛЕДОВАТЕЛЬНО (main → … → count → availableBrands), и тяжёлый

@@ -90,10 +90,11 @@ async function main() {
   const write = (s) =>
     new Promise((res) => (w.write(s) ? res() : w.once("drain", res)));
 
-  // Шапка. Дату фида пишем в московском поясе (форма YYYY-MM-DDTHH:MM+03:00).
+  // Шапка. Дата фида — строго RFC 3339 с секундами (требование Яндекс Товаров),
+  // в московском поясе: YYYY-MM-DDTHH:MM:SS+03:00.
   const now = new Date(Date.now() + 3 * 3600 * 1000)
     .toISOString()
-    .slice(0, 16);
+    .slice(0, 19);
   await write(`<?xml version="1.0" encoding="UTF-8"?>\n`);
   await write(`<yml_catalog date="${now}+03:00">\n<shop>\n`);
   await write(`<name>BroCar</name>\n`);

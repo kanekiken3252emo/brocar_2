@@ -6,6 +6,11 @@ export default function robots(): MetadataRoute.Robots {
     ? `http://${siteDomain}`
     : `https://${siteDomain}`;
 
+  // Техническое зеркало (авто-деплой Vercel) — краулерам вход запрещён целиком.
+  if (process.env.VERCEL) {
+    return { rules: { userAgent: "*", disallow: "/" } };
+  }
+
   return {
     rules: {
       userAgent: "*",

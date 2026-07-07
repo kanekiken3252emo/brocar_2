@@ -67,16 +67,21 @@ export const metadata: Metadata = {
   verification: {
     yandex: "94342307740d8160",
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
+  // Технические зеркала (авто-деплой на Vercel из этого же репозитория) в индекс
+  // не пускаем: у зеркала свой self-canonical, и оно конкурировало с основным
+  // доменом в выдаче Яндекса. process.env.VERCEL платформа выставляет на билде.
+  robots: process.env.VERCEL
+    ? { index: false, follow: false }
+    : {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-image-preview": "large",
+          "max-snippet": -1,
+        },
+      },
   // og:title / og:description Next сам подставит из title/description каждой
   // страницы (шаблон «%s | BroCar» уже применён). Здесь — общие для всех полей:
   // тип, имя сайта, локаль и картинка-превью (public/og-image.png, 1200×630).

@@ -40,7 +40,15 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   output: "standalone", // Важно для Docker!
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    // На техническом зеркале (Vercel) дополнительно шлём X-Robots-Tag на ВСЕ
+    // ответы (включая картинки и файлы) — самый жёсткий запрет индексации.
+    const headers = process.env.VERCEL
+      ? [
+          ...SECURITY_HEADERS,
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ]
+      : SECURITY_HEADERS;
+    return [{ source: "/:path*", headers }];
   },
   async redirects() {
     // 301 www → non-www (устраняем дубль хоста). Работает при условии, что

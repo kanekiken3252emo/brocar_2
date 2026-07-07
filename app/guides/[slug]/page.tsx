@@ -21,6 +21,7 @@ import {
 import { guideIcon } from "../_icons";
 import { categoryCatalogUrl } from "@/lib/catalog/urls";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { FaqSection } from "@/components/FaqSection";
 import {
   SITE_URL,
   articleSchema,
@@ -206,6 +207,12 @@ export default async function GuidePage({
                 </p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Частые вопросы — только у готовых статей (FAQPage-разметка
+              не должна висеть на заглушках) */}
+          {ready && guide.faq && guide.faq.length > 0 && (
+            <FaqSection items={guide.faq} className="mb-10" />
           )}
 
           {/* CTA в каталог */}

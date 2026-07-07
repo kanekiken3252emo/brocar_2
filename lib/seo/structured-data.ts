@@ -142,6 +142,23 @@ export function websiteSchema() {
   };
 }
 
+/**
+ * FAQ-разметка. Вопросы и ответы ОБЯЗАНЫ быть видимы на странице (требование
+ * и Яндекса, и Google) — рендерить только через components/FaqSection, который
+ * выводит и видимый блок, и эту разметку из одних данных.
+ */
+export function faqPageSchema(items: { question: string; answer: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((it) => ({
+      "@type": "Question",
+      name: it.question,
+      acceptedAnswer: { "@type": "Answer", text: it.answer },
+    })),
+  };
+}
+
 /** Хлебные крошки. items — в порядке от «Главной» к текущей странице. */
 export function breadcrumbSchema(items: { name: string; url: string }[]) {
   return {

@@ -15,6 +15,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { FaqSection } from "@/components/FaqSection";
 
 export const metadata: Metadata = {
   title: "Оплата заказа — способы оплаты автозапчастей",
@@ -28,8 +29,8 @@ const PAYMENT_METHODS = [
     title: "Онлайн картой и через СБП",
     desc: "Оплата банковской картой или через Систему быстрых платежей (СБП) прямо на сайте при оформлении заказа",
     detail: "Visa · Mastercard · МИР · СБП",
-    badge: "Скоро",
-    badgeColor: "text-orange-400 bg-orange-500/10",
+    badge: "Доступно на сайте",
+    badgeColor: "text-green-400 bg-green-500/10",
   },
   {
     icon: <Banknote className="h-5 w-5 text-orange-500" />,
@@ -205,6 +206,28 @@ export default function PaymentPage() {
               </CardContent>
             </Card>
           </section>
+
+          {/* Частые вопросы (+FAQPage-разметка). Ответы дублируют факты со
+              страницы выше — менять только синхронно с ними. */}
+          <FaqSection
+            items={[
+              {
+                question: "Как оплатить заказ автозапчастей?",
+                answer:
+                  "Онлайн — банковской картой или через СБП прямо на сайте при оформлении заказа, наличными при самовывозе из офиса на ул. Заводская, 16 в Екатеринбурге, а для юридических лиц — по счёту.",
+              },
+              {
+                question: "Работаете ли вы с юридическими лицами?",
+                answer:
+                  "Да. Выставим счёт на оплату на расчётный счёт, возможна оплата с НДС. Реквизиты указаны на странице «Реквизиты» или их предоставит менеджер.",
+              },
+              {
+                question: "Нужна ли предоплата при отправке в другой город?",
+                answer:
+                  "Да, при отправке транспортной компанией иногородним клиентам заказ оплачивается заранее. Возврат средств при отказе от заказа — по договорённости с менеджером.",
+              },
+            ]}
+          />
 
           {/* CTA */}
           <Card className="border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-orange-600/5">

@@ -55,13 +55,15 @@ export async function generateMetadata({
   const brand = typeof sp.brand === "string" ? sp.brand : "";
   const shell = await getShell(id, brand);
 
+  // Суффикс « | BroCar» добавляет шаблон title в layout — здесь бренд НЕ дописываем
+  // (раньше дублировался: «… | Brocar | BroCar»).
   const brandPart = shell.brand ? `${shell.brand} ` : "";
   const title = shell.name
-    ? `${brandPart}${shell.article} — ${shell.name} | Brocar`
-    : `Запчасть ${shell.article}${brandPart ? ` (${shell.brand})` : ""} | Brocar`;
+    ? `${brandPart}${shell.article} — ${shell.name}`
+    : `Запчасть ${shell.article}${brandPart ? ` (${shell.brand})` : ""}`;
   const description = shell.name
-    ? `${shell.name}. ${brandPart}артикул ${shell.article} — цена, наличие и доставка автозапчастей в Brocar.`
-    : `Артикул ${shell.article} — цена, наличие и доставка автозапчастей в Brocar.`;
+    ? `Купить ${shell.name} (${brandPart}артикул ${shell.article}): цена, наличие, быстрая доставка по Екатеринбургу и всей России. Заказывайте в BroCar!`
+    : `Артикул ${shell.article}: цена, наличие и сроки доставки по всей России. Подбор аналогов и заказ в интернет-магазине автозапчастей BroCar.`;
 
   return {
     title,
@@ -116,6 +118,10 @@ export default async function ProductPage({
             image: shell.imageUrl,
             url: `${SITE_URL}${productPath}`,
             price,
+            highPrice: offers.length
+              ? Math.max(...offers.map((o) => o.ourPrice))
+              : null,
+            offerCount: offers.length,
             inStock,
           })}
         />

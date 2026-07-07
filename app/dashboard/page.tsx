@@ -2,6 +2,12 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { orders as ordersTable, profiles } from "@/lib/db/schema";
+
+// Приватная страница: свой title вместо дубля дефолтного + noindex.
+export const metadata = {
+  title: "Личный кабинет",
+  robots: { index: false, follow: false },
+};
 import { eq, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

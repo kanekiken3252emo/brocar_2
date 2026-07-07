@@ -521,7 +521,9 @@ function CatalogContent({
   const categoryGuide = category ? getGuideForCategory(category) : undefined;
 
   const getSearchSummary = () => {
-    if (categoryTitle) return categoryTitle;
+    // Лендинги категорий/марок: коммерческий H1 в связке с meta-title
+    // («Масла моторные — купить в Екатеринбурге»).
+    if (categoryTitle) return `${categoryTitle} — купить в Екатеринбурге`;
     if (vin) return `Поиск по VIN: ${vin}`;
     if (article)
       return isFreeText(article)
@@ -529,7 +531,7 @@ function CatalogContent({
         : `Поиск по артикулу: ${article}`;
     if (brand && model) return `${brand} ${model}`;
     if (brand) return `Бренд: ${brand}`;
-    return "Каталог запчастей";
+    return "Каталог автозапчастей";
   };
 
   return (

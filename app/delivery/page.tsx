@@ -14,10 +14,12 @@ import {
   Building2,
   Globe,
 } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
-  title: "Доставка",
-  description: "Условия доставки автозапчастей по Екатеринбургу и всей России — BroCar",
+  title: "Доставка автозапчастей по Екатеринбургу и России",
+  description:
+    "Доставка автозапчастей BroCar: бесплатный самовывоз с ул. Заводская 16 в Екатеринбурге, курьер по городу, отправка транспортными компаниями по всей России!",
 };
 
 const EKATERINBURG_OPTIONS = [
@@ -110,14 +112,20 @@ export default function DeliveryPage() {
         <div className="absolute top-10 right-20 w-72 h-72 bg-orange-500/8 rounded-full blur-3xl pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-center gap-2 text-neutral-500 text-sm mb-6">
-            <Link href="/" className="hover:text-orange-500 transition-colors">Главная</Link>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-neutral-300">Доставка</span>
+          {/* Крошки общим компонентом — вместе с BreadcrumbList-разметкой */}
+          <div className="mb-6">
+            <Breadcrumbs
+              items={[
+                { name: "Главная", href: "/" },
+                { name: "Доставка", href: "/delivery" },
+              ]}
+            />
           </div>
 
           <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Доставка</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Доставка автозапчастей
+            </h1>
             <p className="text-lg text-neutral-400">
               Самовывоз в Екатеринбурге или доставка транспортной компанией в любой город России
             </p>

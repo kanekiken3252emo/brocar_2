@@ -40,8 +40,12 @@ export async function generateMetadata({
   const guide = getGuide(slug);
   if (!guide) return { title: "Статья не найдена" };
   return {
-    title: guide.title,
-    description: guide.excerpt,
+    title: `${guide.title} — советы по подбору`,
+    // Короткие excerpt дотягиваем до полноценного description (~150 знаков).
+    description:
+      guide.excerpt.length >= 120
+        ? guide.excerpt
+        : `${guide.excerpt} Разбираем по шагам в гайде BroCar: на что смотреть при выборе и как не ошибиться с покупкой.`,
   };
 }
 

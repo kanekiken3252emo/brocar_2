@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ChevronRight, Zap } from "lucide-react";
@@ -6,6 +7,15 @@ import { Button } from "@/components/ui/button";
 import BrandCatalogHero from "@/components/BrandCatalogHero";
 import { NewsSection } from "@/components/news-section";
 import ContactRequestForm from "@/components/contact-request-form";
+
+// Главная целится в запрос «автозапчасти екатеринбург»: ключевик в начале,
+// гео, CTA. Бренд дописан вручную — title.template лейаута НЕ применяется
+// к странице того же сегмента (root page.tsx), только к дочерним.
+export const metadata: Metadata = {
+  title: "Автозапчасти в Екатеринбурге — купить с доставкой | BroCar",
+  description:
+    "Автозапчасти в наличии — 180 000+ позиций. Подбор по VIN, оригинал и аналоги. Доставка по Екатеринбургу и всей России. Заказывайте онлайн в BroCar!",
+};
 
 const FEATURES = [
   {
@@ -54,17 +64,18 @@ export default function HomePage() {
               </div>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-3 md:mb-6 leading-tight">
-                Качественные
+                Автозапчасти
                 <br />
                 <span className="bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
-                  автозапчасти
+                  в Екатеринбурге
                 </span>
                 <br />
-                для вашего авто
+                с доставкой по России
               </h1>
 
               <p className="text-sm md:text-xl text-neutral-400 mb-4 md:mb-8 px-2 md:px-0">
-                Поиск по VIN, артикулу или марке. Быстрая доставка по всей России.
+                Купить оригинальные запчасти и аналоги — подбор по VIN,
+                артикулу или марке автомобиля.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-2 md:gap-4 justify-center lg:justify-start px-2 sm:px-0">
@@ -92,7 +103,7 @@ export default function HomePage() {
                 {/* Logo */}
                 <Image
                   src="/Logo_Brocar.webp"
-                  alt="BroCar"
+                  alt="BroCar — интернет-магазин автозапчастей в Екатеринбурге"
                   width={1200}
                   height={1200}
                   sizes="(max-width: 640px) 160px, (max-width: 768px) 224px, (max-width: 1024px) 288px, 384px"
@@ -501,6 +512,47 @@ export default function HomePage() {
       <Suspense fallback={null}>
         <NewsSection />
       </Suspense>
+
+      {/* SEO-блок: текст с гео и ключевиками + перелинковка на марки/категории.
+          Раньше слово «Екатеринбург» на главной не встречалось вовсе. */}
+      <section className="py-10 md:py-16 border-t border-neutral-800/50">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-4">
+            Автозапчасти в Екатеринбурге — интернет-магазин BroCar
+          </h2>
+          <div className="space-y-4 text-neutral-400 text-sm md:text-base leading-relaxed">
+            <p>
+              BroCar — интернет-магазин автозапчастей в Екатеринбурге
+              (ул.&nbsp;Заводская, 16, район ВИЗ). В каталоге более 180
+              000&nbsp;запчастей в наличии: оригинальные детали и проверенные
+              аналоги для{" "}
+              <Link href="/catalog/brand/toyota" className="text-orange-500 hover:text-orange-400">Toyota</Link>,{" "}
+              <Link href="/catalog/brand/kia" className="text-orange-500 hover:text-orange-400">Kia</Link>,{" "}
+              <Link href="/catalog/brand/hyundai" className="text-orange-500 hover:text-orange-400">Hyundai</Link>,{" "}
+              <Link href="/catalog/brand/bmw" className="text-orange-500 hover:text-orange-400">BMW</Link>,{" "}
+              <Link href="/catalog/brand/lada" className="text-orange-500 hover:text-orange-400">Lada</Link> и{" "}
+              <Link href="/automarki" className="text-orange-500 hover:text-orange-400">других марок</Link>.
+              Купить автозапчасти можно с бесплатным самовывозом из магазина
+              или с доставкой по всей России.
+            </p>
+            <p>
+              Не уверены, какая деталь подойдёт? Воспользуйтесь{" "}
+              <Link href="/catalog-vin" className="text-orange-500 hover:text-orange-400">подбором запчастей по VIN</Link>{" "}
+              — найдём точное соответствие вашему автомобилю. В ассортименте:{" "}
+              <Link href="/catalog/category/engine-oils" className="text-orange-500 hover:text-orange-400">моторные масла</Link>,{" "}
+              <Link href="/catalog/category/brake-pads" className="text-orange-500 hover:text-orange-400">тормозные колодки</Link>,{" "}
+              <Link href="/catalog/category/air-filters" className="text-orange-500 hover:text-orange-400">фильтры</Link>,{" "}
+              <Link href="/catalog/category/shock-absorbers" className="text-orange-500 hover:text-orange-400">амортизаторы</Link>,
+              аккумуляторы, лампы и автохимия.
+            </p>
+            <p>
+              Работаем с 2014 года. Звоните{" "}
+              <a href="tel:+79326006015" className="text-orange-500 hover:text-orange-400">+7 (932) 600-60-15</a>{" "}
+              — поможем подобрать и купить запчасти по выгодной цене.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

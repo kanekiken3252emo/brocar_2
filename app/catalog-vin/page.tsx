@@ -14,9 +14,10 @@ import { Button } from "@/components/ui/button";
 import { VinCatalog } from "@/components/goodvin/VinCatalog";
 
 export const metadata: Metadata = {
-  title: "Онлайн-каталог запчастей по VIN — BroCar",
+  // « | BroCar» допишет шаблон лейаута — бренд вручную не дублируем.
+  title: "Онлайн-каталог запчастей по VIN для 400+ марок",
   description:
-    "Подбор оригинальных автозапчастей по VIN, марке и модели. Более 400 марок легковых и грузовых автомобилей, спецтехники и мото.",
+    "Подбор оригинальных запчастей по VIN, марке и модели авто онлайн: 400+ марок, схемы узлов и OEM-номера. Найдите деталь и закажите в BroCar с доставкой!",
 };
 
 const FEATURES = [

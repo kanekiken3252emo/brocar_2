@@ -4,7 +4,7 @@ import { Building2, ArrowLeft, Phone, Mail, MapPin, Landmark } from "lucide-reac
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Реквизиты",
+  title: "Реквизиты ИП Бакиров Артём Олегович",
   description:
     "Реквизиты ИП Бакиров Артём Олегович (BroCar) — ИНН, ОГРНИП, юридический адрес и банковские реквизиты для безналичной оплаты.",
 };

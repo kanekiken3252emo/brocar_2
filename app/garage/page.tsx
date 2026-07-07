@@ -9,6 +9,15 @@ import GarageClient, {
 
 export const dynamic = "force-dynamic";
 
+// Фича-лендинг гаража виден и гостям — даём нормальный title вместо дубля
+// дефолтного (содержимое персональное, поэтому в индекс не пускаем).
+export const metadata = {
+  title: "Гараж — подбор запчастей под ваш автомобиль",
+  description:
+    "Добавьте автомобиль в гараж BroCar — сохраним VIN и подберём запчасти точно под вашу комплектацию. История покупок и повторный заказ в пару кликов!",
+  robots: { index: false, follow: false },
+};
+
 export default async function GaragePage() {
   const user = await getUser();
 

@@ -1,6 +1,12 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getUser } from "@/lib/auth";
+
+// Приватная страница заказа: свой title + noindex.
+export const metadata = {
+  title: "Заказ",
+  robots: { index: false, follow: false },
+};
 import { db } from "@/lib/db";
 import { orders as ordersTable } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";

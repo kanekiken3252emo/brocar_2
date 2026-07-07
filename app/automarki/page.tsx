@@ -1,11 +1,11 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import AutomarkiClient, { type CarBrand } from "./AutomarkiClient";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata = {
-  title: "Автомарки — подбор запчастей по марке авто | Brocar",
+  // « | BroCar» допишет шаблон лейаута — бренд вручную не дублируем.
+  title: "Запчасти по маркам авто — купить в Екатеринбурге",
   description:
-    "Выберите марку автомобиля и подберите подходящие запчасти: BMW, Toyota, Kia и десятки других марок.",
+    "Подбор запчастей по марке автомобиля: Toyota, Kia, Hyundai, BMW, Lada и десятки других. 180 000+ деталей в наличии, доставка по России. Выбирайте марку!",
 };
 
 // Базовый URL для серверного fetch к собственному API (внутри контейнера Next
@@ -38,20 +38,22 @@ export default async function AutomarkiPage() {
   return (
     <div className="min-h-screen bg-neutral-950">
       <div className="container mx-auto px-4 py-8">
-        <Link
-          href="/"
-          className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Вернуться на главную
-        </Link>
+        <div className="mb-6">
+          <Breadcrumbs
+            items={[
+              { name: "Главная", href: "/" },
+              { name: "Автомарки", href: "/automarki" },
+            ]}
+          />
+        </div>
 
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-            Автомарки
+            Запчасти по маркам автомобилей
           </h1>
           <p className="text-neutral-400">
-            Выберите марку автомобиля — покажем все подходящие запчасти
+            Выберите марку — покажем все подходящие запчасти в наличии в
+            Екатеринбурге и с доставкой по России
           </p>
         </div>
 

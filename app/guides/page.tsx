@@ -5,11 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getGuidesByCategory, isGuideReady } from "@/lib/guides";
 import { guideIcon } from "./_icons";
 import ContactRequestForm from "@/components/contact-request-form";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
-  title: "Помощь с выбором",
+  title: "Гайды по выбору автозапчастей — советы экспертов",
   description:
-    "Гайды по подбору автозапчастей: как выбрать моторное масло, тормозные колодки, аккумулятор и другое — BroCar.",
+    "Гайды по подбору автозапчастей: моторное масло, антифриз, колодки, лампы, щётки и другое. Советы экспертов BroCar — выбирайте запчасти правильно!",
 };
 
 export default function GuidesPage() {
@@ -23,12 +24,14 @@ export default function GuidesPage() {
         <div className="absolute top-10 right-20 w-72 h-72 bg-orange-500/8 rounded-full blur-3xl pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-center justify-center gap-2 text-neutral-500 text-sm mb-6">
-            <Link href="/" className="hover:text-orange-500 transition-colors">
-              Главная
-            </Link>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-neutral-300">Помощь с выбором</span>
+          {/* Крошки общим компонентом — вместе с BreadcrumbList-разметкой */}
+          <div className="flex justify-center mb-6">
+            <Breadcrumbs
+              items={[
+                { name: "Главная", href: "/" },
+                { name: "Помощь с выбором", href: "/guides" },
+              ]}
+            />
           </div>
 
           <div className="max-w-2xl mx-auto text-center">

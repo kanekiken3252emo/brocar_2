@@ -5,10 +5,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AboutGallery } from "@/components/about-gallery";
 import { ReviewsSection } from "@/components/reviews-section";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
-  title: "О нас",
-  description: "Информация о компании BroCar - профессиональный поставщик автозапчастей",
+  title: "О компании — магазин автозапчастей в Екатеринбурге",
+  description:
+    "BroCar — поставщик автозапчастей с 2014 года. Магазин в Екатеринбурге на ул. Заводская 16, 180 000+ деталей, подбор по VIN, доставка по России. Заходите!",
 };
 
 const ADVANTAGES = [
@@ -76,14 +78,23 @@ export default function AboutPage() {
         <div className="absolute top-20 right-20 w-72 h-72 bg-orange-500/20 rounded-full blur-3xl" />
         
         <div className="container mx-auto px-4 relative z-10">
+          <div className="mb-6">
+            <Breadcrumbs
+              items={[
+                { name: "Главная", href: "/" },
+                { name: "О компании", href: "/about" },
+              ]}
+            />
+          </div>
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
               О компании <span className="text-orange-500">BroCar</span>
             </h1>
             <p className="text-xl text-neutral-400 mb-8">
-              Профессиональный поставщик автозапчастей с 2014 года. 
-              Мы работаем напрямую с ведущими производителями и поставщиками, 
-              гарантируя качество и лучшие цены.
+              Профессиональный поставщик автозапчастей в Екатеринбурге с 2014
+              года. Работаем напрямую с ведущими производителями и
+              поставщиками, гарантируя качество и лучшие цены. Магазин на
+              ул.&nbsp;Заводская, 16 — доставка по всей России.
             </p>
             <Link href="/catalog">
               <Button size="lg">

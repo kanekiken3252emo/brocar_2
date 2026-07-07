@@ -14,10 +14,12 @@ import {
   Clock,
   Smartphone,
 } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export const metadata: Metadata = {
-  title: "Оплата",
-  description: "Условия и способы оплаты автозапчастей — BroCar",
+  title: "Оплата заказа — способы оплаты автозапчастей",
+  description:
+    "Способы оплаты автозапчастей в BroCar: онлайн картой и через СБП, наличными при самовывозе в Екатеринбурге, безналичный расчёт для юрлиц. Удобно и безопасно!",
 };
 
 const PAYMENT_METHODS = [
@@ -86,14 +88,20 @@ export default function PaymentPage() {
         <div className="absolute top-10 right-20 w-72 h-72 bg-orange-500/8 rounded-full blur-3xl pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-center gap-2 text-neutral-500 text-sm mb-6">
-            <Link href="/" className="hover:text-orange-500 transition-colors">Главная</Link>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-neutral-300">Оплата</span>
+          {/* Крошки общим компонентом — вместе с BreadcrumbList-разметкой */}
+          <div className="mb-6">
+            <Breadcrumbs
+              items={[
+                { name: "Главная", href: "/" },
+                { name: "Оплата", href: "/payment" },
+              ]}
+            />
           </div>
 
           <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Оплата</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Оплата заказа
+            </h1>
             <p className="text-lg text-neutral-400">
               Выберите удобный способ оплаты — онлайн картой и через СБП, наличными в офисе или по счёту для юрлиц
             </p>

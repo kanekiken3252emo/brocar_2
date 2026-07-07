@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import NextImage from "next/image";
 import Link from "next/link";
 import { ContactsShopImage } from "@/components/contacts-shop-image";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 function VkIcon({ className }: { className?: string }) {
   return (
@@ -39,8 +40,9 @@ function MaxIcon({ className }: { className?: string }) {
 }
 
 export const metadata: Metadata = {
-  title: "Контакты",
-  description: "Свяжитесь с нами - BroCar",
+  title: "Контакты магазина автозапчастей в Екатеринбурге",
+  description:
+    "Магазин автозапчастей BroCar в Екатеринбурге: ул. Заводская 16 (ВИЗ). Тел. +7 (932) 600-60-15, Пн–Пт 10:00–19:00, Сб до 15:00. Приезжайте или звоните!",
 };
 
 export default function ContactsPage() {
@@ -52,10 +54,21 @@ export default function ContactsPage() {
         <div className="absolute top-10 right-20 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
         
         <div className="container mx-auto px-4 relative z-10">
+          <div className="flex justify-center mb-6">
+            <Breadcrumbs
+              items={[
+                { name: "Главная", href: "/" },
+                { name: "Контакты", href: "/contacts" },
+              ]}
+            />
+          </div>
           <div className="max-w-2xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Контакты</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Контакты BroCar в Екатеринбурге
+            </h1>
             <p className="text-xl text-neutral-400">
-              Мы всегда на связи и готовы помочь с подбором запчастей
+              Магазин автозапчастей на ул. Заводская, 16 — всегда на связи и
+              готовы помочь с подбором
             </p>
           </div>
         </div>

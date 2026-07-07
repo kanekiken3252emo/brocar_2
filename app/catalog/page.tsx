@@ -3,6 +3,8 @@ import CatalogClient, { type InitialData } from "./CatalogClient";
 import { getCategoryMeta, CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs";
 import { brandCatalogUrl, categoryCatalogUrl } from "@/lib/catalog/urls";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SITE_URL, itemListSchema } from "@/lib/seo/structured-data";
 
 // Базовый URL для серверного fetch к собственному API (внутри контейнера Next
 // слушает 127.0.0.1:3000). Переопределяется через INTERNAL_API_BASE при нужде.
@@ -32,10 +34,10 @@ export async function generateMetadata({
     const meta = getCategoryMeta(category);
     const title = meta?.title ?? category;
     return {
-      title: `${title} — купить автозапчасти`,
+      title: `${title} — купить с доставкой`,
       description:
         meta?.description ??
-        `${title}: оригинальные запчасти, наличие и цены, доставка по России. Подбор и заказ в Brocar.`,
+        `${title}: оригинальные запчасти и аналоги в наличии, цены и сроки поставки. Подбор и заказ с доставкой по всей России в BroCar!`,
       alternates: { canonical: categoryCatalogUrl(category) },
       // Категории вне справочника в индекс не пускаем (тонкие/мусорные страницы).
       ...(meta ? {} : { robots: { index: false, follow: false } }),
@@ -48,8 +50,8 @@ export async function generateMetadata({
     );
     const title = meta?.title ?? brand.toUpperCase();
     return {
-      title: `Запчасти для ${title}`,
-      description: `Автозапчасти для ${title}: оригинальные детали, подбор по каталогу и VIN, доставка по России. Заказывайте в Brocar.`,
+      title: `Запчасти для ${title} — купить с доставкой`,
+      description: `Запчасти для ${title} в наличии: оригинал и аналоги, подбор по VIN и каталогу, цены и сроки. Доставка по Екатеринбургу и всей России — BroCar!`,
       alternates: { canonical: brandCatalogUrl(brand) },
       // Марки вне справочника (Baic/Москвич/опечатки) — страница работает, но
       // в индекс не идёт: у неё нет товаров, это защита от мусора в поиске.
@@ -58,9 +60,9 @@ export async function generateMetadata({
   }
 
   return {
-    title: "Каталог автозапчастей",
+    title: "Каталог автозапчастей — купить онлайн с доставкой",
     description:
-      "Каталог автозапчастей Brocar: оригинал и аналоги, подбор по категории, марке авто и VIN-коду, наличие и доставка по России.",
+      "Каталог автозапчастей BroCar: 180 000+ товаров в наличии, оригинал и аналоги. Подбор по марке, категории и VIN. Доставка по Екатеринбургу и всей России!",
     alternates: { canonical: "/catalog" },
   };
 }
@@ -173,6 +175,21 @@ export default async function CatalogPage({
         <div className="container mx-auto px-4 pt-5">
           <Breadcrumbs items={crumbs} />
         </div>
+      )}
+      {/* ItemList: машиночитаемый список товаров первой страницы лендинга —
+          ровно тех, что уже отрендерены в HTML (initialData). */}
+      {initialData && crumbs && initialData.groups.length > 0 && (
+        <JsonLd
+          data={itemListSchema({
+            name: initialData.title ?? crumbs[2].name,
+            url: `${SITE_URL}${crumbs[2].href}`,
+            count: initialData.count,
+            items: initialData.groups.map((g) => ({
+              name: [g.brand, g.article, g.name].filter(Boolean).join(" "),
+              url: `${SITE_URL}/product/${encodeURIComponent(g.article)}?brand=${encodeURIComponent(g.brand)}`,
+            })),
+          })}
+        />
       )}
       <CatalogClient
         initialData={initialData}

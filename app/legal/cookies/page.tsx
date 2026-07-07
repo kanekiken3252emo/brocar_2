@@ -5,7 +5,8 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Политика использования файлов cookie",
-  description: "Политика использования файлов cookie на сайте BroCar.",
+  description:
+    "Политика использования файлов cookie на сайте BroCar: какие cookie мы используем, зачем они нужны и как управлять согласием на их обработку.",
 };
 
 export default function CookiesPage() {

@@ -28,12 +28,19 @@ export function organizationSchema() {
     "@type": "AutoPartsStore",
     "@id": ORG_ID,
     name: siteName,
+    // Юр. данные опубликованы на /legal/requisites — помогают Яндексу склеить
+    // сайт с карточкой организации (рейтинг/адрес в сниппете).
+    legalName: "ИП Бакиров Артём Олегович",
+    taxID: "660308104039",
     url: SITE_URL,
     logo: `${SITE_URL}/Logo_Brocar.png`,
     image: `${SITE_URL}/og-image.png`,
-    telephone: ["+79326006015", "+73433822062"],
+    telephone: "+79326006015",
     email: "info@brocarparts.ru",
     priceRange: "₽₽",
+    currenciesAccepted: "RUB",
+    paymentAccepted:
+      "Наличные, банковская карта, СБП, безналичный расчёт для юрлиц",
     address: {
       "@type": "PostalAddress",
       streetAddress: "ул. Заводская, 16",
@@ -46,6 +53,12 @@ export function organizationSchema() {
       latitude: 56.837552,
       longitude: 60.553018,
     },
+    // ID организации в Яндексе — тот же, что в виджете рейтинга на /contacts.
+    hasMap: "https://yandex.ru/maps/org/35950776894",
+    areaServed: [
+      { "@type": "City", name: "Екатеринбург" },
+      { "@type": "Country", name: "Россия" },
+    ],
     openingHoursSpecification: [
       {
         "@type": "OpeningHoursSpecification",
@@ -60,11 +73,51 @@ export function organizationSchema() {
         closes: "15:00",
       },
     ],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: "+79326006015",
+        contactType: "customer service",
+        availableLanguage: "ru",
+      },
+      {
+        "@type": "ContactPoint",
+        telephone: "+73433822062",
+        contactType: "sales",
+        availableLanguage: "ru",
+      },
+    ],
     sameAs: [
       "https://vk.com/brocarparts",
       "https://t.me/+79326006015",
       "https://2gis.ru/ekaterinburg/firm/70000001098987045",
+      "https://yandex.ru/maps/org/35950776894",
     ],
+  };
+}
+
+/**
+ * Листинг категории/марки (ItemList). items — товары первой страницы, которые
+ * уже отрендерены в HTML (машиночитаемый список того, что и так видно).
+ */
+export function itemListSchema(input: {
+  name: string;
+  url: string;
+  count: number;
+  items: { name: string; url: string }[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: input.name,
+    url: input.url,
+    numberOfItems: input.count,
+    itemListElement: input.items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      url: it.url,
+    })),
   };
 }
 
@@ -128,7 +181,9 @@ export function articleSchema(input: {
 
 /**
  * Товар. Offer добавляем ТОЛЬКО когда есть цена (иначе Google ругается на
- * оффер без цены). Наличие — из снимка каталога в первом HTML.
+ * оффер без цены). Наличие — из снимка каталога в первом HTML. Когда офферов
+ * несколько (разные склады/поставщики) — отдаём AggregateOffer с честным
+ * диапазоном цен: Яндекс показывает «от N ₽» в товарном сниппете.
  */
 export function productSchema(input: {
   article: string;
@@ -137,6 +192,8 @@ export function productSchema(input: {
   image: string | null;
   url: string;
   price: number | null;
+  highPrice?: number | null;
+  offerCount?: number;
   inStock: boolean;
 }) {
   const schema: Record<string, unknown> = {
@@ -150,17 +207,30 @@ export function productSchema(input: {
   };
 
   if (input.price != null && input.price > 0) {
-    schema.offers = {
-      "@type": "Offer",
-      url: input.url,
-      price: input.price,
-      priceCurrency: "RUB",
-      itemCondition: "https://schema.org/NewCondition",
-      availability: input.inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/PreOrder",
-      seller: { "@id": ORG_ID },
-    };
+    const availability = input.inStock
+      ? "https://schema.org/InStock"
+      : "https://schema.org/PreOrder";
+    schema.offers =
+      (input.offerCount ?? 1) > 1
+        ? {
+            "@type": "AggregateOffer",
+            url: input.url,
+            lowPrice: input.price,
+            highPrice: input.highPrice ?? input.price,
+            offerCount: input.offerCount,
+            priceCurrency: "RUB",
+            availability,
+            seller: { "@id": ORG_ID },
+          }
+        : {
+            "@type": "Offer",
+            url: input.url,
+            price: input.price,
+            priceCurrency: "RUB",
+            itemCondition: "https://schema.org/NewCondition",
+            availability,
+            seller: { "@id": ORG_ID },
+          };
   }
 
   return schema;

@@ -73,9 +73,29 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
           {/* Company Info */}
           <div className="col-span-2 md:col-span-2 lg:col-span-1">
-            <p className="text-neutral-400 mb-4 md:mb-6 leading-relaxed text-sm md:text-base">
-              Профессиональный поставщик автозапчастей. Широкий ассортимент качественных деталей.
+            <p className="text-neutral-400 mb-4 leading-relaxed text-sm md:text-base">
+              BroCar — интернет-магазин автозапчастей в Екатеринбурге. Более
+              180 000 деталей в наличии, подбор по VIN, доставка по всей России.
             </p>
+            {/* NAP-блок (имя/адрес/телефон) — сигнал локального SEO */}
+            <div className="space-y-2 mb-4 md:mb-6 text-sm text-neutral-400">
+              <p className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
+                г. Екатеринбург, ул. Заводская, 16 (район ВИЗ)
+              </p>
+              <p className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-orange-500 shrink-0" />
+                <a href="tel:+79326006015" className="hover:text-orange-500 transition-colors">
+                  +7 (932) 600-60-15
+                </a>
+              </p>
+              <p className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-orange-500 shrink-0" />
+                <a href="mailto:info@brocarparts.ru" className="hover:text-orange-500 transition-colors">
+                  info@brocarparts.ru
+                </a>
+              </p>
+            </div>
             <div className="flex items-center gap-3">
               <a 
                 href="tel:+79326006015" 
@@ -184,6 +204,8 @@ export function Footer() {
                 { name: "Фильтры масляные", href: "/catalog/category/oil-filters" },
                 { name: "Тормозные колодки", href: "/catalog/category/brake-pads" },
                 { name: "Амортизаторы", href: "/catalog/category/shock-absorbers" },
+                { name: "Подбор по VIN", href: "/catalog-vin" },
+                { name: "Запчасти по маркам", href: "/automarki" },
                 { name: "Все запчасти", href: "/catalog" },
               ].map((item) => (
                 <li key={item.name}>

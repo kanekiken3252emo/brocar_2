@@ -18,17 +18,19 @@ export default function robots(): MetadataRoute.Robots {
       // Закрываем от индексации всё служебное и транзакционно-приватное:
       // API, корзину/оформление/оплату, личные разделы и заказы, админку.
       // Каталог, марки, категории, гайды, VIN — остаются открытыми.
+      // Без завершающего слэша: "/profile" блокирует и /profile, и /profile/…
+      // (со слэшем сам /profile оставался открыт). /payment открыт — это
+      // информационная страница о способах оплаты, а не транзакционная.
       disallow: [
         "/api/",
-        "/admin/",
-        "/dashboard/",
+        "/admin",
+        "/dashboard",
         "/auth/",
-        "/profile/",
-        "/garage/",
+        "/profile",
+        "/garage",
         "/cart",
         "/checkout",
-        "/payment",
-        "/order/",
+        "/order",
       ],
     },
     sitemap: `${baseUrl}/sitemap.xml`,

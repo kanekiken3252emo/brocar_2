@@ -54,6 +54,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # страницы. Каталог создаём с владельцем nextjs, чтобы volume унаследовал права.
 RUN mkdir -p .next/cache/images && chown -R nextjs:nodejs .next/cache
 
+# Каталог фидов (YML для Яндекс Товаров). Наружу маплен named-volume — фид
+# генерируется ночным кроном (scripts/generate-yml-feed.mjs) и переживает
+# пересоздание контейнера; Next отдаёт его как статику по /feeds/*.
+RUN mkdir -p public/feeds && chown -R nextjs:nodejs public/feeds
+
 USER nextjs
 
 EXPOSE 3000

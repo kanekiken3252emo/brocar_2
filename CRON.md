@@ -51,6 +51,12 @@
 0 22 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app sh -c '[ -d /app/node_modules/postgres ] || { rm -rf /tmp/pg && mkdir -p /tmp/pg && cd /tmp/pg && npm i postgres@3.4.5 --no-save --no-audit --no-fund && cp -r /tmp/pg/node_modules/postgres /app/node_modules/postgres; }' && docker cp /var/www/brocar/scripts/warm-product-images.mjs brocar-app:/app/warm.mjs && docker exec -e WARM_LIMIT=15000 -e WARM_CONCURRENCY=3 -e WARM_BASE_URL=http://127.0.0.1:3000 brocar-app node /app/warm.mjs" >> /var/log/brocar-warm.log 2>&1
 ```
 
+# 06:00 — YML-фид для Яндекс Товаров (после импорта 05:00, чтобы цены были свежие).
+# Пишет /app/public/feeds/yandex-market.yml (volume brocar-feeds, переживает деплой);
+# Next отдаёт его по https://brocarparts.ru/feeds/yandex-market.yml — этот URL указан
+# в Яндекс Вебмастере («Товары и цены»). Установка строки:
+#   ( crontab -l; echo '0 6 * * * flock -w 1200 /var/lock/brocar.lock -c "docker exec -u root brocar-app mkdir -p /app/scripts /app/lib && docker cp /var/www/brocar/scripts/. brocar-app:/app/scripts && docker cp /var/www/brocar/lib/. brocar-app:/app/lib && docker exec -u root brocar-app sh -c '\''[ -d /app/scripts/node_modules/postgres ] || (cd /app/scripts && npm init -y >/dev/null 2>&1 && npm i postgres --no-audit --no-fund)'\'' && docker exec -u root -e NODE_ENV=production brocar-app node /app/scripts/generate-yml-feed.mjs" >> /var/log/brocar-yml.log 2>&1' ) | crontab -
+
 Все задачи под одним `flock /var/lock/brocar.lock`, чтобы деплой и импорт не
 пересекались.
 

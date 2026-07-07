@@ -25,6 +25,8 @@ services:
     # посетители видели «мёртвый» сайт — 499 в nginx-логах).
     volumes:
       - brocar-image-cache:/app/.next/cache/images
+      # YML-фид для Яндекс Товаров: пишется ночным кроном, переживает деплой.
+      - brocar-feeds:/app/public/feeds
     # Ротация логов контейнера: json-логи Docker по умолчанию растут БЕСКОНЕЧНО и
     # со временем забивают диск. Ограничиваем 3 файла × 10 МБ (макс. 30 МБ) — важно
     # для автономной работы без присмотра.
@@ -42,3 +44,4 @@ networks:
 
 volumes:
   brocar-image-cache:
+  brocar-feeds:

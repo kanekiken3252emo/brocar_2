@@ -42,14 +42,9 @@ if (!DRY && !DB_URL) {
 }
 
 function applyMarkup(price) {
-  let mult;
-  if (price < 100) mult = 1.52;
-  else if (price < 500) mult = 1.45;
-  else if (price < 1000) mult = 1.42;
-  else if (price < 10000) mult = 1.4;
-  else if (price < 40000) mult = 1.38;
-  else mult = 1.35;
-  return Math.round(price * mult);
+  // Единая наценка 38% (запрос владельца, июль 2026; была ступенчатая
+  // 52/45/42/40/38/35). Синхронно с lib/pricing.ts и остальными импортёрами.
+  return Math.round(price * 1.38);
 }
 
 function num(s) {

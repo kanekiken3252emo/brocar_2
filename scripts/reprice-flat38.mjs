@@ -17,9 +17,10 @@
  */
 
 import postgres from "postgres";
+import { loadMarkupMultiplier } from "./markup.mjs";
 
 const APPLY = process.argv.includes("--apply");
-const MULT = 1.38;
+let MULT = 1.38; // переопределяется наценкой из app_settings в main()
 const MAX = 50_000_000;
 
 const DB_URL = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
@@ -51,6 +52,9 @@ const stockCond = sql`
 `;
 
 async function main() {
+  MULT = await loadMarkupMultiplier(sql);
+  console.log(`   наценка из настроек: ${Math.round((MULT - 1) * 100)}%`);
+
   const [{ n: nProd }] =
     await sql`SELECT count(*)::int AS n FROM products WHERE ${prodCond}`;
   const [{ n: nStock }] =

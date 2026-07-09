@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { priceRules } from "./db/schema";
 import { eq } from "drizzle-orm";
+import { getMarkupMultiplier } from "./markup";
 
 interface PricingOptions {
   brand?: string;
@@ -8,15 +9,14 @@ interface PricingOptions {
 }
 
 /**
- * Единая наценка 38% на все товары — запрос владельца (июль 2026): «чтобы цены
- * у всех поставщиков были с наценкой 38%». До этого была ступенчатая по
- * диапазонам закупки: 52/45/42/40/38/35% (<100/<500/<1000/<10000/<40000/≥40000 ₽).
- *
- * ⚠️ Наценка продублирована в applyMarkup() пяти импортёров (scripts/import-*.mjs) —
- * менять СИНХРОННО, иначе цена карточки разойдётся с ценой каталога из БД.
+ * Множитель наценки для живых цен. Раньше был ступенчатым по диапазонам закупки,
+ * потом фиксированным 1.38; теперь наценка ЕДИНАЯ и редактируется из админки
+ * (/admin/pricing) — берём её из кэша lib/markup (getMarkupMultiplier синхронен,
+ * БД на каждый оффер не дёргает). Импортёры прайсов читают тот же процент из
+ * app_settings через scripts/markup.mjs — источник правды один.
  */
 export function tieredMarkupMultiplier(_base: number): number {
-  return 1.38;
+  return getMarkupMultiplier();
 }
 
 /** Применяет ступенчатую наценку и округляет до целых рублей. */

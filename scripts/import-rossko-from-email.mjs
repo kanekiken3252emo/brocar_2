@@ -20,6 +20,7 @@ import ExcelJS from "exceljs";
 import postgres from "postgres";
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
 import { canonicalBrand } from "../lib/brands/canonical.mjs";
+import { loadMarkupMultiplier } from "./markup.mjs";
 
 const DRY = process.argv.includes("--dry") || process.env.DRY_RUN === "1";
 
@@ -41,10 +42,11 @@ if (!DRY && !DB_URL) {
   process.exit(1);
 }
 
+// Наценка магазина; в main() переопределяется значением из app_settings
+// (задаётся в админке /admin/pricing). Дефолт 1.38 = 38%.
+let MARKUP_MULT = 1.38;
 function applyMarkup(price) {
-  // Единая наценка 38% (запрос владельца, июль 2026; была ступенчатая
-  // 52/45/42/40/38/35). Синхронно с lib/pricing.ts и остальными импортёрами.
-  return Math.round(price * 1.38);
+  return Math.round(price * MARKUP_MULT);
 }
 
 function num(s) {
@@ -153,6 +155,8 @@ async function main() {
   const sql = postgres(DB_URL, {
     max: 3, idle_timeout: 30, connect_timeout: 30, ssl: "require", prepare: !isPooler,
   });
+  MARKUP_MULT = await loadMarkupMultiplier(sql);
+  console.log(`   наценка: ${Math.round((MARKUP_MULT - 1) * 100)}%`);
   const BATCH = 500;
 
   console.log("\n⬆️  Upsert products…");

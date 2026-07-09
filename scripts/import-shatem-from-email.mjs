@@ -21,6 +21,7 @@ import { simpleParser } from "mailparser";
 import AdmZip from "adm-zip";
 import postgres from "postgres";
 import { makeImportSql } from "./import-db.mjs";
+import { loadMarkupMultiplier } from "./markup.mjs";
 import { detectCategory, detectCarBrands } from "../lib/catalog/classifier-data.mjs";
 import { canonicalBrand } from "../lib/brands/canonical.mjs";
 
@@ -43,10 +44,11 @@ if (!DRY && !DB_URL) {
   process.exit(1);
 }
 
+// Наценка магазина; в main() переопределяется значением из app_settings
+// (задаётся в админке /admin/pricing). Дефолт 1.38 = 38%.
+let MARKUP_MULT = 1.38;
 function applyMarkup(price) {
-  // Единая наценка 38% (запрос владельца, июль 2026; была ступенчатая
-  // 52/45/42/40/38/35). Синхронно с lib/pricing.ts и остальными импортёрами.
-  return Math.round(price * 1.38);
+  return Math.round(price * MARKUP_MULT);
 }
 
 /** «Склад Пермь. Актуальное …» → «Пермь». */
@@ -182,6 +184,8 @@ async function main() {
 
   // ── Запись в БД ──────────────────────────────────────────────────────────
   const sql = await makeImportSql();
+  MARKUP_MULT = await loadMarkupMultiplier(sql);
+  console.log(`   наценка: ${Math.round((MARKUP_MULT - 1) * 100)}%`);
 
   const BATCH = 500;
   console.log("\n⬆️  Upsert products…");

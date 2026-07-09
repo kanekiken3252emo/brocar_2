@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   searchAllSuppliers,
   groupOffers,
+  dedupeGroups,
   compareGroupsByDelivery,
+  normalizeArticle,
   type SupplierGroup,
   type SupplierItem,
 } from "@/lib/suppliers/adapter";
+import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import bergAdapter from "@/lib/suppliers/berg";
 import rosskoAdapter from "@/lib/suppliers/rossko";
 import shateMAdapter, {
@@ -65,9 +68,22 @@ async function getHandler(
       applyPricingSync(base, ctx);
 
     const mainGroups = groupOffers(mainItems, pricing);
+
+    // Главная группа: сверяем И артикул, И бренд. Раньше матчили только бренд
+    // с фолбэком на mainGroups[0] (группы отсортированы по цене) — и на карточку
+    // оригинала вставала самая дешёвая группа того же бренда: Росско под брендом
+    // оригинала отдаёт свою марку T-PARTS с артикулом «<номер>TM» втрое дешевле,
+    // и она подменяла название/цену/предложения оригинала (Toyota 08889-80150 —
+    // аналог за 669₽ на карточке оригинала за 2400₽+). Группы с ДРУГИМ артикулом
+    // главной быть не могут — они уйдут в «Аналоги» ниже.
+    const wantedArticle = normalizeArticle(decoded);
+    const wantedBrandKey = brand ? brandKey(canonicalBrand(brand)) : "";
+    const sameArticle = mainGroups.filter((g) => g.article === wantedArticle);
     let mainGroup: SupplierGroup | null =
-      mainGroups.find((g) => g.brand.toLowerCase() === brand.toLowerCase()) ||
-      mainGroups[0] ||
+      (wantedBrandKey
+        ? sameArticle.find((g) => brandKey(g.brand) === wantedBrandKey)
+        : undefined) ??
+      sameArticle[0] ??
       null;
 
     // Поставщики ничего не дали — пробуем каталог из БД (ручные/тестовые товары).
@@ -78,6 +94,14 @@ async function getHandler(
     let characteristics: ShateCharacteristic[] = [];
     let originals: ProductDetailResponse["originals"] = [];
     let analogs: SupplierGroup[] = [];
+
+    // Группы живого поиска, не ставшие главной (другой артикул или бренд под тем
+    // же запросом — например T-PARTS-двойники Росско), — показываем как аналоги,
+    // а не выбрасываем: покупатель по-прежнему видит дешёвый вариант, но честно
+    // подписанный отдельной позицией.
+    const analogCandidates: SupplierGroup[] = mainGroups.filter(
+      (g) => g !== mainGroup
+    );
 
     if (shateArticleId) {
       // Характеристики + офферы по аналогам одним большим запросом (с includeAnalogs)
@@ -93,18 +117,24 @@ async function getHandler(
       }));
 
       // Группируем все полученные item'ы (основной + аналоги)
-      const analogGroups = groupOffers(analogItems, pricing);
+      analogCandidates.push(...groupOffers(analogItems, pricing));
+    }
 
-      // Исключаем группу самого искомого товара — она уже в mainGroup.
+    if (analogCandidates.length > 0) {
+      // Схлопываем дубли (живой поиск и ШАТЕ-М могут вернуть один товар),
+      // исключаем группу самого искомого товара — она уже в mainGroup.
       // Сортируем «в наличии → быстрее → дешевле» (срок в приоритете), чтобы
       // самые быстрые позиции (сегодня/завтра) были вверху, и берём топ-20
       // именно по скорости, а не по цене.
-      const mainKey = `${decoded.toLowerCase()}|${brand.toLowerCase()}`;
-      analogs = analogGroups
-        .filter(
-          (g) =>
-            `${g.article.toLowerCase()}|${g.brand.toLowerCase()}` !== mainKey
-        )
+      // mainGroup из БД-фолбэка несёт СЫРЫЕ article/brand из products («08889-80150»,
+      // «PSA») — нормализуем обе части, иначе ключ не совпадёт с нормализованными
+      // группами dedupeGroups и главный товар продублируется первым «аналогом».
+      // Для живых групп normalizeArticle/canonicalBrand идемпотентны.
+      const mainKey = mainGroup
+        ? `${normalizeArticle(mainGroup.article)}|${brandKey(canonicalBrand(mainGroup.brand))}`
+        : `${wantedArticle}|${wantedBrandKey}`;
+      analogs = dedupeGroups(analogCandidates)
+        .filter((g) => `${g.article}|${brandKey(g.brand)}` !== mainKey)
         .sort(compareGroupsByDelivery)
         .slice(0, 20);
 

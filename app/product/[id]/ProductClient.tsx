@@ -199,13 +199,9 @@ export default function ProductClient({
         analogs: SupplierGroup[];
       } = await res.json();
 
-      if (!data.group) {
-        setError("Товар не найден");
-        return;
-      }
-
-      const resource = groupToBergResource(data.group);
-      setProduct(resource);
+      // Аналоги/характеристики сохраняем ДО проверки group: сервер может вернуть
+      // group:null с непустыми analogs (точного товара нет ни у поставщиков, ни в
+      // БД, но есть кроссы) — их нельзя молча выбрасывать, это покупабельные позиции.
       setCharacteristics(data.characteristics || []);
       setOriginals(data.originals || []);
 
@@ -219,6 +215,14 @@ export default function ProductClient({
         }
       }
       setAnalogs(analogGroups);
+
+      if (!data.group) {
+        setError("Товар не найден");
+        return;
+      }
+
+      const resource = groupToBergResource(data.group);
+      setProduct(resource);
 
       if (resource.offers && resource.offers.length > 0) {
         // Офферы уже отсортированы «в наличии → быстрее → дешевле».
@@ -288,8 +292,10 @@ export default function ProductClient({
     addToCart(offer, e.currentTarget as HTMLElement, offerQty(offer));
   };
 
-  // Товара нет совсем (и сервер не дал шелл, и живой опрос не нашёл) — страница ошибки.
-  if (error && !product && !shell.name) {
+  // Товара нет совсем (и сервер не дал шелл, и живой опрос не нашёл) — страница
+  // ошибки. Но если сервер прислал аналоги (кроссы точного товара) — не тупик:
+  // рендерим обычную страницу («По запросу» + блок аналогов) вместо ошибки.
+  if (error && !product && !shell.name && analogs.length === 0) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
         <div className="bg-neutral-900 border border-red-500/30 rounded-2xl p-8 text-center max-w-md">

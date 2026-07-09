@@ -116,6 +116,20 @@ export type RepriceStatus = {
   finishedAt: string | null;
 };
 
+/**
+ * Синхронно (для вызывающего HTTP-запроса) помечает пересчёт как запущенный,
+ * чтобы клиент сразу увидел прогресс и начал опрос. Нужно потому, что сам
+ * repriceCatalog() запускается «в фоне» (void) и выставляет «running» уже ПОСЛЕ
+ * первого await — то есть позже, чем апрес-роут успевает прочитать статус.
+ */
+export async function markRepriceStarting(): Promise<void> {
+  await ensureSettings();
+  await Promise.all([
+    writeSetting("reprice_state", "running"),
+    writeSetting("reprice_progress", "подготовка…"),
+  ]);
+}
+
 export async function readRepriceStatus(): Promise<RepriceStatus> {
   const [state, progress, finishedAt] = await Promise.all([
     readSetting("reprice_state"),

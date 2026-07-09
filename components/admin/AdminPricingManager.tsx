@@ -89,7 +89,13 @@ export default function AdminPricingManager({
       const r = await fetch("/api/admin/pricing/apply", { method: "POST" });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Не удалось запустить пересчёт");
-      setReprice(d.reprice);
+      // Оптимистично показываем прогресс сразу — не полагаемся на то, что фоновая
+      // задача успела записать статус к моменту ответа (это и запускает опрос).
+      setReprice(
+        d.reprice?.state === "running"
+          ? d.reprice
+          : { state: "running", progress: "подготовка…", finishedAt: null }
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {

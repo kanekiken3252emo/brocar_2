@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import {
-  ensureSettings,
   repriceCatalog,
   isRepriceRunning,
+  markRepriceStarting,
   readRepriceStatus,
 } from "@/lib/markup";
 
@@ -29,7 +29,10 @@ export async function POST() {
     );
   }
 
-  await ensureSettings();
+  // Помечаем «running» СИНХРОННО (до запуска фоновой задачи) — иначе статус,
+  // прочитанный ниже, ещё показывал бы idle/done, и клиент не начал бы опрос.
+  await markRepriceStarting();
+
   // Fire-and-forget: сервер живёт долго (standalone-контейнер), фоновая задача
   // доработает после ответа. Пересчёт идемпотентен — если контейнер перезагрузят
   // посреди, повторный запуск (или ночной импорт) доведёт цены до конца.

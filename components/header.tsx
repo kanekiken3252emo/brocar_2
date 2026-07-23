@@ -445,7 +445,7 @@ export function Header({ user }: HeaderProps) {
                 </a>
                 <div className="flex items-center gap-2 text-neutral-400 text-sm">
                   <MapPin className="h-4 w-4 text-orange-500" />
-                  <span>Екатеринбург, Заводская 16а</span>
+                  <span>Екатеринбург, Заводская 16</span>
                 </div>
               </div>
               

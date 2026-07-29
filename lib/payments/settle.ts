@@ -102,12 +102,21 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
         : null;
 
       if (full) {
-        const emailItems = full.items.map((it) => ({
+        // Позиции для покупателя — без служебных полей (поставщика и срок он не видит).
+        const customerItems = full.items.map((it) => ({
           name: it.name,
           article: it.article,
           brand: it.brand,
           qty: it.qty,
           price: it.price,
+        }));
+        // Магазину — то же плюс снимок поставщика и срока: менеджеру нужно знать,
+        // у кого и за сколько дней заказывать. Письмо «ОПЛАЧЕН» теперь единственное
+        // (до оплаты магазину ничего не уходит), поэтому в нём вся инфа о заказе.
+        const shopItems = full.items.map((it, i) => ({
+          ...customerItems[i],
+          supplier: it.supplier,
+          deliveryDays: it.deliveryDays,
         }));
 
         // Письмо магазину «ОПЛАЧЕН». Сбой почты не должен ломать приёмку оплаты.
@@ -124,7 +133,12 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
               whatsapp: profile?.whatsapp,
               vk: profile?.vk,
               maxMessenger: profile?.maxMessenger,
-              items: emailItems,
+              items: shopItems,
+              createdAt: full.createdAt,
+              promoCode: full.promoCode,
+              discountPct: full.discountPct,
+              discountAmount: parseFloat(full.discountAmount ?? "0"),
+              paymentId: payment.id,
             },
             { kind: "paid" }
           );
@@ -140,7 +154,7 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
             to: profile?.contactEmail || profile?.email || "",
             orderId: full.id,
             total: parseFloat(full.total),
-            items: emailItems,
+            items: customerItems,
           });
         } catch (mailError) {
           console.error("Customer paid confirmation email failed:", mailError);

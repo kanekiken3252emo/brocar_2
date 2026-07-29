@@ -242,6 +242,13 @@ export const orderItems = pgTable("order_items", {
   brand: text("brand"),
   qty: integer("qty").notNull(),
   price: numeric("price").notNull(),
+  // Снимок реального поставщика/склада и срока доставки НА МОМЕНТ ЗАКАЗА
+  // (переносятся из строки корзины). Нужны письму магазину «Заказ ОПЛАЧЕН»:
+  // оно строится из order_items, и без этих полей менеджер не видел, у кого и
+  // за сколько дней заказывать. Покупателю не показываются.
+  // null = заказ создан до миграции (снимка нет) → в письме «—».
+  supplier: text("supplier"),
+  deliveryDays: integer("delivery_days"),
 });
 
 // Vehicles table (гараж пользователя)

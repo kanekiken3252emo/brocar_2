@@ -20,7 +20,7 @@ export interface OrderEmailItem {
 
 export interface OrderEmailData {
   orderId: number;
-  total: number;
+  total: number; // итоговая сумма к оплате (уже со скидкой)
   customerEmail: string;
   customerName?: string | null;
   customerPhone?: string | null;
@@ -30,6 +30,11 @@ export interface OrderEmailData {
   vk?: string | null;
   maxMessenger?: string | null;
   items: OrderEmailItem[];
+  createdAt?: Date | null; // когда заказ оформлен
+  promoCode?: string | null; // применённый промокод (null = без промо)
+  discountPct?: string | null; // % скидки на момент заказа
+  discountAmount?: number | null; // ₽ скидки
+  paymentId?: string | null; // id платежа в ЮKassa — для сверки
 }
 
 function getTransporter() {
@@ -110,15 +115,50 @@ export async function sendOrderNotification(
     ? `<p style="margin:4px 0"><b>Мессенджеры:</b> ${messengers.join(" · ")}</p>`
     : "";
 
+  // Дата оформления — в московском времени, чтобы менеджер не пересчитывал UTC.
+  const createdAtHtml = data.createdAt
+    ? `<p style="margin:4px 0"><b>Оформлен:</b> ${esc(
+        data.createdAt.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })
+      )} (МСК)</p>`
+    : "";
+
+  // Промокод: показываем, только если скидка реально применена. Без этого блока
+  // сумма позиций не сходилась с «Итого» и менеджер не понимал разницу.
+  const discount = data.discountAmount ?? 0;
+  const promoHtml =
+    data.promoCode && discount > 0
+      ? `<p style="margin:4px 0"><b>Промокод:</b> ${esc(data.promoCode)}${
+          data.discountPct ? ` (−${esc(data.discountPct)}%)` : ""
+        } — скидка ${formatRub(discount)}</p>`
+      : "";
+
+  const paymentHtml = data.paymentId
+    ? `<p style="margin:4px 0;color:#666;font-size:13px"><b>Платёж ЮKassa:</b> <span style="font-family:monospace">${esc(data.paymentId)}</span></p>`
+    : "";
+
+  // Сумма позиций до скидки — печатаем отдельной строкой, когда скидка есть.
+  const subtotal = data.items.reduce(
+    (s, i) => s + Number((parseFloat(i.price) * i.qty).toFixed(2)),
+    0
+  );
+  const totalsHtml =
+    discount > 0
+      ? `<p style="margin-top:16px;font-size:14px;color:#555">Товары: ${formatRub(subtotal)}<br>Скидка: −${formatRub(discount)}</p>
+    <p style="margin:4px 0 0;font-size:18px"><b>Итого к оплате: ${formatRub(data.total)}</b></p>`
+      : `<p style="margin-top:16px;font-size:18px"><b>Итого: ${formatRub(data.total)}</b></p>`;
+
   const html = `
   <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#222">
     <h2 style="color:${isPaid ? "#16a34a" : "#ea580c"}">${isPaid ? "✅ Заказ ОПЛАЧЕН" : "Новый заказ"} №${data.orderId}</h2>
     <p style="margin:4px 0"><b>Сумма:</b> ${formatRub(data.total)}</p>
+    ${createdAtHtml}
+    ${promoHtml}
     <p style="margin:4px 0"><b>Покупатель:</b> ${esc(data.customerName ?? "—")}</p>
     <p style="margin:4px 0"><b>Телефон:</b> ${esc(data.customerPhone ?? "—")}</p>
     <p style="margin:4px 0"><b>Почта для связи:</b> ${esc(data.contactEmail || data.customerEmail)}</p>
     <p style="margin:4px 0"><b>Email аккаунта:</b> ${esc(data.customerEmail)}</p>
     ${messengersHtml}
+    ${paymentHtml}
 
     <table style="border-collapse:collapse;width:100%;margin-top:16px;font-size:14px">
       <thead>
@@ -136,13 +176,22 @@ export async function sendOrderNotification(
       <tbody>${rows}</tbody>
     </table>
 
-    <p style="margin-top:16px;font-size:18px"><b>Итого: ${formatRub(data.total)}</b></p>
+    ${totalsHtml}
+
+    <p style="margin-top:20px;font-size:13px">
+      <a href="https://brocarparts.ru/admin/orders" style="color:#ea580c">Открыть заказы в админке →</a>
+    </p>
   </div>`;
 
   await transporter.sendMail({
     from: `"BroCar — заказы" <${from}>`,
     to,
-    replyTo: data.customerEmail,
+    // replyTo только если адрес валидный: у покупателя может не быть почты в
+    // профиле, тогда сюда приходило «—» и SMTP отбивал ВСЁ письмо. Письмо
+    // «ОПЛАЧЕН» теперь единственное уведомление магазину — терять его нельзя.
+    ...(isEmail(data.contactEmail || data.customerEmail)
+      ? { replyTo: data.contactEmail || data.customerEmail }
+      : {}),
     subject: isPaid
       ? `✅ ОПЛАЧЕН заказ №${data.orderId} на ${formatRub(data.total)}`
       : `Новый заказ №${data.orderId} на ${formatRub(data.total)}`,

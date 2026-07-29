@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { carts, orders, orderItems, profiles } from "@/lib/db/schema";
+import { carts, orders, orderItems } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
-import { sendOrderNotification } from "@/lib/email";
 import { validatePromo, discountAmount } from "@/lib/promo";
 
 /**
@@ -112,7 +111,9 @@ export async function POST(request: Request) {
       })
       .returning();
 
-    // Переносим позиции корзины в позиции заказа (фиксируем цену на момент заказа)
+    // Переносим позиции корзины в позиции заказа (фиксируем цену на момент заказа).
+    // Поставщика и срок тоже переносим снимком: письмо магазину «ОПЛАЧЕН» строится
+    // из order_items, и без них менеджер не видит, у кого и за сколько дней заказывать.
     await db.insert(orderItems).values(
       selectedItems.map((item) => ({
         orderId: order.id,
@@ -122,6 +123,8 @@ export async function POST(request: Request) {
         brand: item.product.brand,
         qty: item.qty,
         price: item.price ?? item.product.ourPrice,
+        supplier: item.supplier,
+        deliveryDays: item.deliveryDays,
       }))
     );
 
@@ -129,41 +132,11 @@ export async function POST(request: Request) {
     // останется с пустой корзиной и не сможет повторить. Чистим её в вебхуке
     // после успешной оплаты (status = paid).
 
-    // Письма: магазину (новый заказ) и покупателю (подтверждение). Сбой отправки
-    // не должен ломать заказ — он уже создан, ошибки писем только логируем.
-    const profile = await db.query.profiles
-      .findFirst({ where: eq(profiles.id, user.id) })
-      .catch(() => null);
-    const emailItems = selectedItems.map((item) => ({
-      name: item.product.name,
-      article: item.product.article,
-      brand: item.product.brand,
-      qty: item.qty,
-      price: item.price ?? item.product.ourPrice,
-      supplier: item.supplier,
-      deliveryDays: item.deliveryDays,
-    }));
-
-    try {
-      await sendOrderNotification({
-        orderId: order.id,
-        total,
-        customerEmail: user.email ?? profile?.email ?? "—",
-        customerName: profile?.fullName,
-        customerPhone: profile?.phone,
-        contactEmail: profile?.contactEmail,
-        telegram: profile?.telegram,
-        whatsapp: profile?.whatsapp,
-        vk: profile?.vk,
-        maxMessenger: profile?.maxMessenger,
-        items: emailItems,
-      });
-    } catch (mailError) {
-      console.error("Shop order notification email failed:", mailError);
-    }
-
-    // Письмо покупателю «заказ принят в работу» теперь шлётся на УСПЕШНОЙ ОПЛАТЕ
-    // (см. lib/payments/settle.ts), а не при создании заказа до оплаты.
+    // Писем здесь НЕТ — намеренно. И магазину, и покупателю письмо уходит только
+    // на УСПЕШНОЙ ОПЛАТЕ (см. lib/payments/settle.ts): раньше магазин получал
+    // «Новый заказ» ещё до оплаты и не мог отличить оплаченные от брошенных.
+    // Бонусом это убрало SMTP-запрос (до 15 с при недоступном сервере) из ответа
+    // на нажатие «Оплатить» — кнопка больше не «думает».
 
     return NextResponse.json({ orderId: order.id, total });
   } catch (error) {

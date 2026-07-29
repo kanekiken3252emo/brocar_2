@@ -108,7 +108,8 @@ export class ShateMAdapter implements SupplierAdapter {
     this.apiKey = process.env.SHATE_M_API_KEY || "";
     this.agreementCode = process.env.SHATE_M_AGREEMENT_CODE || "";
     this.deliveryAddressCode = process.env.SHATE_M_DELIVERY_ADDRESS_CODE || "";
-    this.client = axios.create({ baseURL: this.baseUrl, timeout: 10000 });
+    // 8 с — общий барьер searchAllSuppliers (adapter.ts).
+    this.client = axios.create({ baseURL: this.baseUrl, timeout: 8000 });
   }
 
   /**

@@ -60,7 +60,9 @@ export class RosskoAdapter implements SupplierAdapter {
         `${this.baseUrl}/GetSearch`,
         envelope,
         {
-          timeout: 15000,
+          // 8 с — общий барьер searchAllSuppliers (adapter.ts): ответ позже уже
+          // не нужен, а висящий сокет держит соединение впустую.
+          timeout: 8000,
           responseType: "text",
           headers: {
             "Content-Type": "text/xml; charset=utf-8",

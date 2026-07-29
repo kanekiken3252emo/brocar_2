@@ -179,7 +179,9 @@ export class AutotradeAdapter implements SupplierAdapter {
           this.baseUrl,
           body,
           {
-            timeout: 15000,
+            // 8 с — общий барьер searchAllSuppliers (adapter.ts): дольше ждать
+            // некому, ответ наверху уже отброшен.
+            timeout: 8000,
             headers: {
               "Content-Type":
                 "application/x-www-form-urlencoded; charset=UTF-8",

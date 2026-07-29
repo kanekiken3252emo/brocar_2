@@ -78,7 +78,8 @@ export class ForumAutoAdapter implements SupplierAdapter {
       const response = await axios.get<ForumAutoGoodsItem[] | ForumAutoErrorResponse>(
         `${this.baseUrl}/v2/listGoods`,
         {
-          timeout: 10000,
+          // 8 с — общий барьер searchAllSuppliers (adapter.ts).
+          timeout: 8000,
           params: {
             login: this.login,
             pass: this.password,

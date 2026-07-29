@@ -84,7 +84,8 @@ export class PartKomAdapter implements SupplierAdapter {
       const response = await axios.get<PartKomOffer[]>(
         `${this.baseUrl}/v4/search/offers`,
         {
-          timeout: 10000,
+          // 8 с — общий барьер searchAllSuppliers (adapter.ts).
+          timeout: 8000,
           auth: { username: this.login, password: this.password },
           params: {
             number: params.article,

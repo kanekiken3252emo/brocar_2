@@ -101,7 +101,10 @@ export class ArmtekAdapter implements SupplierAdapter {
         `${this.baseUrl}/ws_search/search?format=json`,
         body,
         {
-          timeout: 12000,
+          // 8 с — общий барьер searchAllSuppliers (adapter.ts). Больший таймаут
+          // бессмысленен: наверху ответ уже не ждут, а висящий сокет продолжает
+          // держать соединение и грузить сервер.
+          timeout: 8000,
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: `Basic ${auth}`,

@@ -486,6 +486,18 @@ export function VinCatalog({
 
   const visibleTop = tree.filter((n) => nodeMatches(n, filter));
 
+  // На мобилке показываем ЛИБО дерево, ЛИБО выбранный узел/результаты поиска
+  // (мастер-деталь) — иначе длинное дерево «отжимает» схему вниз. На десктопе
+  // (lg+) видно и то, и другое. Кнопка «← К узлам» возвращает к дереву.
+  const mobileShowContent =
+    loading === "parts" || searching || searchResults !== null || parts !== null;
+
+  function backToTree() {
+    setParts(null);
+    setSelectedId(null);
+    setSearchResults(null);
+  }
+
   return (
     <div className="space-y-6">
       {/* Поиск авто по VIN */}
@@ -647,8 +659,12 @@ export function VinCatalog({
 
           {!!tree.length && (
             <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-              {/* Дерево узлов слева */}
-              <aside className="rounded-xl border border-neutral-800 bg-neutral-900 lg:sticky lg:top-4 self-start">
+              {/* Дерево узлов слева (на мобилке прячется, когда открыт узел) */}
+              <aside
+                className={`rounded-xl border border-neutral-800 bg-neutral-900 lg:sticky lg:top-4 self-start ${
+                  mobileShowContent ? "hidden lg:block" : ""
+                }`}
+              >
                 <div className="border-b border-neutral-800 p-2.5">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
@@ -684,8 +700,19 @@ export function VinCatalog({
                 </div>
               </aside>
 
-              {/* Панель деталей справа */}
-              <div className="min-w-0">
+              {/* Панель деталей справа (на мобилке — вместо дерева) */}
+              <div
+                className={`min-w-0 ${mobileShowContent ? "" : "hidden lg:block"}`}
+              >
+                {/* Мобильная кнопка возврата к дереву узлов */}
+                <button
+                  type="button"
+                  onClick={backToTree}
+                  className="mb-3 inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-orange-400 transition-colors lg:hidden"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  К списку узлов
+                </button>
                 {loading === "parts" || searching ? (
                   <Spinner
                     label={searching ? "Ищем деталь…" : "Загружаем детали узла…"}

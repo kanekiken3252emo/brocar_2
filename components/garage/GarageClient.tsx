@@ -243,30 +243,30 @@ export default function GarageClient({
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="brand">Марка</Label>
-                      <Input id="brand" placeholder="Toyota" value={form.brand}
+                      <Input id="brand" placeholder="Toyota" value={form.brand} maxLength={40}
                         onChange={(e) => setForm({ ...form, brand: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="model">Модель</Label>
-                      <Input id="model" placeholder="Camry" value={form.model}
+                      <Input id="model" placeholder="Camry" value={form.model} maxLength={40}
                         onChange={(e) => setForm({ ...form, model: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="year">Год выпуска</Label>
-                      <Input id="year" type="number" placeholder="2018" value={form.year}
-                        onChange={(e) => setForm({ ...form, year: e.target.value })} />
+                      <Input id="year" inputMode="numeric" placeholder="2018" value={form.year}
+                        onChange={(e) => setForm({ ...form, year: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="mileage">Пробег, км</Label>
-                      <Input id="mileage" type="number" placeholder="120000" value={form.mileage}
-                        onChange={(e) => setForm({ ...form, mileage: e.target.value })} />
+                      <Input id="mileage" inputMode="numeric" placeholder="120000" value={form.mileage}
+                        onChange={(e) => setForm({ ...form, mileage: e.target.value.replace(/\D/g, "").slice(0, 7) })} />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
                       <Label htmlFor="vin">VIN / номер кузова</Label>
                       <div className="flex gap-2">
-                        <Input id="vin" placeholder="XTA210990Y2741911" value={form.vin}
+                        <Input id="vin" placeholder="XTA210990Y2741911" value={form.vin} maxLength={17}
                           className="flex-1 font-mono uppercase"
-                          onChange={(e) => { setForm({ ...form, vin: e.target.value.toUpperCase() }); setVinMsg(null); }} />
+                          onChange={(e) => { setForm({ ...form, vin: e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 17) }); setVinMsg(null); }} />
                         <Button type="button" variant="outline" onClick={lookupVin}
                           disabled={vinLoading} className="gap-2 shrink-0">
                           {vinLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -279,13 +279,13 @@ export default function GarageClient({
                         </p>
                       ) : (
                         <p className="text-xs text-neutral-500">
-                          Введите VIN и нажмите «Подтянуть» — марка, модель и год заполнятся автоматически.
+                          VIN — 17 символов ({form.vin.length}/17). Введите и нажмите «Подтянуть» — марка, модель и год заполнятся сами.
                         </p>
                       )}
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
                       <Label htmlFor="nickname">Название (по желанию)</Label>
-                      <Input id="nickname" placeholder="Моя Камри" value={form.nickname}
+                      <Input id="nickname" placeholder="Моя Камри" value={form.nickname} maxLength={60}
                         onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
                     </div>
                   </div>

@@ -387,18 +387,18 @@ export type LaximoCross = { brand: string; number: string; name: string };
  *  Кэш 24ч (тарификация, как у CAT). */
 export async function findCrosses(
   oem: string,
-  brand?: string
+  _brand?: string // бренд НЕ передаём в Laximo — он сужает выдачу (Армтек ищет
+  // просто по номеру и находит больше). Параметр оставлен для совместимости.
 ): Promise<LaximoCross[]> {
   const clean = oem.trim();
   if (!clean) return [];
-  const b = (brand ?? "").trim();
   return laximoCached(
-    `crosses:${clean.toUpperCase()}:${b.toUpperCase()}`,
+    `crosses:${clean.toUpperCase()}`,
     async () => {
       try {
         const resp = await laximoQuery(
           "am",
-          `FindOEM:Locale=${LOCALE}|OEM=${clean}${b ? `|Brand=${b}` : ""}|Options=crosses`
+          `FindOEM:Locale=${LOCALE}|OEM=${clean}|Options=crosses`
         );
         const details = asArray(
           (resp as { FindOEM?: { detail?: unknown } }).FindOEM?.detail

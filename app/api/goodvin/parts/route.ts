@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   const carId = sp.get("carId")?.trim();
   const groupId = sp.get("groupId")?.trim();
   const criteria = sp.get("criteria") || undefined;
+  const mode = sp.get("mode") === "cat" ? "cat" : "quick";
 
   if (!catalogId || !carId || !groupId) {
     return NextResponse.json(
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
       carId,
       groupId,
       criteria,
+      mode,
     });
     return NextResponse.json(
       { parts },

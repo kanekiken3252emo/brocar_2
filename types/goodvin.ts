@@ -54,6 +54,9 @@ export interface GoodvinGroupNode {
   name: string;
   hasParts: boolean;
   children: GoodvinGroupNode[];
+  /** ssd узла — только в режиме «категории/узлы» (каталоги без QuickGroup, напр.
+   *  PSA/Citroën). У каждой категории свой ssd, его нужно передать в getParts. */
+  ssd?: string;
 }
 
 /** Узел дерева групп. GET /catalogs/{id}/groups2 */

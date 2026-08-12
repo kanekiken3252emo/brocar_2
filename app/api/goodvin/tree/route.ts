@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tree = await laximo.getTree(catalogId, { carId, criteria });
+    const { tree, mode } = await laximo.getTree(catalogId, { carId, criteria });
     return NextResponse.json(
-      { tree },
+      { tree, mode },
       { headers: { "Cache-Control": CACHE_VIN_TREE } }
     );
   } catch (error) {

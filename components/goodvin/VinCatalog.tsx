@@ -35,10 +35,13 @@ function img(src?: string): string | undefined {
  */
 const NAV_STORAGE_KEY = "vinCatalogNav";
 
+type CatalogMode = "quick" | "cat";
+
 interface SavedNav {
   query: string;
   car: GoodvinCarInfo;
-  leaf: { id: string; name: string } | null;
+  mode: CatalogMode;
+  leaf: { id: string; name: string; ssd?: string } | null;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -174,7 +177,10 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string>("");
+  const [selectedSsd, setSelectedSsd] = useState<string | undefined>(undefined);
   const [parts, setParts] = useState<GoodvinParts | null>(null);
+  // Режим каталога (quick/cat) — в ref, чтобы колбэки видели актуальное значение.
+  const modeRef = useRef<CatalogMode>("quick");
 
   // Поиск детали по названию/номеру внутри каталога авто.
   const [partQuery, setPartQuery] = useState("");
@@ -197,13 +203,17 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     setLoading("tree");
     setError("");
     try {
-      const data = await fetchJson<{ tree: GoodvinGroupNode[] }>(
+      const data = await fetchJson<{
+        tree: GoodvinGroupNode[];
+        mode?: CatalogMode;
+      }>(
         `/api/goodvin/tree?catalogId=${encodeURIComponent(
           selectedCar.catalogId
         )}&carId=${encodeURIComponent(
           selectedCar.carId
         )}&criteria=${encodeURIComponent(selectedCar.criteria || "")}`
       );
+      modeRef.current = data.mode === "cat" ? "cat" : "quick";
       setTree(data.tree);
       // Раскрываем первую ветку — чтобы дерево не выглядело пустым.
       const first = data.tree.find((n) => n.children.length > 0);
@@ -216,12 +226,22 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
   }, []);
 
   const loadParts = useCallback(
-    async (selectedCar: GoodvinCarInfo, leaf: { id: string; name: string }) => {
+    async (
+      selectedCar: GoodvinCarInfo,
+      leaf: { id: string; name: string; ssd?: string }
+    ) => {
       setLoading("parts");
       setError("");
       setSearchResults(null); // выбор узла в дереве убирает результаты поиска
       setSelectedId(leaf.id);
       setSelectedName(leaf.name);
+      setSelectedSsd(leaf.ssd);
+      // В режиме «cat» criteria — ssd самой категории; в «quick» — ssd авто.
+      const m = modeRef.current;
+      const criteria =
+        m === "cat"
+          ? leaf.ssd || selectedCar.criteria || ""
+          : selectedCar.criteria || "";
       try {
         const data = await fetchJson<{ parts: GoodvinParts }>(
           `/api/goodvin/parts?catalogId=${encodeURIComponent(
@@ -230,7 +250,7 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
             selectedCar.carId
           )}&groupId=${encodeURIComponent(
             leaf.id
-          )}&criteria=${encodeURIComponent(selectedCar.criteria || "")}`
+          )}&criteria=${encodeURIComponent(criteria)}&mode=${m}`
         );
         setParts(data.parts);
       } catch (e) {
@@ -245,7 +265,8 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
 
   const onSelectLeaf = useCallback(
     (node: GoodvinGroupNode) => {
-      if (car) void loadParts(car, { id: node.id, name: node.name });
+      if (car)
+        void loadParts(car, { id: node.id, name: node.name, ssd: node.ssd });
     },
     [car, loadParts]
   );
@@ -346,6 +367,7 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
           restored = true;
           setQuery(saved.query || "");
           setCar(saved.car);
+          modeRef.current = saved.mode === "cat" ? "cat" : "quick";
           void loadTree(saved.car);
           if (saved.leaf) void loadParts(saved.car, saved.leaf);
         }
@@ -365,11 +387,14 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
       const snapshot: SavedNav = {
         query,
         car,
-        leaf: selectedId ? { id: selectedId, name: selectedName } : null,
+        mode: modeRef.current,
+        leaf: selectedId
+          ? { id: selectedId, name: selectedName, ssd: selectedSsd }
+          : null,
       };
       sessionStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(snapshot));
     } catch {}
-  }, [car, selectedId, selectedName, query]);
+  }, [car, selectedId, selectedName, selectedSsd, query]);
 
   function resetSearch() {
     try {

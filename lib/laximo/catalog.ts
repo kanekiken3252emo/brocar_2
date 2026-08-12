@@ -1,32 +1,33 @@
 import "server-only";
-import { laximoQuery, asArray, laximoImage } from "./client";
+import { laximoQuery, asArray, laximoImage, LaximoError } from "./client";
 import { laximoCached } from "./cache";
 import type {
   GoodvinCarInfo,
   GoodvinGroup,
   GoodvinGroupNode,
+  GoodvinPart,
   GoodvinParts,
   GoodvinPartPosition,
 } from "@/types/goodvin";
 
 /**
- * Адаптер Laximo.CAT под контракт GoodVin (carInfo → groups → parts), чтобы
+ * Адаптер Laximo.CAT под контракт GoodVin (carInfo → tree → parts), чтобы
  * заменить провайдера VIN-каталога без переделки UI (components/goodvin/VinCatalog).
  *
- * Соответствие сущностей:
- *   GoodVin catalogId  ← Laximo Catalog
- *   GoodVin carId      ← Laximo VehicleId
- *   GoodVin criteria   ← Laximo ssd (сессионный токен, прокидывается сквозь вызовы)
- *   GoodVin groupId    ← Laximo QuickGroupId
+ * Два режима навигации (у разных каталогов доступен свой):
+ *   • "quick" — ListQuickGroup / ListQuickDetail (курируемые группы; ssd авто
+ *     работает сквозняком). Большинство каталогов (Audi, Toyota…).
+ *   • "cat"   — ListCategories / ListUnits / ListDetailByUnit (полная структура;
+ *     ssd СВОЙ у каждой категории/узла). Каталоги без QuickGroup (PSA: Citroën,
+ *     Peugeot, DS, Opel). Включается автоматически, если QuickGroup запрещён.
  *
- * ТАРИФИКАЦИЯ: вызовы по конкретному авто платные — каждый метод обёрнут в
- * 24-часовой кэш (lib/laximo/cache), чтобы «1 VIN = 1 запрос в сутки» и тариф
- * не расходовался на повторную навигацию. См. cache.ts.
- *
- * Locale фиксируем ru_RU (сайт русскоязычный).
+ * ТАРИФИКАЦИЯ: вызовы по авто платные — всё обёрнуто в 24-часовой кэш
+ * (lib/laximo/cache), «1 VIN = 1 запрос в сутки».
  */
 
 const LOCALE = "ru_RU";
+
+export type CatalogMode = "quick" | "cat";
 
 type Row = {
   quickgroupid?: string | number;
@@ -34,14 +35,18 @@ type Row = {
   name?: string;
   row?: Row | Row[];
 };
-
 type Attr = { key?: string; name?: string; value?: string };
+type Rec = Record<string, unknown>;
 
 const normVin = (vin: string) => vin.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
-/** Поиск авто по VIN. Возвращает найденные автомобили (обычно один).
- *  Кэшируем identity (catalog+vehicleid+ssd) на 24ч — тот же ssd переиспользуется
- *  для всей навигации, поэтому Laximo считает это одним запросом по VIN. */
+/** Ошибка «операция не разрешена для каталога» → повод переключить режим. */
+function isNotPermitted(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return /not permitted|e_accessdenied/i.test(m);
+}
+
+// ── Поиск авто по VIN ───────────────────────────────────────────────────────
 async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
   return laximoCached(`vin:${normVin(vin)}`, async () => {
     const resp = await laximoQuery(
@@ -50,7 +55,7 @@ async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
     );
     const rows = asArray(
       (resp as { FindVehicleByVIN?: { row?: unknown } }).FindVehicleByVIN?.row
-    ) as Array<Record<string, unknown>>;
+    ) as Rec[];
 
     return rows.map((r) => {
       const attrs = asArray(r.attribute) as Attr[];
@@ -81,63 +86,105 @@ async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
   });
 }
 
-/** Рекурсивный поиск узла дерева по quickgroupid. */
-function findNode(rows: Row[], id: string): Row | null {
-  for (const r of rows) {
-    if (String(r.quickgroupid) === id) return r;
-    const kids = asArray(r.row);
-    if (kids.length) {
-      const found = findNode(kids, id);
-      if (found) return found;
-    }
-  }
-  return null;
+// ── Дерево узлов ────────────────────────────────────────────────────────────
+
+/** Дерево в режиме QuickGroup (нативно вложенное). */
+async function quickTree(
+  catalogId: string,
+  carId: string,
+  ssd: string
+): Promise<GoodvinGroupNode[]> {
+  const resp = await laximoQuery(
+    "oem",
+    `ListQuickGroup:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${carId}|ssd=${ssd}`
+  );
+  const roots = asArray(
+    (resp as { ListQuickGroups?: { row?: unknown } }).ListQuickGroups?.row
+  ) as Row[];
+  const toNode = (r: Row): GoodvinGroupNode => ({
+    id: String(r.quickgroupid ?? ""),
+    name: String(r.name ?? ""),
+    hasParts: String(r.link) === "true",
+    children: asArray(r.row).map(toNode),
+  });
+  // Одна внешняя обёртка с детьми → показываем её детей верхним уровнем.
+  const top =
+    roots.length === 1 && asArray(roots[0].row).length
+      ? asArray(roots[0].row)
+      : roots;
+  return top.map(toNode);
 }
 
-function toGroup(r: Row, parentId?: string): GoodvinGroup {
+/** Дерево в режиме категорий (плоский список с parentcategoryid → строим дерево).
+ *  Лист = категория без подкатегорий (childrens=false), у неё есть узлы. */
+async function categoryTree(
+  catalogId: string,
+  carId: string,
+  ssd: string
+): Promise<GoodvinGroupNode[]> {
+  const resp = await laximoQuery(
+    "oem",
+    `ListCategories:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${carId}|ssd=${ssd}`
+  );
+  const rows = asArray(
+    (resp as { ListCategories?: { row?: unknown } }).ListCategories?.row
+  ) as Rec[];
+
+  const map = new Map<string, GoodvinGroupNode>();
+  const parentOf = new Map<string, string>();
+  for (const r of rows) {
+    const id = String(r.categoryid ?? "");
+    if (!id) continue;
+    map.set(id, {
+      id,
+      name: String(r.name ?? ""),
+      hasParts: String(r.childrens) === "false",
+      ssd: String(r.ssd ?? ""),
+      children: [],
+    });
+    parentOf.set(id, String(r.parentcategoryid ?? ""));
+  }
+  const roots: GoodvinGroupNode[] = [];
+  for (const [id, node] of map) {
+    const p = parentOf.get(id);
+    if (p && map.has(p)) map.get(p)!.children.push(node);
+    else roots.push(node);
+  }
+  return roots;
+}
+
+/** Полное дерево + режим. Пробуем QuickGroup, при запрете — категории. Кэш 24ч. */
+async function getTree(
+  catalogId: string,
+  opts: { carId: string; criteria?: string }
+): Promise<{ mode: CatalogMode; tree: GoodvinGroupNode[] }> {
+  return laximoCached(`tree:${catalogId}:${opts.carId}`, async () => {
+    const ssd = opts.criteria ?? "";
+    try {
+      const tree = await quickTree(catalogId, opts.carId, ssd);
+      return { mode: "quick" as const, tree };
+    } catch (e) {
+      if (!isNotPermitted(e)) throw e;
+      const tree = await categoryTree(catalogId, opts.carId, ssd);
+      return { mode: "cat" as const, tree };
+    }
+  });
+}
+
+// ── Детали узла ─────────────────────────────────────────────────────────────
+
+function mapDetail(d: Rec): GoodvinPart {
   return {
-    id: String(r.quickgroupid ?? ""),
-    parentId,
-    hasSubgroups: asArray(r.row).length > 0,
-    hasParts: String(r.link) === "true",
-    name: String(r.name ?? ""),
+    id: String(d.oem ?? d.codeonimage ?? d.name ?? ""),
+    nameId: "",
+    name: String(d.name ?? ""),
+    number: String(d.oem ?? ""),
+    positionNumber: d.codeonimage != null ? String(d.codeonimage) : undefined,
   };
 }
 
-/**
- * Узлы дерева (устаревший постраничный вариант — UI использует getTree). Оставлен
- * для совместимости контракта; не кэшируем, т.к. в новом интерфейсе не вызывается.
- */
-async function getGroups(
-  catalogId: string,
-  opts: { carId: string; groupId?: string; criteria?: string }
-): Promise<GoodvinGroup[]> {
-  const resp = await laximoQuery(
-    "oem",
-    `ListQuickGroup:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|ssd=${opts.criteria ?? ""}`
-  );
-  const tree = asArray(
-    (resp as { ListQuickGroups?: { row?: unknown } }).ListQuickGroups?.row
-  ) as Row[];
-
-  let children: Row[];
-  if (!opts.groupId) {
-    const root = tree[0];
-    children = root ? asArray(root.row) : tree;
-  } else {
-    const node = findNode(tree, opts.groupId);
-    children = node ? asArray(node.row) : [];
-  }
-  return children.map((r) => toGroup(r, opts.groupId));
-}
-
-/**
- * Карта выносок (кликабельные зоны на схеме) для узла. Laximo отдаёт её
- * отдельным вызовом ListImageMapByUnit: row(code, x1,y1,x2,y2). Наш UI ждёт
- * coordinates=[x, y, width, height] в пикселях оригинала → переводим из углов.
- * Возвращает пусто при любой ошибке (схема просто останется без кликов).
- */
-async function getUnitImageMap(
+/** Карта выносок узла (ListImageMapByUnit): row(code,x1,y1,x2,y2) → [x,y,w,h]. */
+async function unitImageMap(
   catalogId: string,
   carId: string,
   unitId: string,
@@ -151,7 +198,7 @@ async function getUnitImageMap(
     const rows = asArray(
       (resp as { ListImageMapByUnit?: { row?: unknown } }).ListImageMapByUnit
         ?.row
-    ) as Array<Record<string, unknown>>;
+    ) as Rec[];
     return rows
       .map((r) => {
         const x1 = Number(r.x1),
@@ -170,143 +217,172 @@ async function getUnitImageMap(
   }
 }
 
-/** ПОЛНОЕ дерево узлов каталога (постоянное дерево слева, как у Армтека).
- *  Laximo отдаёт всё дерево одним ListQuickGroup. Кэш 24ч по (catalog+vehicleid). */
-async function getTree(
-  catalogId: string,
-  opts: { carId: string; criteria?: string }
-): Promise<GoodvinGroupNode[]> {
-  return laximoCached(`tree:${catalogId}:${opts.carId}`, async () => {
-    const resp = await laximoQuery(
-      "oem",
-      `ListQuickGroup:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|ssd=${opts.criteria ?? ""}`
-    );
-    const roots = asArray(
-      (resp as { ListQuickGroups?: { row?: unknown } }).ListQuickGroups?.row
-    ) as Row[];
+type Unit = { name: string; code: string; img?: string; parts: GoodvinPart[]; positions: GoodvinPartPosition[] };
 
-    const toNode = (r: Row): GoodvinGroupNode => ({
-      id: String(r.quickgroupid ?? ""),
-      name: String(r.name ?? ""),
-      hasParts: String(r.link) === "true",
-      children: asArray(r.row).map(toNode),
-    });
-
-    // Одна внешняя обёртка с детьми → показываем её детей верхним уровнем.
-    const top =
-      roots.length === 1 && asArray(roots[0].row).length
-        ? asArray(roots[0].row)
-        : roots;
-    return top.map(toNode);
-  });
+function finalizeParts(units: Unit[]): GoodvinParts {
+  const partGroups = units.map((u) => ({
+    name: u.name,
+    number: u.code,
+    positionNumber: "",
+    img: u.img,
+    imgDescription: u.name || undefined,
+    positions: u.positions,
+    parts: u.parts,
+  }));
+  const first = partGroups.find((g) => g.img) ?? partGroups[0];
+  return {
+    img: first?.img,
+    imgDescription: first?.imgDescription,
+    partGroups,
+    positions: first?.positions ?? [],
+  };
 }
 
-/** Детали узла (схемы + OEM-номера + кликабельные выноски). Кэш 24ч по
- *  (catalog+vehicleid+groupId) — один узел тарифицируется не чаще раза в сутки. */
+/** Детали узла в режиме QuickGroup (ListQuickDetail: Category > Unit > Detail). */
+async function quickParts(
+  catalogId: string,
+  carId: string,
+  groupId: string,
+  ssd: string
+): Promise<GoodvinParts> {
+  const resp = await laximoQuery(
+    "oem",
+    `ListQuickDetail:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${carId}|QuickGroupId=${groupId}|ssd=${ssd}|Localized=true|All=1`
+  );
+  const cats = asArray(
+    (resp as { ListQuickDetail?: { Category?: unknown } }).ListQuickDetail
+      ?.Category
+  ) as Rec[];
+  const rawUnits = cats.flatMap((c) => asArray(c.Unit)) as Rec[];
+
+  const units = await Promise.all(
+    rawUnits.map(async (u): Promise<Unit> => {
+      const positions =
+        u.unitid && u.ssd
+          ? await unitImageMap(catalogId, carId, String(u.unitid), String(u.ssd))
+          : [];
+      return {
+        name: String(u.name ?? ""),
+        code: String(u.code ?? ""),
+        img: laximoImage(u.imageurl as string | undefined),
+        positions,
+        parts: (asArray(u.Detail) as Rec[]).map(mapDetail),
+      };
+    })
+  );
+  return finalizeParts(units);
+}
+
+/** Детали узла в режиме категорий: ListUnits(категория) → на каждый узел
+ *  ListDetailByUnit + ListImageMapByUnit (ssd СВОЙ у категории и у каждого узла). */
+async function categoryParts(
+  catalogId: string,
+  carId: string,
+  categoryId: string,
+  categorySsd: string
+): Promise<GoodvinParts> {
+  const resp = await laximoQuery(
+    "oem",
+    `ListUnits:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${carId}|CategoryId=${categoryId}|ssd=${categorySsd}`
+  );
+  const rawUnits = asArray(
+    (resp as { ListUnits?: { row?: unknown } }).ListUnits?.row
+  ) as Rec[];
+
+  const units = await Promise.all(
+    rawUnits.map(async (u): Promise<Unit> => {
+      const uid = String(u.unitid ?? "");
+      const ussd = String(u.ssd ?? "");
+      const [parts, positions] = await Promise.all([
+        listDetailsByUnit(catalogId, carId, uid, ussd),
+        uid && ussd ? unitImageMap(catalogId, carId, uid, ussd) : Promise.resolve([]),
+      ]);
+      return {
+        name: String(u.name ?? ""),
+        code: String(u.code ?? ""),
+        img: laximoImage(u.imageurl as string | undefined),
+        positions,
+        parts,
+      };
+    })
+  );
+  return finalizeParts(units);
+}
+
+async function listDetailsByUnit(
+  catalogId: string,
+  carId: string,
+  unitId: string,
+  ssd: string
+): Promise<GoodvinPart[]> {
+  const resp = await laximoQuery(
+    "oem",
+    `ListDetailByUnit:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${carId}|UnitId=${unitId}|ssd=${ssd}|Localized=true`
+  );
+  const rows = asArray(
+    (resp as { ListDetailsByUnit?: { row?: unknown } }).ListDetailsByUnit?.row
+  ) as Rec[];
+  return rows.map(mapDetail);
+}
+
+/** Детали узла. mode="cat" → категории/узлы (criteria = ssd категории),
+ *  иначе QuickGroup (criteria = ssd авто). Кэш 24ч. */
 async function getParts(
   catalogId: string,
-  opts: { carId: string; groupId: string; criteria?: string }
+  opts: { carId: string; groupId: string; criteria?: string; mode?: CatalogMode }
 ): Promise<GoodvinParts> {
-  return laximoCached(`parts:${catalogId}:${opts.carId}:${opts.groupId}`, async () => {
-    const resp = await laximoQuery(
-      "oem",
-      `ListQuickDetail:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|QuickGroupId=${opts.groupId}|ssd=${opts.criteria ?? ""}|Localized=true|All=1`
-    );
-    const cats = asArray(
-      (resp as { ListQuickDetail?: { Category?: unknown } }).ListQuickDetail
-        ?.Category
-    ) as Array<Record<string, unknown>>;
-    const units = cats.flatMap((c) =>
-      asArray(c.Unit)
-    ) as Array<Record<string, unknown>>;
-
-    // Каждый УЗЕЛ (unit) — отдельная группа со СВОЕЙ схемой, выносками и деталями.
-    // У сложных групп узлов несколько (напр. «Фильтр салонный» — 2 схемы): раньше
-    // показывали только первую, а детали листали от всех → «остальное на картинке
-    // не заполнялось». Карту выносок тянем на каждый узел (у узла свой ssd).
-    const partGroups = await Promise.all(
-      units.map(async (u) => {
-        const positions =
-          u.unitid && u.ssd
-            ? await getUnitImageMap(
-                catalogId,
-                opts.carId,
-                String(u.unitid),
-                String(u.ssd)
-              )
-            : [];
-        return {
-          name: String(u.name ?? ""),
-          number: String(u.code ?? ""),
-          positionNumber: "",
-          img: laximoImage(u.imageurl as string | undefined),
-          imgDescription: u.name ? String(u.name) : undefined,
-          positions,
-          parts: (asArray(u.Detail) as Array<Record<string, unknown>>).map(
-            (d) => ({
-              id: String(d.oem ?? d.codeonimage ?? d.name ?? ""),
-              nameId: "",
-              name: String(d.name ?? ""),
-              number: String(d.oem ?? ""),
-              positionNumber:
-                d.codeonimage != null ? String(d.codeonimage) : undefined,
-            })
-          ),
-        };
-      })
-    );
-
-    // Верхнеуровневые img/positions оставляем от первого узла (обратная
-    // совместимость), но UI рисует каждый узел из partGroups.
-    const first = partGroups.find((g) => g.img) ?? partGroups[0];
-    return {
-      img: first?.img,
-      imgDescription: first?.imgDescription,
-      partGroups,
-      positions: first?.positions ?? [],
-    };
-  });
+  const mode: CatalogMode = opts.mode === "cat" ? "cat" : "quick";
+  return laximoCached(
+    `parts:${catalogId}:${opts.carId}:${mode}:${opts.groupId}`,
+    async () =>
+      mode === "cat"
+        ? categoryParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")
+        : quickParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")
+  );
 }
 
-/** Поиск деталей по названию/номеру внутри каталога авто (SearchVehicleDetails).
- *  Возвращает плоский список {number(OEM), name}. Кэш 24ч по (catalog+vehicleid+запрос). */
+// ── Поиск детали по названию/номеру ─────────────────────────────────────────
 async function searchParts(
   catalogId: string,
   opts: { carId: string; criteria?: string; query: string }
 ): Promise<Array<{ number: string; name: string }>> {
-  // Символы-разделители команды (| =) из запроса убираем, чтобы не сломать формат.
   const q = opts.query.replace(/[|=]/g, " ").trim();
   if (!q) return [];
   return laximoCached(
     `search:${catalogId}:${opts.carId}:${q.toLowerCase()}`,
     async () => {
-      const resp = await laximoQuery(
-        "oem",
-        `SearchVehicleDetails:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|ssd=${opts.criteria ?? ""}|Query=${q}`
-      );
-      const rows = asArray(
-        (resp as { SearchVehicleDetails?: { row?: unknown } })
-          .SearchVehicleDetails?.row
-      ) as Array<Record<string, unknown>>;
-      return rows
-        .map((r) => ({
-          number: String(r.oem ?? ""),
-          name: String(r["#text"] ?? "").trim(),
-        }))
-        .filter((x) => x.number);
+      try {
+        const resp = await laximoQuery(
+          "oem",
+          `SearchVehicleDetails:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|ssd=${opts.criteria ?? ""}|Query=${q}`
+        );
+        const rows = asArray(
+          (resp as { SearchVehicleDetails?: { row?: unknown } })
+            .SearchVehicleDetails?.row
+        ) as Rec[];
+        return rows
+          .map((r) => ({
+            number: String(r.oem ?? ""),
+            name: String(r["#text"] ?? "").trim(),
+          }))
+          .filter((x) => x.number);
+      } catch (e) {
+        if (isNotPermitted(e)) return []; // каталог не поддерживает поиск
+        throw e;
+      }
     }
   );
 }
 
-/** Совпадает по форме с объектом `goodvin` — роуты подключают вместо него.
- *  Второй аргумент carInfo (catalogs) в Laximo не нужен — принимаем для
- *  совместимости сигнатуры и игнорируем. */
+/** По форме совпадает с объектом `goodvin` — роуты подключают вместо него. */
 export const laximo = {
   carInfo: (q: string, _catalogs?: string) => carInfo(q),
-  getGroups,
   getTree,
   getParts,
   searchParts,
 };
 
 export type LaximoCatalog = typeof laximo;
+
+// LaximoError используется для типобезопасности импорта (иначе tree-shaking).
+export { LaximoError };

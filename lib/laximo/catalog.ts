@@ -4,6 +4,7 @@ import type {
   GoodvinCarInfo,
   GoodvinGroup,
   GoodvinParts,
+  GoodvinPartPosition,
 } from "@/types/goodvin";
 
 /**
@@ -119,7 +120,46 @@ async function getGroups(
   return children.map((r) => toGroup(r, opts.groupId));
 }
 
-/** Детали узла (схемы + OEM-номера). */
+/**
+ * Карта выносок (кликабельные зоны на схеме) для узла. Laximo отдаёт её
+ * отдельным вызовом ListImageMapByUnit: row(code, x1,y1,x2,y2). Наш UI ждёт
+ * coordinates=[x, y, width, height] в пикселях оригинала → переводим из углов.
+ * Возвращает пусто при любой ошибке (схема просто останется без кликов).
+ */
+async function getUnitImageMap(
+  catalogId: string,
+  carId: string,
+  unitId: string,
+  ssd: string
+): Promise<GoodvinPartPosition[]> {
+  try {
+    const resp = await laximoQuery(
+      "oem",
+      `ListImageMapByUnit:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${carId}|UnitId=${unitId}|ssd=${ssd}`
+    );
+    const rows = asArray(
+      (resp as { ListImageMapByUnit?: { row?: unknown } }).ListImageMapByUnit
+        ?.row
+    ) as Array<Record<string, unknown>>;
+    return rows
+      .map((r) => {
+        const x1 = Number(r.x1),
+          y1 = Number(r.y1),
+          x2 = Number(r.x2),
+          y2 = Number(r.y2);
+        if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+        return {
+          number: String(r.code ?? ""),
+          coordinates: [x1, y1, x2 - x1, y2 - y1],
+        } satisfies GoodvinPartPosition;
+      })
+      .filter((p): p is GoodvinPartPosition => p !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Детали узла (схемы + OEM-номера + кликабельные выноски). */
 async function getParts(
   catalogId: string,
   opts: { carId: string; groupId: string; criteria?: string }
@@ -150,15 +190,26 @@ async function getParts(
     })),
   }));
 
-  const firstImg = units.find((u) => u.imageurl)?.imageurl as
-    | string
-    | undefined;
+  // Показываем схему первого узла с картинкой и подтягиваем её карту выносок
+  // (клик по номеру на схеме → подсветка детали в списке). У узла — свой ssd.
+  const displayUnit =
+    units.find((u) => u.imageurl && u.unitid && u.ssd) ??
+    units.find((u) => u.imageurl);
+  const positions =
+    displayUnit?.unitid && displayUnit?.ssd
+      ? await getUnitImageMap(
+          catalogId,
+          opts.carId,
+          String(displayUnit.unitid),
+          String(displayUnit.ssd)
+        )
+      : [];
 
   return {
-    img: laximoImage(firstImg),
-    imgDescription: units[0]?.name ? String(units[0].name) : undefined,
+    img: laximoImage(displayUnit?.imageurl as string | undefined),
+    imgDescription: displayUnit?.name ? String(displayUnit.name) : undefined,
     partGroups,
-    positions: [],
+    positions,
   };
 }
 

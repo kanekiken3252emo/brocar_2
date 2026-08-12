@@ -158,7 +158,9 @@ async function getTree(
   catalogId: string,
   opts: { carId: string; criteria?: string }
 ): Promise<{ mode: CatalogMode; tree: GoodvinGroupNode[] }> {
-  return laximoCached(`tree:${catalogId}:${opts.carId}`, async () => {
+  const result = await laximoCached<
+    { mode: CatalogMode; tree: GoodvinGroupNode[] } | GoodvinGroupNode[]
+  >(`tree:${catalogId}:${opts.carId}`, async () => {
     const ssd = opts.criteria ?? "";
     try {
       const tree = await quickTree(catalogId, opts.carId, ssd);
@@ -169,6 +171,9 @@ async function getTree(
       return { mode: "cat" as const, tree };
     }
   });
+  // Старый формат кэша (bare-массив узлов, до появления mode) → оборачиваем,
+  // чтобы ранее закэшированные авто не отдавали пустое дерево.
+  return Array.isArray(result) ? { mode: "quick", tree: result } : result;
 }
 
 // ── Детали узла ─────────────────────────────────────────────────────────────

@@ -35,7 +35,9 @@ export function organizationSchema() {
     url: SITE_URL,
     logo: `${SITE_URL}/Logo_Brocar.png`,
     image: `${SITE_URL}/og-image.png`,
-    telephone: "+79326006015",
+    // Основной номер — городской (по просьбе владельца); мобильный остаётся в
+    // contactPoint ниже. Меняли и отображаемый приоритет на страницах.
+    telephone: "+73433822062",
     email: "info@brocarparts.ru",
     priceRange: "₽₽",
     currenciesAccepted: "RUB",
@@ -89,7 +91,7 @@ export function organizationSchema() {
     ],
     sameAs: [
       "https://vk.com/brocarparts",
-      "https://t.me/+79326006015",
+      "https://t.me/brocarparts",
       "https://2gis.ru/ekaterinburg/firm/70000001098987045",
       "https://yandex.ru/maps/org/35950776894",
     ],

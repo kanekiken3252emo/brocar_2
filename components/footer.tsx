@@ -85,6 +85,10 @@ export function Footer() {
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-orange-500 shrink-0" />
+                <a href="tel:+73433822062" className="hover:text-orange-500 transition-colors">
+                  8 (343) 382-20-62
+                </a>
+                <span className="text-neutral-600">·</span>
                 <a href="tel:+79326006015" className="hover:text-orange-500 transition-colors">
                   +7 (932) 600-60-15
                 </a>
@@ -97,8 +101,8 @@ export function Footer() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <a 
-                href="tel:+79326006015" 
+              <a
+                href="tel:+73433822062"
                 className="w-10 h-10 bg-neutral-800 hover:bg-orange-500 rounded-lg flex items-center justify-center transition-colors group"
                 title="Позвонить"
               >
@@ -114,7 +118,7 @@ export function Footer() {
                 <VkIcon className="h-5 w-5 text-neutral-400 group-hover:text-white" />
               </a>
               <a 
-                href="https://t.me/+79326006015" 
+                href="https://t.me/brocarparts" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-neutral-800 hover:bg-[#26A5E4] rounded-lg flex items-center justify-center transition-colors group"

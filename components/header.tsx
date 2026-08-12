@@ -182,18 +182,18 @@ export function Header({ user }: HeaderProps) {
               </div>
               <div className="flex items-center gap-2 text-neutral-400">
                 <Phone className="h-4 w-4 text-orange-500" />
-                <span className="font-semibold text-white">+7 (932) 600-60-15</span>
-                <span className="text-neutral-600">·</span>
                 <span className="font-semibold text-white">8 (343) 382-20-62</span>
+                <span className="text-neutral-600">·</span>
+                <span className="font-semibold text-white">+7 (932) 600-60-15</span>
               </div>
             </div>
-            {/* Мобильный номер слева на мобилке (десктоп — в блоке слева выше) */}
+            {/* Основной номер (городской) слева на мобилке (десктоп — в блоке слева выше) */}
             <a
-              href="tel:+79326006015"
+              href="tel:+73433822062"
               className="md:hidden flex items-center gap-1.5 text-white font-semibold whitespace-nowrap"
             >
               <Phone className="h-4 w-4 text-orange-500" />
-              +7 (932) 600-60-15
+              8 (343) 382-20-62
             </a>
             <div className="flex items-center gap-3 ml-auto">
               {!user ? (
@@ -435,13 +435,13 @@ export function Header({ user }: HeaderProps) {
             <div className="lg:hidden py-3 pb-8 border-t border-neutral-800 animate-slide-down max-h-[calc(100dvh_-_11rem)] overflow-y-auto overscroll-contain">
               {/* Contact info for mobile */}
               <div className="flex flex-col gap-2 px-4 py-3 mb-2 bg-neutral-800/30 rounded-lg">
-                <a href="tel:+79326006015" className="flex items-center gap-2 text-white">
-                  <Phone className="h-4 w-4 text-orange-500" />
-                  <span className="font-semibold">+7 (932) 600-60-15</span>
-                </a>
                 <a href="tel:+73433822062" className="flex items-center gap-2 text-white">
                   <Phone className="h-4 w-4 text-orange-500" />
                   <span className="font-semibold">8 (343) 382-20-62</span>
+                </a>
+                <a href="tel:+79326006015" className="flex items-center gap-2 text-white">
+                  <Phone className="h-4 w-4 text-orange-500" />
+                  <span className="font-semibold">+7 (932) 600-60-15</span>
                 </a>
                 <div className="flex items-center gap-2 text-neutral-400 text-sm">
                   <MapPin className="h-4 w-4 text-orange-500" />

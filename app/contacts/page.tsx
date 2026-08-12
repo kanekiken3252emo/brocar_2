@@ -42,7 +42,7 @@ function MaxIcon({ className }: { className?: string }) {
 export const metadata: Metadata = {
   title: "Контакты магазина автозапчастей в Екатеринбурге",
   description:
-    "Магазин автозапчастей BroCar в Екатеринбурге: ул. Заводская 16 (ВИЗ). Тел. +7 (932) 600-60-15, Пн–Пт 10:00–19:00, Сб до 15:00. Приезжайте или звоните!",
+    "Магазин автозапчастей BroCar в Екатеринбурге: ул. Заводская 16 (ВИЗ). Тел. 8 (343) 382-20-62, Пн–Пт 10:00–19:00, Сб до 15:00. Приезжайте или звоните!",
 };
 
 export default function ContactsPage() {
@@ -89,11 +89,11 @@ export default function ContactsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <a href="tel:+79326006015" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-1">
-                  +7 (932) 600-60-15
-                </a>
-                <a href="tel:+73433822062" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
+                <a href="tel:+73433822062" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-1">
                   8 (343) 382-20-62
+                </a>
+                <a href="tel:+79326006015" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
+                  +7 (932) 600-60-15
                 </a>
                 <div className="space-y-2 text-neutral-400">
                   <p className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function ContactsPage() {
                 </a>
 
                 <a
-                  href="https://t.me/+79326006015"
+                  href="https://t.me/brocarparts"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 p-4 bg-neutral-800 hover:bg-[#26A5E4]/20 border border-neutral-700 hover:border-[#26A5E4]/50 rounded-xl transition-all group"
@@ -349,13 +349,13 @@ export default function ContactsPage() {
                     Max
                   </Button>
                 </a>
-                <a href="https://t.me/+79326006015" target="_blank" rel="noopener noreferrer">
+                <a href="https://t.me/brocarparts" target="_blank" rel="noopener noreferrer">
                   <Button className="gap-2 bg-[#26A5E4] hover:bg-[#1E96D1] text-white">
                     <TelegramIcon className="h-4 w-4" />
                     Telegram
                   </Button>
                 </a>
-                <a href="tel:+79326006015">
+                <a href="tel:+73433822062">
                   <Button variant="outline" className="gap-2">
                     <Phone className="h-4 w-4" />
                     Позвонить

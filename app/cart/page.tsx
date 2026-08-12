@@ -687,17 +687,17 @@ export default function CartPage() {
                     Наши специалисты помогут подобрать нужные запчасти
                   </p>
                   <a
-                    href="tel:+79326006015"
+                    href="tel:+73433822062"
                     className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5"
+                  >
+                    <Phone className="h-3.5 w-3.5" />8 (343) 382‑20‑62
+                  </a>
+                  <a
+                    href="tel:+79326006015"
+                    className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5 mt-1.5"
                   >
                     <Phone className="h-3.5 w-3.5" />
                     +7 (932) 600‑60‑15
-                  </a>
-                  <a
-                    href="tel:+73433822062"
-                    className="text-orange-500 font-semibold text-sm hover:text-orange-400 transition-colors flex items-center gap-1.5 mt-1.5"
-                  >
-                    <Phone className="h-3.5 w-3.5" />8 (343) 382‑20‑62
                   </a>
                 </CardContent>
               </Card>

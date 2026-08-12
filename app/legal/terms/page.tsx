@@ -147,7 +147,7 @@ export default function TermsPage() {
                 </a>{" "}
                 либо по телефону{" "}
                 <a
-                  href="tel:+79326006015"
+                  href="tel:+73433822062"
                   className="text-orange-500 hover:text-orange-400"
                 >
                   +7 (932) 600-60-15

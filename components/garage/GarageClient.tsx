@@ -77,12 +77,17 @@ export default function GarageClient({
   const [vehicles, setVehicles] = useState<GarageVehicle[]>(initialVehicles);
   const [showForm, setShowForm] = useState(false);
 
+  // Лимит машин в гараже (синхронно с сервером — app/api/garage/route.ts).
+  const MAX_VEHICLES = 3;
+  const atLimit = vehicles.length >= MAX_VEHICLES;
+
   // Гость не может добавлять — отправляем на регистрацию.
   function handleAddClick() {
     if (!isAuthenticated) {
       router.push("/auth/register");
       return;
     }
+    if (atLimit) return;
     setShowForm(true);
   }
   const [saving, setSaving] = useState(false);
@@ -154,16 +159,21 @@ export default function GarageClient({
                 <h1 className="text-2xl md:text-3xl font-bold text-white">Мой гараж</h1>
                 <p className="text-neutral-400 text-sm">
                   {vehicles.length
-                    ? `Машин в гараже: ${vehicles.length}`
+                    ? `Машин в гараже: ${vehicles.length} из ${MAX_VEHICLES}`
                     : "Добавьте первый автомобиль"}
                 </p>
               </div>
             </div>
-            {!showForm && vehicles.length > 0 && (
+            {!showForm && vehicles.length > 0 && !atLimit && (
               <Button onClick={handleAddClick} className="gap-2 shrink-0">
                 <Plus className="h-4 w-4" />
                 Добавить
               </Button>
+            )}
+            {!showForm && atLimit && (
+              <p className="text-neutral-500 text-sm shrink-0 max-w-[10rem] text-right">
+                Достигнут лимит {MAX_VEHICLES} машин
+              </p>
             )}
           </div>
 

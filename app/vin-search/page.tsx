@@ -393,7 +393,7 @@ export default function VinSearchPage() {
                     Предпочитаете написать напрямую?
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <a href="https://t.me/+79326006015" target="_blank" rel="noopener noreferrer">
+                    <a href="https://t.me/brocarparts" target="_blank" rel="noopener noreferrer">
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                         Telegram
                       </Button>
@@ -403,7 +403,7 @@ export default function VinSearchPage() {
                         Max
                       </Button>
                     </a>
-                    <a href="tel:+79326006015">
+                    <a href="tel:+73433822062">
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                         <Phone className="h-3.5 w-3.5" />
                         Позвонить

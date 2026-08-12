@@ -20,6 +20,9 @@ import { formatPrice } from "@/lib/utils";
 import { PayButton } from "@/components/order/pay-button";
 import { AwaitingRefresher } from "@/components/order/awaiting-refresher";
 import { CancelOrderButton } from "@/components/order/cancel-order-button";
+import { ReturnRequestButton } from "@/components/order/return-request-button";
+import { DeleteOrderButton } from "@/components/order/delete-order-button";
+import { getHiddenOrderIds } from "@/lib/hidden-orders";
 import { ArrowLeft, ArrowRight, Package, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 export default async function OrderDetailPage({
@@ -46,6 +49,13 @@ export default async function OrderDetailPage({
   // Доступ: владелец заказа или администратор
   if (order.userId !== user.id && !isAdmin(user)) {
     redirect("/dashboard");
+  }
+
+  // Заказ, скрытый пользователем из кабинета, по прямой ссылке не показываем
+  // (у админа остаётся доступ).
+  if (order.userId === user.id && !isAdmin(user)) {
+    const hidden = await getHiddenOrderIds(user.id);
+    if (hidden.has(orderId)) redirect("/dashboard");
   }
 
   // Покупатель мог вернуться с формы оплаты раньше, чем пришёл вебхук ЮKassa —
@@ -151,17 +161,17 @@ export default async function OrderDetailPage({
                   <p className="text-xs text-neutral-400 mt-1">
                     Свяжитесь с нами — подтвердим оплату вручную:{" "}
                     <a
-                      href="tel:+79326006015"
-                      className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
-                    >
-                      +7 (932) 600‑60‑15
-                    </a>{" "}
-                    или{" "}
-                    <a
                       href="tel:+73433822062"
                       className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
                     >
                       8 (343) 382‑20‑62
+                    </a>{" "}
+                    или{" "}
+                    <a
+                      href="tel:+79326006015"
+                      className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
+                    >
+                      +7 (932) 600‑60‑15
                     </a>
                   </p>
                 </div>
@@ -259,6 +269,17 @@ export default async function OrderDetailPage({
               </div>
             </CardContent>
           </Card>
+
+          {/* Возврат/гарантия + удаление заказа из кабинета */}
+          <div className="mt-4 space-y-4">
+            {/* Заявка на возврат/гарантию — только по оплаченным заказам */}
+            {!["pending", "awaiting_payment", "canceled"].includes(status) && (
+              <ReturnRequestButton orderId={order.id} />
+            )}
+            <div className="flex justify-end">
+              <DeleteOrderButton orderId={order.id} afterDelete="redirect" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -8,10 +8,42 @@ import {
   ShieldCheck,
   Phone,
   MessageSquare,
+  Lock,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { VinCatalog } from "@/components/goodvin/VinCatalog";
+import { getUser } from "@/lib/auth";
+
+/**
+ * Каталогом по VIN пользуются только авторизованные клиенты (запрос владельца).
+ * Страница остаётся видимой в поиске (SEO-текст ниже), но сам интерактивный
+ * каталог гостю заменяется приглашением войти.
+ */
+function VinLoginGate() {
+  return (
+    <div className="text-center py-10 px-4">
+      <div className="w-14 h-14 bg-orange-500/15 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <Lock className="h-6 w-6 text-orange-500" />
+      </div>
+      <h2 className="text-xl font-bold text-white mb-2">
+        Каталог по VIN — для клиентов
+      </h2>
+      <p className="text-neutral-400 max-w-md mx-auto mb-6">
+        Войдите или зарегистрируйтесь, чтобы подбирать оригинальные запчасти по
+        VIN, смотреть схемы узлов и OEM-номера.
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center">
+        <Link href="/auth/login?redirect=/catalog-vin">
+          <Button className="gap-2">Войти</Button>
+        </Link>
+        <Link href="/auth/register">
+          <Button variant="outline">Регистрация</Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export const metadata: Metadata = {
   // « | BroCar» допишет шаблон лейаута — бренд вручную не дублируем.
@@ -85,7 +117,7 @@ function CatalogExtras() {
                   Запрос менеджеру
                 </Button>
               </Link>
-              <a href="tel:+79326006015">
+              <a href="tel:+73433822062">
                 <Button variant="outline" className="gap-2">
                   <Phone className="h-4 w-4" />
                   Позвонить
@@ -108,6 +140,9 @@ export default async function CatalogVinPage({
   const vinRaw = Array.isArray(sp.vin) ? sp.vin[0] : sp.vin;
   const vin = vinRaw?.trim() || undefined;
 
+  // Пользоваться каталогом могут только авторизованные (гостю — приглашение войти).
+  const user = await getUser();
+
   // Заход с VIN (из верхней строки поиска или гаража) — сразу рабочий каталог
   // без лендинга: ни заголовка-приглашения, ни блоков-фич, ни дубля поиска.
   if (vin) {
@@ -128,7 +163,7 @@ export default async function CatalogVinPage({
           </div>
           <Card className="border-neutral-800 bg-neutral-900">
             <CardContent className="p-4 md:p-6">
-              <VinCatalog initialVin={vin} />
+              {user ? <VinCatalog initialVin={vin} /> : <VinLoginGate />}
             </CardContent>
           </Card>
 
@@ -183,7 +218,7 @@ export default async function CatalogVinPage({
       <div className="container mx-auto px-4 -mt-2 md:-mt-6 mb-10 md:mb-14">
         <Card className="border-neutral-800 bg-neutral-900">
           <CardContent className="p-4 md:p-6">
-            <VinCatalog />
+            {user ? <VinCatalog /> : <VinLoginGate />}
           </CardContent>
         </Card>
       </div>

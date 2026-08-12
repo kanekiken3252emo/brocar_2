@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { vehicles } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { toVehicleResponse } from "@/lib/db/serialize";
+
+// Максимум машин в гараже на пользователя (запрос владельца, июль 2026).
+// Дублируется в UI (components/garage/GarageClient.tsx MAX_VEHICLES).
+const MAX_VEHICLES = 3;
 
 /** Нормализуем VIN: только буквы/цифры, верхний регистр. */
 function cleanVin(raw: unknown): string | null {
@@ -47,6 +51,18 @@ export const POST = withAuth(async (request, { user }) => {
     if (!brand && !model && !vin && !nickname) {
       return NextResponse.json(
         { error: "Укажите хотя бы марку, модель или VIN" },
+        { status: 400 }
+      );
+    }
+
+    // Лимит: не более MAX_VEHICLES машин на пользователя.
+    const [{ n }] = await db
+      .select({ n: count() })
+      .from(vehicles)
+      .where(eq(vehicles.userId, user.id));
+    if (Number(n) >= MAX_VEHICLES) {
+      return NextResponse.json(
+        { error: `В гараже можно хранить не более ${MAX_VEHICLES} машин` },
         { status: 400 }
       );
     }

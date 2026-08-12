@@ -17,6 +17,8 @@ import { isAdmin } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
+import { DeleteOrderButton } from "@/components/order/delete-order-button";
+import { getHiddenOrderIds } from "@/lib/hidden-orders";
 import {
   ShoppingBag,
   User,
@@ -45,11 +47,13 @@ export default async function DashboardPage() {
   const displayName =
     profile?.fullName?.trim() || user.email?.split("@")[0] || "Пользователь";
 
-  // Реальные заказы пользователя из БД
-  const orders = await db.query.orders.findMany({
+  // Реальные заказы пользователя из БД, без скрытых им из кабинета.
+  const allOrders = await db.query.orders.findMany({
     where: eq(ordersTable.userId, user.id),
     orderBy: [desc(ordersTable.createdAt)],
   });
+  const hiddenIds = await getHiddenOrderIds(user.id);
+  const orders = allOrders.filter((o) => !hiddenIds.has(o.id));
 
   const inProgressCount = orders.filter((o) => isInProgress(o.status)).length;
   const shippingCount = orders.filter((o) => isShipping(o.status)).length;
@@ -186,11 +190,14 @@ export default async function DashboardPage() {
                           </Badge>
                         </div>
                       </div>
-                      <Link href={`/order/${order.id}`}>
-                        <Button variant="outline" size="sm" className="mt-3">
-                          Подробнее
-                        </Button>
-                      </Link>
+                      <div className="mt-3 flex items-center gap-4">
+                        <Link href={`/order/${order.id}`}>
+                          <Button variant="outline" size="sm">
+                            Подробнее
+                          </Button>
+                        </Link>
+                        <DeleteOrderButton orderId={order.id} />
+                      </div>
                     </div>
                   ))}
                 </div>

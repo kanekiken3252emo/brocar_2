@@ -243,6 +243,66 @@ export async function sendVinRequestNotification(
   });
 }
 
+export interface ReturnRequestEmailData {
+  orderId: number;
+  type: "return" | "warranty"; // возврат или гарантийный случай
+  customerName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  comment?: string | null;
+}
+
+/**
+ * Заявка «Возврат / гарантия» по заказу (кнопка на странице заказа). Одна кнопка,
+ * но письма РАЗДЕЛЕНЫ по теме (ВОЗВРАТ / ГАРАНТИЯ), чтобы магазин их не путал.
+ * Уходит на тот же ящик, что и заказы. Бросает ошибку при сбое SMTP.
+ */
+export async function sendReturnRequestNotification(
+  data: ReturnRequestEmailData
+): Promise<void> {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("SMTP не настроен — заявка на возврат/гарантию не отправлена");
+    throw new Error("SMTP не настроен");
+  }
+
+  const to = process.env.ORDER_NOTIFICATION_EMAIL || process.env.SMTP_USER!;
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER!;
+  const label = data.type === "warranty" ? "ГАРАНТИЯ" : "ВОЗВРАТ";
+
+  const rows = [
+    ["Заказ", `#${data.orderId}`],
+    ["Клиент", data.customerName],
+    ["Телефон", data.phone],
+    ["Email", data.email],
+  ]
+    .filter(([, v]) => v)
+    .map(
+      ([k, v]) =>
+        `<p style="margin:4px 0"><b>${k}:</b> ${esc(String(v))}</p>`
+    )
+    .join("");
+
+  const commentHtml = data.comment
+    ? `<p style="margin:4px 0"><b>Комментарий:</b><br>${esc(data.comment).replace(/\n/g, "<br>")}</p>`
+    : "";
+
+  const html = `
+  <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#222">
+    <h2 style="color:#ea580c">Заявка: ${label} по заказу #${data.orderId}</h2>
+    ${rows}
+    ${commentHtml}
+    <p style="margin-top:16px;color:#888;font-size:12px">Клиент нажал «Возврат / гарантия» на странице заказа. Свяжитесь с ним для решения вопроса.</p>
+  </div>`;
+
+  await transporter.sendMail({
+    from: `"BroCar — ${label.toLowerCase()}" <${from}>`,
+    to,
+    subject: `Заявка на ${label} по заказу #${data.orderId}`,
+    html,
+  });
+}
+
 export interface PartRequestEmailData {
   name: string;
   phone: string;

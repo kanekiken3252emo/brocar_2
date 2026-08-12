@@ -302,7 +302,7 @@ export default function DeliveryPage() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-                  <a href="tel:+79326006015">
+                  <a href="tel:+73433822062">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Phone className="h-4 w-4" />
                       Позвонить

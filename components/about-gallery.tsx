@@ -11,16 +11,6 @@ const GALLERY = [
     caption: "Зона консультации — профессиональный подбор запчастей",
   },
   {
-    src: "/bro-car-shop-photo-outside.webp",
-    alt: "Фасад магазина BroCar",
-    caption: "Фасад магазина",
-  },
-  {
-    src: "/bro-car-office.webp",
-    alt: "Офис BroCar",
-    caption: "Рабочее место",
-  },
-  {
     src: "/bro-car-stuff.webp",
     alt: "Полки с запчастями Brembo",
     caption: "Тормозные системы Brembo",

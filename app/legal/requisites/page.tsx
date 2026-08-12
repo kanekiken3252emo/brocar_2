@@ -94,18 +94,18 @@ export default function RequisitesPage() {
               <h2 className="text-lg font-semibold text-white mb-4">Контакты</h2>
               <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:gap-8">
                 <a
-                  href="tel:+79326006015"
-                  className="inline-flex items-center gap-2 text-neutral-200 hover:text-orange-400 transition-colors"
-                >
-                  <Phone className="h-4 w-4 text-orange-500 shrink-0" />
-                  +7 932 600 60 15
-                </a>
-                <a
                   href="tel:+73433822062"
                   className="inline-flex items-center gap-2 text-neutral-200 hover:text-orange-400 transition-colors"
                 >
                   <Phone className="h-4 w-4 text-orange-500 shrink-0" />
                   8 343 382 20 62
+                </a>
+                <a
+                  href="tel:+79326006015"
+                  className="inline-flex items-center gap-2 text-neutral-200 hover:text-orange-400 transition-colors"
+                >
+                  <Phone className="h-4 w-4 text-orange-500 shrink-0" />
+                  +7 932 600 60 15
                 </a>
                 <a
                   href="mailto:info@brocarparts.ru"

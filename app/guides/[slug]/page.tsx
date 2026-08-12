@@ -237,7 +237,7 @@ export default async function GuidePage({
             <p className="text-neutral-300 text-sm text-center sm:text-left">
               Остались вопросы? Поможем подобрать по марке, модели или VIN.
             </p>
-            <a href="tel:+79326006015" className="shrink-0">
+            <a href="tel:+73433822062" className="shrink-0">
               <Button variant="outline" className="gap-2">
                 <Phone className="h-4 w-4" />
                 Позвонить

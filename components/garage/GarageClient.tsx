@@ -18,6 +18,7 @@ import {
   Wrench,
   Package,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 
 export interface GarageVehicle {
@@ -100,6 +101,58 @@ export default function GarageClient({
     vin: "",
     mileage: "",
   });
+
+  // Автозаполнение марки/модели/года по VIN из каталога Laximo.
+  const [vinLoading, setVinLoading] = useState(false);
+  const [vinMsg, setVinMsg] = useState<{ ok: boolean; text: string } | null>(
+    null
+  );
+
+  async function lookupVin() {
+    const vin = form.vin.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    if (vin.length !== 17) {
+      setVinMsg({ ok: false, text: "VIN должен состоять из 17 символов" });
+      return;
+    }
+    setVinLoading(true);
+    setVinMsg(null);
+    try {
+      const res = await fetch(
+        `/api/goodvin/car-info?q=${encodeURIComponent(vin)}`
+      );
+      const data = await res.json();
+      if (!res.ok || !data.cars?.length) {
+        throw new Error(data?.error || "По этому VIN автомобиль не найден");
+      }
+      const c = data.cars[0];
+      // Год: сперва параметр «Выпущено» (manufactured), иначе — из даты выпуска.
+      const params: Array<{ key: string; value: string }> = c.parameters || [];
+      const man = params.find((p) => p.key === "manufactured")?.value;
+      const date = params.find((p) => p.key === "date")?.value;
+      const year =
+        (man && man.match(/\d{4}/)?.[0]) ||
+        (date && date.match(/\d{4}/)?.[0]) ||
+        "";
+      setForm((f) => ({
+        ...f,
+        vin,
+        brand: c.brand || f.brand,
+        model: c.modelName || f.model,
+        year: year || f.year,
+      }));
+      setVinMsg({
+        ok: true,
+        text: `Нашли: ${[c.brand, c.modelName].filter(Boolean).join(" ")}`,
+      });
+    } catch (e) {
+      setVinMsg({
+        ok: false,
+        text: e instanceof Error ? e.message : "Не удалось определить авто",
+      });
+    } finally {
+      setVinLoading(false);
+    }
+  }
 
   async function addVehicle(e: React.FormEvent) {
     e.preventDefault();
@@ -210,11 +263,25 @@ export default function GarageClient({
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
                       <Label htmlFor="vin">VIN / номер кузова</Label>
-                      <Input id="vin" placeholder="XTA210990Y2741911" value={form.vin}
-                        onChange={(e) => setForm({ ...form, vin: e.target.value })} />
-                      <p className="text-xs text-neutral-500">
-                        По VIN сможете искать запчасти в один клик.
-                      </p>
+                      <div className="flex gap-2">
+                        <Input id="vin" placeholder="XTA210990Y2741911" value={form.vin}
+                          className="flex-1 font-mono uppercase"
+                          onChange={(e) => { setForm({ ...form, vin: e.target.value.toUpperCase() }); setVinMsg(null); }} />
+                        <Button type="button" variant="outline" onClick={lookupVin}
+                          disabled={vinLoading} className="gap-2 shrink-0">
+                          {vinLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          Подтянуть
+                        </Button>
+                      </div>
+                      {vinMsg ? (
+                        <p className={`text-xs ${vinMsg.ok ? "text-green-400" : "text-amber-400"}`}>
+                          {vinMsg.text}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-neutral-500">
+                          Введите VIN и нажмите «Подтянуть» — марка, модель и год заполнятся автоматически.
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
                       <Label htmlFor="nickname">Название (по желанию)</Label>

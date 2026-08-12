@@ -374,6 +374,54 @@ async function searchParts(
   );
 }
 
+// ── Кроссы/аналоги по OEM (Laximo.DOC / Aftermarket) ────────────────────────
+export type LaximoCross = { brand: string; number: string; name: string };
+
+/** Аналоги-заменители по оригинальному номеру (FindOEM в сервисе DOC/am).
+ *  Возвращает список деталей других брендов, подходящих вместо оригинала.
+ *  Кэш 24ч (тарификация, как у CAT). */
+export async function findCrosses(
+  oem: string,
+  brand?: string
+): Promise<LaximoCross[]> {
+  const clean = oem.trim();
+  if (!clean) return [];
+  const b = (brand ?? "").trim();
+  return laximoCached(
+    `crosses:${clean.toUpperCase()}:${b.toUpperCase()}`,
+    async () => {
+      try {
+        const resp = await laximoQuery(
+          "am",
+          `FindOEM:Locale=${LOCALE}|OEM=${clean}${b ? `|Brand=${b}` : ""}|Options=crosses`
+        );
+        const details = asArray(
+          (resp as { FindOEM?: { detail?: unknown } }).FindOEM?.detail
+        ) as Rec[];
+        const out: LaximoCross[] = [];
+        const seen = new Set<string>();
+        for (const d of details) {
+          const reps = asArray((d.replacements as Rec | undefined)?.replacement) as Rec[];
+          for (const rep of reps) {
+            const rd = (rep.detail ?? rep) as Rec;
+            const number = String(rd.formattedoem ?? rd.oem ?? "").trim();
+            const mfr = String(rd.manufacturer ?? "").trim();
+            if (!number) continue;
+            const key = `${mfr}|${number}`.toUpperCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({ brand: mfr, number, name: String(rd.name ?? "").trim() });
+          }
+        }
+        return out;
+      } catch (e) {
+        if (isNotPermitted(e)) return [];
+        throw e;
+      }
+    }
+  );
+}
+
 /** По форме совпадает с объектом `goodvin` — роуты подключают вместо него. */
 export const laximo = {
   carInfo: (q: string, _catalogs?: string) => carInfo(q),

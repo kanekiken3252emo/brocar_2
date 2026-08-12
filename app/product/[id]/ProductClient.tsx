@@ -58,6 +58,7 @@ import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { seedProductImageCache } from "@/lib/hooks/useProductImage";
+import { LaximoCrosses } from "@/components/product/LaximoCrosses";
 
 /** Статичный «шелл» карточки, отрендеренный на сервере (RSC) — попадает в первый HTML. */
 export interface ProductShell {
@@ -925,6 +926,12 @@ export default function ProductClient({
             </div>
           </div>
         )}
+
+        {/* Аналоги/кроссы из базы Laximo (по OEM-номеру) */}
+        <LaximoCrosses
+          article={productId}
+          brand={product?.brand?.name || brand}
+        />
       </div>
     </div>
   );

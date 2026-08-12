@@ -4,22 +4,27 @@ import { goodvinErrorResponse } from "@/lib/goodvinRoute";
 import { CACHE_VIN_INFO } from "@/lib/http-cache";
 
 /**
- * Поиск авто по VIN или FRAME.
- * GET /api/goodvin/car-info?q=<vin>&catalogs=<id,id>
+ * Поиск авто по VIN или ГОС НОМЕРУ.
+ * GET /api/goodvin/car-info?q=<vin>  — по VIN
+ * GET /api/goodvin/car-info?plate=<гос номер>  — по гос номеру
  */
 export async function GET(request: NextRequest) {
-  const q = request.nextUrl.searchParams.get("q")?.trim();
-  const catalogs = request.nextUrl.searchParams.get("catalogs") || undefined;
+  const sp = request.nextUrl.searchParams;
+  const q = sp.get("q")?.trim();
+  const plate = sp.get("plate")?.trim();
+  const catalogs = sp.get("catalogs") || undefined;
 
-  if (!q) {
+  if (!q && !plate) {
     return NextResponse.json(
-      { error: "Укажите VIN или Frame в параметре q" },
+      { error: "Укажите VIN (q) или гос номер (plate)" },
       { status: 400 }
     );
   }
 
   try {
-    const cars = await goodvin.carInfo(q, catalogs);
+    const cars = plate
+      ? await goodvin.carInfoByPlate(plate)
+      : await goodvin.carInfo(q!, catalogs);
     return NextResponse.json(
       { cars: Array.isArray(cars) ? cars : [] },
       { headers: { "Cache-Control": CACHE_VIN_INFO } }

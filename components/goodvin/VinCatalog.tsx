@@ -171,7 +171,16 @@ function TreeNode({
   );
 }
 
-export function VinCatalog({ initialVin }: { initialVin?: string }) {
+const PLATE_RE =
+  /^[АВЕКМНОРСТУХABEKMHOPCTYX]\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}\d{2,3}$/i;
+
+export function VinCatalog({
+  initialVin,
+  initialPlate,
+}: {
+  initialVin?: string;
+  initialPlate?: string;
+}) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState<null | "cars" | "tree" | "parts">(
     null
@@ -326,10 +335,52 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     [loadTree]
   );
 
+  // Поиск авто по ГОС НОМЕРУ (Laximo FindVehicleByPlateNumber).
+  const runPlateSearch = useCallback(
+    async (plate: string) => {
+      const value = plate.trim();
+      if (!value) return;
+      try {
+        sessionStorage.removeItem(NAV_STORAGE_KEY);
+      } catch {}
+      setLoading("cars");
+      setError("");
+      setCar(null);
+      setCars([]);
+      setParts(null);
+      setSelectedId(null);
+      setTree([]);
+      try {
+        const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
+          `/api/goodvin/car-info?plate=${encodeURIComponent(value)}`
+        );
+        if (!data.cars.length) {
+          setError(
+            "По этому гос номеру автомобиль не найден. Проверьте номер или введите VIN."
+          );
+          return;
+        }
+        if (data.cars.length === 1) selectCar(data.cars[0]);
+        else setCars(data.cars);
+      } catch (e) {
+        setError(friendlyVinError((e as Error).message));
+      } finally {
+        setLoading(null);
+      }
+    },
+    [selectCar]
+  );
+
   const runSearch = useCallback(
     async (q: string) => {
       const value = q.trim();
       if (!value) return;
+      // Гос номер → отдельный поиск по номеру.
+      const compact = value.replace(/\s+/g, "");
+      if (PLATE_RE.test(compact)) {
+        void runPlateSearch(compact);
+        return;
+      }
       // VIN — ровно 17 символов. Проверяем сами, чтобы клиент видел понятную
       // подсказку, а не техническую ошибку Laximo (E_INVALIDPARAMETER:VIN).
       const vin = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
@@ -371,7 +422,7 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
         setLoading(null);
       }
     },
-    [selectCar]
+    [selectCar, runPlateSearch]
   );
 
   // Восстановление позиции (возврат «Назад» из карточки цен) либо заход по initialVin.
@@ -398,6 +449,9 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     if (!restored && initialVin) {
       setQuery(initialVin);
       void runSearch(initialVin);
+    } else if (!restored && initialPlate) {
+      setQuery(initialPlate);
+      void runPlateSearch(initialPlate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -447,7 +501,7 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value.toUpperCase())}
-            placeholder="Введите 17-значный VIN — например, WAUZZZ4M6JD010702"
+            placeholder="VIN или гос номер — например, WAUZZZ4M6JD010702 или Т500СО66"
             className="pl-10 font-mono tracking-wide uppercase"
             autoComplete="off"
             spellCheck={false}

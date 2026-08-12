@@ -46,6 +46,47 @@ function isNotPermitted(e: unknown): boolean {
   return /not permitted|e_accessdenied/i.test(m);
 }
 
+// Латинские двойники → кириллица: гос номера в Laximo кириллические, а вводят
+// их часто латиницей (T500CO66 → Т500СО66).
+const PLATE_LAT2CYR: Record<string, string> = {
+  A: "А", B: "В", E: "Е", K: "К", M: "М", H: "Н",
+  O: "О", P: "Р", C: "С", T: "Т", Y: "У", X: "Х",
+};
+function normalizePlate(p: string): string {
+  return p
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[A-Z]/g, (c) => PLATE_LAT2CYR[c] ?? c);
+}
+
+/** Строка авто из ответа Laximo → GoodvinCarInfo (общая для VIN и гос номера). */
+function mapVehicleRow(r: Rec, vin: string): GoodvinCarInfo {
+  const attrs = asArray(r.attribute) as Attr[];
+  return {
+    title: [r.brand, r.name].filter(Boolean).join(" "),
+    catalogId: String(r.catalog ?? ""),
+    brand: String(r.brand ?? ""),
+    modelId: String(r.catalog ?? ""),
+    carId: String(r.vehicleid ?? ""),
+    criteria: String(r.ssd ?? ""),
+    vin: vin || String(r.vin ?? ""),
+    frame: "",
+    modelName: String(r.name ?? ""),
+    description: attrs
+      .map((a) => `${a.name}: ${a.value}`)
+      .filter((s) => s !== "undefined: undefined")
+      .join("; "),
+    groupsTreeAvailable: true,
+    parameters: attrs.map((a, i) => ({
+      idx: String(i),
+      key: a.key ?? "",
+      name: a.name ?? "",
+      value: a.value ?? "",
+      sortOrder: i,
+    })),
+  } satisfies GoodvinCarInfo;
+}
+
 // ── Поиск авто по VIN ───────────────────────────────────────────────────────
 async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
   return laximoCached(`vin:${normVin(vin)}`, async () => {
@@ -56,33 +97,25 @@ async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
     const rows = asArray(
       (resp as { FindVehicleByVIN?: { row?: unknown } }).FindVehicleByVIN?.row
     ) as Rec[];
+    return rows.map((r) => mapVehicleRow(r, vin));
+  });
+}
 
-    return rows.map((r) => {
-      const attrs = asArray(r.attribute) as Attr[];
-      return {
-        title: [r.brand, r.name].filter(Boolean).join(" "),
-        catalogId: String(r.catalog ?? ""),
-        brand: String(r.brand ?? ""),
-        modelId: String(r.catalog ?? ""),
-        carId: String(r.vehicleid ?? ""),
-        criteria: String(r.ssd ?? ""),
-        vin,
-        frame: "",
-        modelName: String(r.name ?? ""),
-        description: attrs
-          .map((a) => `${a.name}: ${a.value}`)
-          .filter((s) => s !== "undefined: undefined")
-          .join("; "),
-        groupsTreeAvailable: true,
-        parameters: attrs.map((a, i) => ({
-          idx: String(i),
-          key: a.key ?? "",
-          name: a.name ?? "",
-          value: a.value ?? "",
-          sortOrder: i,
-        })),
-      } satisfies GoodvinCarInfo;
-    });
+/** Поиск авто по ГОС НОМЕРУ (FindVehicleByPlateNumber). Форма ответа как у
+ *  carInfo — каталог строится по catalog+vehicleid+ssd, VIN не нужен. */
+async function carInfoByPlate(plate: string): Promise<GoodvinCarInfo[]> {
+  const p = normalizePlate(plate);
+  if (!p) return [];
+  return laximoCached(`plate:${p}`, async () => {
+    const resp = await laximoQuery(
+      "oem",
+      `FindVehicleByPlateNumber:Locale=${LOCALE}|PlateNumber=${p}|CountryCode=ru|Localized=true`
+    );
+    const rows = asArray(
+      (resp as { FindVehicleByPlateNumber?: { row?: unknown } })
+        .FindVehicleByPlateNumber?.row
+    ) as Rec[];
+    return rows.map((r) => mapVehicleRow(r, String(r.vin ?? "")));
   });
 }
 
@@ -430,6 +463,7 @@ export async function findCrosses(
 /** По форме совпадает с объектом `goodvin` — роуты подключают вместо него. */
 export const laximo = {
   carInfo: (q: string, _catalogs?: string) => carInfo(q),
+  carInfoByPlate,
   getTree,
   getParts,
   searchParts,

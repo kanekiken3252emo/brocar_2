@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { goodvin } from "@/lib/goodvinServer";
+import { laximo as goodvin } from "@/lib/laximo/catalog";
 import { goodvinErrorResponse } from "@/lib/goodvinRoute";
 import { CACHE_VIN_INFO } from "@/lib/http-cache";
 

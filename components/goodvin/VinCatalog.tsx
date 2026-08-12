@@ -55,6 +55,15 @@ async function fetchJson<T>(url: string): Promise<T> {
   return data as T;
 }
 
+/** Переводит технические ошибки Laximo в понятные покупателю сообщения. */
+function friendlyVinError(msg: string): string {
+  if (/E_INVALIDPARAMETER:VIN|invalid.*vin/i.test(msg))
+    return "Неверный VIN. Проверьте, что вы ввели все 17 символов номера без ошибок.";
+  if (/E_ACCESSDENIED|not permitted/i.test(msg))
+    return "Каталог для этого автомобиля временно недоступен. Напишите нам — подберём вручную.";
+  return "Не удалось найти автомобиль по этому номеру. Проверьте VIN и попробуйте снова.";
+}
+
 function Spinner({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center gap-3 py-16 text-neutral-400">
@@ -321,6 +330,19 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     async (q: string) => {
       const value = q.trim();
       if (!value) return;
+      // VIN — ровно 17 символов. Проверяем сами, чтобы клиент видел понятную
+      // подсказку, а не техническую ошибку Laximo (E_INVALIDPARAMETER:VIN).
+      const vin = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+      if (vin.length !== 17) {
+        setCar(null);
+        setCars([]);
+        setTree([]);
+        setParts(null);
+        setError(
+          `VIN состоит из 17 символов (у вас ${vin.length}). Введите номер полностью, без пробелов.`
+        );
+        return;
+      }
       try {
         sessionStorage.removeItem(NAV_STORAGE_KEY);
       } catch {}
@@ -333,18 +355,18 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
       setTree([]);
       try {
         const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
-          `/api/goodvin/car-info?q=${encodeURIComponent(value)}`
+          `/api/goodvin/car-info?q=${encodeURIComponent(vin)}`
         );
         if (!data.cars.length) {
           setError(
-            "По этому VIN/Frame ничего не найдено. Проверьте номер или воспользуйтесь подбором по марке/модели."
+            "По этому VIN автомобиль не найден. Проверьте номер — возможно, опечатка."
           );
           return;
         }
         if (data.cars.length === 1) selectCar(data.cars[0]);
         else setCars(data.cars);
       } catch (e) {
-        setError((e as Error).message);
+        setError(friendlyVinError((e as Error).message));
       } finally {
         setLoading(null);
       }
@@ -425,7 +447,7 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value.toUpperCase())}
-            placeholder="Введите VIN или Frame — например, XW8AN2NE3JH035743"
+            placeholder="Введите 17-значный VIN — например, WAUZZZ4M6JD010702"
             className="pl-10 font-mono tracking-wide uppercase"
             autoComplete="off"
             spellCheck={false}

@@ -3,6 +3,7 @@ import { laximoQuery, asArray, laximoImage } from "./client";
 import type {
   GoodvinCarInfo,
   GoodvinGroup,
+  GoodvinGroupNode,
   GoodvinParts,
   GoodvinPartPosition,
 } from "@/types/goodvin";
@@ -159,6 +160,36 @@ async function getUnitImageMap(
   }
 }
 
+/** ПОЛНОЕ дерево узлов каталога (для постоянного дерева слева, как у Армтека).
+ *  Laximo отдаёт всё дерево одним ListQuickGroup — раскрываем на клиенте без
+ *  дополнительных запросов. Внешнюю обёртку («Легковые автомобили») пропускаем. */
+async function getTree(
+  catalogId: string,
+  opts: { carId: string; criteria?: string }
+): Promise<GoodvinGroupNode[]> {
+  const resp = await laximoQuery(
+    "oem",
+    `ListQuickGroup:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|ssd=${opts.criteria ?? ""}`
+  );
+  const roots = asArray(
+    (resp as { ListQuickGroups?: { row?: unknown } }).ListQuickGroups?.row
+  ) as Row[];
+
+  const toNode = (r: Row): GoodvinGroupNode => ({
+    id: String(r.quickgroupid ?? ""),
+    name: String(r.name ?? ""),
+    hasParts: String(r.link) === "true",
+    children: asArray(r.row).map(toNode),
+  });
+
+  // Одна внешняя обёртка с детьми → показываем её детей верхним уровнем.
+  const top =
+    roots.length === 1 && asArray(roots[0].row).length
+      ? asArray(roots[0].row)
+      : roots;
+  return top.map(toNode);
+}
+
 /** Детали узла (схемы + OEM-номера + кликабельные выноски). */
 async function getParts(
   catalogId: string,
@@ -213,13 +244,40 @@ async function getParts(
   };
 }
 
+/** Поиск деталей по названию/номеру внутри каталога авто (SearchVehicleDetails).
+ *  Возвращает плоский список {number(OEM), name}. Символы-разделители команды
+ *  (| =) из запроса убираем, чтобы не сломать формат команды Laximo. */
+async function searchParts(
+  catalogId: string,
+  opts: { carId: string; criteria?: string; query: string }
+): Promise<Array<{ number: string; name: string }>> {
+  const q = opts.query.replace(/[|=]/g, " ").trim();
+  if (!q) return [];
+  const resp = await laximoQuery(
+    "oem",
+    `SearchVehicleDetails:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|ssd=${opts.criteria ?? ""}|Query=${q}`
+  );
+  const rows = asArray(
+    (resp as { SearchVehicleDetails?: { row?: unknown } }).SearchVehicleDetails
+      ?.row
+  ) as Array<Record<string, unknown>>;
+  return rows
+    .map((r) => ({
+      number: String(r.oem ?? ""),
+      name: String(r["#text"] ?? "").trim(),
+    }))
+    .filter((x) => x.number);
+}
+
 /** Совпадает по форме с объектом `goodvin` — роуты подключают вместо него.
  *  Второй аргумент carInfo (catalogs) в Laximo не нужен — принимаем для
  *  совместимости сигнатуры и игнорируем. */
 export const laximo = {
   carInfo: (q: string, _catalogs?: string) => carInfo(q),
   getGroups,
+  getTree,
   getParts,
+  searchParts,
 };
 
 export type LaximoCatalog = typeof laximo;

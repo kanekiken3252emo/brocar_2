@@ -47,6 +47,15 @@ export interface GoodvinCarInfo {
   parameters?: GoodvinCarParameter[];
 }
 
+/** Узел ПОЛНОГО дерева каталога (для постоянного дерева слева). Laximo отдаёт
+ *  всё дерево одним вызовом, поэтому строим вложенно и раскрываем на клиенте. */
+export interface GoodvinGroupNode {
+  id: string;
+  name: string;
+  hasParts: boolean;
+  children: GoodvinGroupNode[];
+}
+
 /** Узел дерева групп. GET /catalogs/{id}/groups2 */
 export interface GoodvinGroup {
   id: string;

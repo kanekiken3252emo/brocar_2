@@ -7,72 +7,38 @@ import {
   Loader2,
   AlertCircle,
   ChevronRight,
+  ChevronDown,
   ArrowLeft,
   Car,
-  Layers,
   Package,
-  Home,
   Tag,
-  Cog,
-  Disc3,
-  Zap,
-  Gauge,
-  CircleDot,
-  Droplets,
-  Fuel,
-  Wrench,
-  Snowflake,
-  type LucideIcon,
+  FolderTree,
+  MousePointerClick,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
   GoodvinCarInfo,
-  GoodvinGroup,
+  GoodvinGroupNode,
   GoodvinParts,
 } from "@/types/goodvin";
 
-/**
- * Иконка раздела по названию. У верхних категорий каталога нет картинок в API
- * (img: null) — поэтому подбираем осмысленную иконку по ключевым словам.
- * Картинки-схемы появляются глубже, на уровне самих узлов (hasParts).
- */
-function categoryIcon(name: string): LucideIcon {
-  const n = name.toLowerCase();
-  if (/двигат|мотор/.test(n)) return Cog;
-  if (/тормоз/.test(n)) return Disc3;
-  if (/электр|провод|датчик|освещ|фар|свет|лампа|аккумул/.test(n)) return Zap;
-  if (/подвеск|рулев|амортиз|рычаг|стабил/.test(n)) return Gauge;
-  if (/колес|шина|диск|ступиц/.test(n)) return CircleDot;
-  if (/кпп|трансмис|сцеплен|передач|привод|коробк/.test(n)) return Cog;
-  if (/масл|гсм|жидкост|химия|смазк|антифриз/.test(n)) return Droplets;
-  if (/топлив/.test(n)) return Fuel;
-  if (/обслуж|детали то|фильтр|ремен/.test(n)) return Wrench;
-  if (/климат|отоплен|кондиц|охлажд|вентил/.test(n)) return Snowflake;
-  if (/кузов|салон|интерьер|сидень|двер/.test(n)) return Car;
-  if (/аксессуар|прочие|разное/.test(n)) return Package;
-  return Layers;
-}
-
-/** Протокол-относительные ссылки картинок GoodVin → https. */
+/** Протокол-относительные ссылки картинок → https. */
 function img(src?: string): string | undefined {
   if (!src) return undefined;
   return src.startsWith("//") ? `https:${src}` : src;
 }
 
 /**
- * Ключ в sessionStorage для запоминания позиции в каталоге (авто + путь по узлам
- * + открытая схема). Нужно, чтобы кнопка «Назад» из карточки цен возвращала на ту
- * же схему, а не сбрасывала каталог в корень / на главную: вся навигация здесь
- * живёт в React-состоянии и в историю браузера не попадает.
+ * Ключ в sessionStorage для запоминания позиции в каталоге (авто + выбранный
+ * узел). Нужно, чтобы «Назад» из карточки цен возвращала на ту же схему.
  */
 const NAV_STORAGE_KEY = "vinCatalogNav";
 
 interface SavedNav {
   query: string;
   car: GoodvinCarInfo;
-  path: GoodvinGroup[];
-  partsGroup: GoodvinGroup | null;
+  leaf: { id: string; name: string } | null;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -104,38 +70,172 @@ function ErrorBox({ message }: { message: string }) {
   );
 }
 
+/** Совпадает ли узел или кто-то из потомков с фильтром по названию. */
+function nodeMatches(node: GoodvinGroupNode, q: string): boolean {
+  if (!q) return true;
+  if (node.name.toLowerCase().includes(q)) return true;
+  return node.children.some((c) => nodeMatches(c, q));
+}
+
+/** Один узел дерева (рекурсивно). Ветка раскрывается, лист выбирается. */
+function TreeNode({
+  node,
+  depth,
+  filter,
+  expanded,
+  toggle,
+  selectedId,
+  onSelect,
+}: {
+  node: GoodvinGroupNode;
+  depth: number;
+  filter: string;
+  expanded: Set<string>;
+  toggle: (id: string) => void;
+  selectedId: string | null;
+  onSelect: (node: GoodvinGroupNode) => void;
+}) {
+  const isBranch = node.children.length > 0;
+  const isLeaf = !isBranch && node.hasParts;
+  // При активном фильтре ветки принудительно раскрыты.
+  const open = filter ? true : expanded.has(node.id);
+  const pad = 8 + depth * 14;
+
+  if (isBranch) {
+    const visibleKids = node.children.filter((c) => nodeMatches(c, filter));
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => toggle(node.id)}
+          style={{ paddingLeft: pad }}
+          className="flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm text-neutral-300 hover:bg-neutral-800/60 hover:text-white transition-colors"
+        >
+          {open ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+          )}
+          <span className="line-clamp-2">{node.name}</span>
+        </button>
+        {open && (
+          <div>
+            {visibleKids.map((c) => (
+              <TreeNode
+                key={c.id}
+                node={c}
+                depth={depth + 1}
+                filter={filter}
+                expanded={expanded}
+                toggle={toggle}
+                selectedId={selectedId}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Лист (или пустой узел без деталей — тогда некликабельный).
+  const selected = selectedId === node.id;
+  return (
+    <button
+      type="button"
+      disabled={!isLeaf}
+      onClick={() => isLeaf && onSelect(node)}
+      style={{ paddingLeft: pad + 20 }}
+      className={`flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-sm transition-colors ${
+        selected
+          ? "bg-orange-500/15 text-orange-300 font-medium"
+          : isLeaf
+            ? "text-neutral-300 hover:bg-neutral-800/60 hover:text-white"
+            : "text-neutral-600 cursor-default"
+      }`}
+    >
+      <span className="line-clamp-2">{node.name}</span>
+    </button>
+  );
+}
+
 export function VinCatalog({ initialVin }: { initialVin?: string }) {
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState<
-    null | "cars" | "groups" | "parts"
-  >(null);
+  const [loading, setLoading] = useState<null | "cars" | "tree" | "parts">(
+    null
+  );
   const [error, setError] = useState("");
 
   const [cars, setCars] = useState<GoodvinCarInfo[]>([]);
   const [car, setCar] = useState<GoodvinCarInfo | null>(null);
 
-  const [path, setPath] = useState<GoodvinGroup[]>([]);
-  const [groups, setGroups] = useState<GoodvinGroup[]>([]);
+  const [tree, setTree] = useState<GoodvinGroupNode[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedName, setSelectedName] = useState<string>("");
   const [parts, setParts] = useState<GoodvinParts | null>(null);
-  const [partsGroup, setPartsGroup] = useState<GoodvinGroup | null>(null);
 
-  const loadGroups = useCallback(
-    async (selectedCar: GoodvinCarInfo, groupId: string) => {
-      setLoading("groups");
+  // Поиск детали по названию/номеру внутри каталога авто.
+  const [partQuery, setPartQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{
+    number: string;
+    name: string;
+  }> | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const toggle = useCallback((id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const loadTree = useCallback(async (selectedCar: GoodvinCarInfo) => {
+    setLoading("tree");
+    setError("");
+    try {
+      const data = await fetchJson<{ tree: GoodvinGroupNode[] }>(
+        `/api/goodvin/tree?catalogId=${encodeURIComponent(
+          selectedCar.catalogId
+        )}&carId=${encodeURIComponent(
+          selectedCar.carId
+        )}&criteria=${encodeURIComponent(selectedCar.criteria || "")}`
+      );
+      setTree(data.tree);
+      // Раскрываем первую ветку — чтобы дерево не выглядело пустым.
+      const first = data.tree.find((n) => n.children.length > 0);
+      setExpanded(first ? new Set([first.id]) : new Set());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(null);
+    }
+  }, []);
+
+  const loadParts = useCallback(
+    async (selectedCar: GoodvinCarInfo, leaf: { id: string; name: string }) => {
+      setLoading("parts");
       setError("");
-      setParts(null);
-      setPartsGroup(null);
+      setSearchResults(null); // выбор узла в дереве убирает результаты поиска
+      setSelectedId(leaf.id);
+      setSelectedName(leaf.name);
       try {
-        const data = await fetchJson<{ groups: GoodvinGroup[] }>(
-          `/api/goodvin/groups?catalogId=${encodeURIComponent(
+        const data = await fetchJson<{ parts: GoodvinParts }>(
+          `/api/goodvin/parts?catalogId=${encodeURIComponent(
             selectedCar.catalogId
-          )}&carId=${encodeURIComponent(selectedCar.carId)}&groupId=${encodeURIComponent(
-            groupId
+          )}&carId=${encodeURIComponent(
+            selectedCar.carId
+          )}&groupId=${encodeURIComponent(
+            leaf.id
           )}&criteria=${encodeURIComponent(selectedCar.criteria || "")}`
         );
-        setGroups(data.groups);
+        setParts(data.parts);
       } catch (e) {
         setError((e as Error).message);
+        setParts(null);
       } finally {
         setLoading(null);
       }
@@ -143,44 +243,63 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     []
   );
 
-  const loadParts = useCallback(
-    async (selectedCar: GoodvinCarInfo, group: GoodvinGroup) => {
-      setLoading("parts");
+  const onSelectLeaf = useCallback(
+    (node: GoodvinGroupNode) => {
+      if (car) void loadParts(car, { id: node.id, name: node.name });
+    },
+    [car, loadParts]
+  );
+
+  const doPartSearch = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!car) return;
+      const q = partQuery.trim();
+      if (!q) {
+        setSearchResults(null);
+        return;
+      }
+      setSearching(true);
       setError("");
       try {
-        const data = await fetchJson<{ parts: GoodvinParts }>(
-          `/api/goodvin/parts?catalogId=${encodeURIComponent(
-            selectedCar.catalogId
-          )}&carId=${encodeURIComponent(selectedCar.carId)}&groupId=${encodeURIComponent(
-            group.id
-          )}&criteria=${encodeURIComponent(selectedCar.criteria || "")}`
+        const data = await fetchJson<{
+          results: Array<{ number: string; name: string }>;
+        }>(
+          `/api/goodvin/search?catalogId=${encodeURIComponent(
+            car.catalogId
+          )}&carId=${encodeURIComponent(car.carId)}&criteria=${encodeURIComponent(
+            car.criteria || ""
+          )}&q=${encodeURIComponent(q)}`
         );
-        setParts(data.parts);
-        setPartsGroup(group);
-      } catch (e) {
-        setError((e as Error).message);
+        setSearchResults(data.results);
+        setParts(null);
+        setSelectedId(null);
+      } catch (err) {
+        setError((err as Error).message);
       } finally {
-        setLoading(null);
+        setSearching(false);
       }
     },
-    []
+    [car, partQuery]
   );
 
   const selectCar = useCallback(
     (selectedCar: GoodvinCarInfo) => {
       setCar(selectedCar);
       setCars([]);
-      setPath([]);
-      void loadGroups(selectedCar, "");
+      setParts(null);
+      setSelectedId(null);
+      setSelectedName("");
+      setFilter("");
+      void loadTree(selectedCar);
     },
-    [loadGroups]
+    [loadTree]
   );
 
   const runSearch = useCallback(
     async (q: string) => {
       const value = q.trim();
       if (!value) return;
-      // Новый поиск — старая запомненная позиция больше не актуальна.
       try {
         sessionStorage.removeItem(NAV_STORAGE_KEY);
       } catch {}
@@ -189,8 +308,8 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
       setCar(null);
       setCars([]);
       setParts(null);
-      setPartsGroup(null);
-      setPath([]);
+      setSelectedId(null);
+      setTree([]);
       try {
         const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
           `/api/goodvin/car-info?q=${encodeURIComponent(value)}`
@@ -201,11 +320,8 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
           );
           return;
         }
-        if (data.cars.length === 1) {
-          selectCar(data.cars[0]);
-        } else {
-          setCars(data.cars);
-        }
+        if (data.cars.length === 1) selectCar(data.cars[0]);
+        else setCars(data.cars);
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -215,15 +331,13 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     [selectCar]
   );
 
-  // Монтирование: сперва пробуем восстановить позицию (возврат «Назад» из карточки
-  // цен), и только если восстанавливать нечего — запускаем поиск по initialVin.
+  // Восстановление позиции (возврат «Назад» из карточки цен) либо заход по initialVin.
   useEffect(() => {
     let restored = false;
     try {
       const raw = sessionStorage.getItem(NAV_STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as SavedNav;
-        // Не подменяем явный заход по другому VIN запомненной схемой.
         const sameContext =
           !initialVin ||
           (saved.car?.vin || saved.query || "").toUpperCase() ===
@@ -232,19 +346,11 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
           restored = true;
           setQuery(saved.query || "");
           setCar(saved.car);
-          setPath(saved.path || []);
-          if (saved.partsGroup) {
-            void loadParts(saved.car, saved.partsGroup);
-          } else {
-            const groupId = saved.path?.length
-              ? saved.path[saved.path.length - 1].id
-              : "";
-            void loadGroups(saved.car, groupId);
-          }
+          void loadTree(saved.car);
+          if (saved.leaf) void loadParts(saved.car, saved.leaf);
         }
       }
     } catch {}
-
     if (!restored && initialVin) {
       setQuery(initialVin);
       void runSearch(initialVin);
@@ -252,34 +358,18 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Запоминаем текущую позицию в каталоге, пока выбрано авто. Чистка — в
-  // resetSearch / runSearch (там контекст меняется осознанно).
+  // Запоминаем позицию, пока выбрано авто.
   useEffect(() => {
     if (!car) return;
     try {
-      const snapshot: SavedNav = { query, car, path, partsGroup };
+      const snapshot: SavedNav = {
+        query,
+        car,
+        leaf: selectedId ? { id: selectedId, name: selectedName } : null,
+      };
       sessionStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(snapshot));
     } catch {}
-  }, [car, path, partsGroup, query]);
-
-  function openGroup(g: GoodvinGroup) {
-    if (!car) return;
-    if (g.hasParts) {
-      void loadParts(car, g);
-    } else {
-      setPath((p) => [...p, g]);
-      void loadGroups(car, g.id);
-    }
-  }
-
-  function goToCrumb(index: number) {
-    if (!car) return;
-    // index = -1 → корень каталога
-    const newPath = index < 0 ? [] : path.slice(0, index + 1);
-    setPath(newPath);
-    const groupId = index < 0 ? "" : newPath[newPath.length - 1].id;
-    void loadGroups(car, groupId);
-  }
+  }, [car, selectedId, selectedName, query]);
 
   function resetSearch() {
     try {
@@ -287,16 +377,17 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
     } catch {}
     setCar(null);
     setCars([]);
-    setGroups([]);
+    setTree([]);
     setParts(null);
-    setPartsGroup(null);
-    setPath([]);
+    setSelectedId(null);
     setError("");
   }
 
+  const visibleTop = tree.filter((n) => nodeMatches(n, filter));
+
   return (
     <div className="space-y-6">
-      {/* Поисковая строка */}
+      {/* Поиск авто по VIN */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -331,7 +422,6 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
       </form>
 
       {error && <ErrorBox message={error} />}
-
       {loading === "cars" && <Spinner label="Ищем автомобиль по номеру…" />}
 
       {/* Выбор авто (несколько совпадений) */}
@@ -383,9 +473,9 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
         </div>
       )}
 
-      {/* Выбранное авто + навигация по узлам */}
+      {/* Выбранное авто + дерево слева, детали справа */}
       {car && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500">
@@ -400,111 +490,184 @@ export function VinCatalog({ initialVin }: { initialVin?: string }) {
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={resetSearch} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetSearch}
+              className="gap-2"
+            >
               <ArrowLeft className="h-4 w-4" />
               Другой VIN
             </Button>
           </div>
 
-          {/* Хлебные крошки по узлам */}
-          <div className="flex flex-wrap items-center gap-1.5 text-sm">
-            <button
-              onClick={() => goToCrumb(-1)}
-              className="inline-flex items-center gap-1 text-neutral-400 hover:text-orange-500 transition-colors"
-            >
-              <Home className="h-3.5 w-3.5" />
-              Узлы
-            </button>
-            {path.map((g, i) => (
-              <span key={g.id} className="inline-flex items-center gap-1.5">
-                <ChevronRight className="h-3.5 w-3.5 text-neutral-600" />
-                <button
-                  onClick={() => goToCrumb(i)}
-                  className={
-                    i === path.length - 1 && !parts
-                      ? "text-neutral-200"
-                      : "text-neutral-400 hover:text-orange-500 transition-colors"
-                  }
+          {/* Поиск детали по названию или OEM-номеру внутри этого авто */}
+          {!!tree.length && (
+            <form onSubmit={doPartSearch} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+                <Input
+                  value={partQuery}
+                  onChange={(e) => setPartQuery(e.target.value)}
+                  placeholder="Поиск детали по названию или OEM-номеру…"
+                  className="pl-10"
+                  autoComplete="off"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="gap-2 shrink-0"
+                disabled={searching || !partQuery.trim()}
+              >
+                {searching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                Найти
+              </Button>
+              {searchResults !== null && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => {
+                    setSearchResults(null);
+                    setPartQuery("");
+                  }}
                 >
-                  {g.name}
-                </button>
-              </span>
-            ))}
-            {parts && partsGroup && (
-              <span className="inline-flex items-center gap-1.5">
-                <ChevronRight className="h-3.5 w-3.5 text-neutral-600" />
-                <span className="text-neutral-200">{partsGroup.name}</span>
-              </span>
-            )}
-          </div>
-
-          {(loading === "groups" || loading === "parts") && (
-            <Spinner
-              label={
-                loading === "parts" ? "Загружаем детали узла…" : "Загружаем узлы…"
-              }
-            />
+                  Сбросить
+                </Button>
+              )}
+            </form>
           )}
 
-          {/* Сетка узлов */}
-          {!loading && !parts && groups.length > 0 && (
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {groups.map((g) => {
-                const CatIcon = categoryIcon(g.name);
-                return (
-                <button
-                  key={g.id}
-                  onClick={() => openGroup(g)}
-                  className="group flex flex-col overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 text-left transition-colors hover:border-orange-500/50"
-                >
-                  <div
-                    className={`flex aspect-[4/3] items-center justify-center p-2 ${
-                      img(g.img)
-                        ? "bg-white"
-                        : "bg-gradient-to-br from-neutral-800/80 to-neutral-900"
-                    }`}
-                  >
-                    {img(g.img) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={img(g.img)}
-                        alt={g.name}
-                        className="h-full w-full object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <CatIcon
-                        className="h-10 w-10 text-orange-500/60 transition-colors group-hover:text-orange-500"
-                        strokeWidth={1.5}
-                      />
-                    )}
+          {loading === "tree" && <Spinner label="Загружаем каталог…" />}
+
+          {!!tree.length && (
+            <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+              {/* Дерево узлов слева */}
+              <aside className="rounded-xl border border-neutral-800 bg-neutral-900 lg:sticky lg:top-4 self-start">
+                <div className="border-b border-neutral-800 p-2.5">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
+                    <input
+                      value={filter}
+                      onChange={(e) =>
+                        setFilter(e.target.value.toLowerCase())
+                      }
+                      placeholder="Название узла…"
+                      className="w-full rounded-lg bg-neutral-950 border border-neutral-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-neutral-600 focus:border-orange-500/50 focus:outline-none"
+                    />
                   </div>
-                  <div className="flex items-center gap-2 p-3">
-                    {g.hasParts ? (
-                      <Package className="h-4 w-4 shrink-0 text-orange-500" />
-                    ) : (
-                      <Layers className="h-4 w-4 shrink-0 text-neutral-500" />
-                    )}
-                    <span className="text-xs font-medium text-neutral-200 line-clamp-2 group-hover:text-white">
-                      {g.name}
-                    </span>
+                </div>
+                <div className="max-h-[70vh] overflow-y-auto p-1.5">
+                  {visibleTop.length ? (
+                    visibleTop.map((n) => (
+                      <TreeNode
+                        key={n.id}
+                        node={n}
+                        depth={0}
+                        filter={filter}
+                        expanded={expanded}
+                        toggle={toggle}
+                        selectedId={selectedId}
+                        onSelect={onSelectLeaf}
+                      />
+                    ))
+                  ) : (
+                    <p className="p-3 text-sm text-neutral-500">
+                      Ничего не найдено
+                    </p>
+                  )}
+                </div>
+              </aside>
+
+              {/* Панель деталей справа */}
+              <div className="min-w-0">
+                {loading === "parts" || searching ? (
+                  <Spinner
+                    label={searching ? "Ищем деталь…" : "Загружаем детали узла…"}
+                  />
+                ) : searchResults !== null ? (
+                  <SearchResultsView
+                    results={searchResults}
+                    query={partQuery}
+                    backVin={car.vin || car.frame || query}
+                  />
+                ) : parts ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-neutral-300">
+                      <FolderTree className="h-4 w-4 text-orange-500" />
+                      <span className="font-semibold text-white">
+                        {selectedName}
+                      </span>
+                    </div>
+                    <PartsView
+                      parts={parts}
+                      backVin={car.vin || car.frame || query}
+                    />
                   </div>
-                </button>
-                );
-              })}
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-neutral-800 py-20 text-center text-neutral-500">
+                    <MousePointerClick className="h-8 w-8 text-neutral-700" />
+                    <p className="text-sm">
+                      Выберите узел в дереве слева —
+                      <br />
+                      покажем схему и детали с оригинальными номерами
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-          {!loading && !parts && groups.length === 0 && !error && (
-            <p className="py-10 text-center text-sm text-neutral-500">
-              В этом узле нет вложенных групп.
-            </p>
-          )}
-
-          {/* Детали узла */}
-          {!loading && parts && (
-            <PartsView parts={parts} backVin={car.vin || car.frame || query} />
-          )}
+/** Результаты поиска детали по названию/номеру — плоский список с ценами. */
+function SearchResultsView({
+  results,
+  query,
+  backVin,
+}: {
+  results: Array<{ number: string; name: string }>;
+  query: string;
+  backVin?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-neutral-400">
+        {results.length
+          ? `Найдено по запросу «${query}»: ${results.length}`
+          : `По запросу «${query}» ничего не найдено`}
+      </p>
+      {results.length > 0 && (
+        <div className="divide-y divide-neutral-800 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
+          {results.map((r, i) => (
+            <div
+              key={`${r.number}-${i}`}
+              className="flex items-center gap-3 p-3 hover:bg-neutral-800/40"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-neutral-100">{r.name}</p>
+                <p className="font-mono text-xs text-neutral-400">{r.number}</p>
+              </div>
+              <Link
+                href={`/catalog?article=${encodeURIComponent(r.number)}${
+                  backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
+                }`}
+                className="shrink-0"
+              >
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Tag className="h-3.5 w-3.5" />
+                  Цены
+                </Button>
+              </Link>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -516,12 +679,9 @@ function PartsView({
   backVin,
 }: {
   parts: GoodvinParts;
-  /** VIN/Frame текущего авто — чтобы из карточки цен можно было вернуться на
-   *  эту же схему (см. ссылку «Цены» ниже и /catalog → «Назад в каталог по VIN»). */
+  /** VIN/Frame текущего авто — чтобы из карточки цен вернуться на эту же схему. */
   backVin?: string;
 }) {
-  // Активная позиция (номер выноски). Подсвечивает зону на схеме и деталь(и)
-  // в списке. Меняется кликом по схеме или по строке детали.
   const [active, setActive] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -539,11 +699,7 @@ function PartsView({
     setActive((prev) => (prev === num ? null : num));
   }, []);
 
-  // Сколько деталей делят одну выноску. GoodVin может вернуть на одной позиции
-  // несколько артикулов (замена по году выпуска, зависимость от комплектации
-  // или их физически несколько) — при клике подсвечиваются все, поэтому помечаем
-  // их «вариант N из M», чтобы повтор не выглядел багом. Считаем по всем группам
-  // деталей: подсветка active === positionNumber тоже сквозная.
+  // Сколько деталей делят одну выноску (замена по году/комплектации).
   const posCounts = new Map<string, number>();
   for (const pg of parts.partGroups) {
     for (const p of pg.parts) {
@@ -587,9 +743,6 @@ function PartsView({
               positions.map((pos) => {
                 const c = pos.coordinates;
                 if (!c || c.length < 4) return null;
-                // coordinates = [x, y, width, height] в пикселях оригинала —
-                // маленький бокс на месте номера-выноски. Расширяем зону клика
-                // на PAD px вокруг, чтобы по мелкому номеру было легко попасть.
                 const PAD = 7;
                 const x = Math.max(0, c[0] - PAD);
                 const y = Math.max(0, c[1] - PAD);
@@ -600,7 +753,7 @@ function PartsView({
                 const isActive = active === pos.number;
                 return (
                   <button
-                    key={pos.number}
+                    key={`${pos.number}-${left}-${top}`}
                     type="button"
                     onClick={() => selectFromImage(pos.number)}
                     title={`Позиция ${pos.number} — нажмите, чтобы найти деталь в списке`}
@@ -692,9 +845,7 @@ function PartsView({
                         href={`/catalog?article=${encodeURIComponent(
                           part.number
                         )}${
-                          backVin
-                            ? `&fromVin=${encodeURIComponent(backVin)}`
-                            : ""
+                          backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
                         }`}
                         className="shrink-0"
                         onClick={(e) => e.stopPropagation()}

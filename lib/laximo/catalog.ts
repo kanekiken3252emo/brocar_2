@@ -207,40 +207,50 @@ async function getParts(
     asArray(c.Unit)
   ) as Array<Record<string, unknown>>;
 
-  const partGroups = units.map((u) => ({
-    name: String(u.name ?? ""),
-    number: String(u.code ?? ""),
-    positionNumber: "",
-    parts: (asArray(u.Detail) as Array<Record<string, unknown>>).map((d) => ({
-      id: String(d.oem ?? d.codeonimage ?? d.name ?? ""),
-      nameId: "",
-      name: String(d.name ?? ""),
-      number: String(d.oem ?? ""),
-      positionNumber:
-        d.codeonimage != null ? String(d.codeonimage) : undefined,
-    })),
-  }));
+  // Каждый УЗЕЛ (unit) — отдельная группа со СВОЕЙ схемой, выносками и деталями.
+  // У сложных групп узлов несколько (напр. «Фильтр салонный» — 2 схемы): раньше
+  // показывали только первую, а детали листали от всех → «остальное на картинке
+  // не заполнялось». Карту выносок тянем на каждый узел (у узла свой ssd).
+  const partGroups = await Promise.all(
+    units.map(async (u) => {
+      const positions =
+        u.unitid && u.ssd
+          ? await getUnitImageMap(
+              catalogId,
+              opts.carId,
+              String(u.unitid),
+              String(u.ssd)
+            )
+          : [];
+      return {
+        name: String(u.name ?? ""),
+        number: String(u.code ?? ""),
+        positionNumber: "",
+        img: laximoImage(u.imageurl as string | undefined),
+        imgDescription: u.name ? String(u.name) : undefined,
+        positions,
+        parts: (asArray(u.Detail) as Array<Record<string, unknown>>).map(
+          (d) => ({
+            id: String(d.oem ?? d.codeonimage ?? d.name ?? ""),
+            nameId: "",
+            name: String(d.name ?? ""),
+            number: String(d.oem ?? ""),
+            positionNumber:
+              d.codeonimage != null ? String(d.codeonimage) : undefined,
+          })
+        ),
+      };
+    })
+  );
 
-  // Показываем схему первого узла с картинкой и подтягиваем её карту выносок
-  // (клик по номеру на схеме → подсветка детали в списке). У узла — свой ssd.
-  const displayUnit =
-    units.find((u) => u.imageurl && u.unitid && u.ssd) ??
-    units.find((u) => u.imageurl);
-  const positions =
-    displayUnit?.unitid && displayUnit?.ssd
-      ? await getUnitImageMap(
-          catalogId,
-          opts.carId,
-          String(displayUnit.unitid),
-          String(displayUnit.ssd)
-        )
-      : [];
-
+  // Верхнеуровневые img/positions оставляем от первого узла (обратная
+  // совместимость), но UI рисует каждый узел из partGroups.
+  const first = partGroups.find((g) => g.img) ?? partGroups[0];
   return {
-    img: laximoImage(displayUnit?.imageurl as string | undefined),
-    imgDescription: displayUnit?.name ? String(displayUnit.name) : undefined,
+    img: first?.img,
+    imgDescription: first?.imgDescription,
     partGroups,
-    positions,
+    positions: first?.positions ?? [],
   };
 }
 

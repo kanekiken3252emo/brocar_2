@@ -674,194 +674,225 @@ function SearchResultsView({
   );
 }
 
+/** Детали узла: каждый УЗЕЛ (unit) рисуется полностью — своя схема + свои
+ *  выноски + свои детали. У сложных групп узлов их несколько. */
 function PartsView({
   parts,
   backVin,
 }: {
   parts: GoodvinParts;
-  /** VIN/Frame текущего авто — чтобы из карточки цен вернуться на эту же схему. */
   backVin?: string;
+}) {
+  const units = parts.partGroups;
+  if (!units.length) {
+    return (
+      <p className="py-10 text-center text-sm text-neutral-500">
+        В этом узле нет деталей.
+      </p>
+    );
+  }
+  const single = units.length === 1;
+  return (
+    <div className="space-y-4">
+      {units.map((g, i) => (
+        <UnitBlock
+          key={`${g.number}-${i}`}
+          group={g}
+          backVin={backVin}
+          single={single}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Один узел: схема слева с кликабельными выносками, детали справа. */
+function UnitBlock({
+  group,
+  backVin,
+  single,
+}: {
+  group: GoodvinParts["partGroups"][number];
+  backVin?: string;
+  single: boolean;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const positions = parts.positions ?? [];
-  const hasHotspots = Boolean(img(parts.img)) && positions.length > 0;
+  const positions = group.positions ?? [];
+  const hasHotspots = Boolean(img(group.img)) && positions.length > 0;
 
   const selectFromImage = useCallback((num: string) => {
     setActive((prev) => (prev === num ? null : num));
     const el = rowRefs.current[num];
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
-
   const selectFromList = useCallback((num: string) => {
     setActive((prev) => (prev === num ? null : num));
   }, []);
 
-  // Сколько деталей делят одну выноску (замена по году/комплектации).
+  // Варианты (несколько деталей на одной выноске) — в рамках этого узла.
   const posCounts = new Map<string, number>();
-  for (const pg of parts.partGroups) {
-    for (const p of pg.parts) {
-      const k = p.positionNumber || "";
-      if (k) posCounts.set(k, (posCounts.get(k) ?? 0) + 1);
-    }
+  for (const p of group.parts) {
+    const k = p.positionNumber || "";
+    if (k) posCounts.set(k, (posCounts.get(k) ?? 0) + 1);
   }
   const variantSeen = new Map<string, number>();
-  const variantInfo = new Map<string, { index: number; total: number }>();
-  parts.partGroups.forEach((pg, gi) => {
-    pg.parts.forEach((p, pi) => {
-      const k = p.positionNumber || "";
-      const total = k ? posCounts.get(k) ?? 0 : 0;
-      if (total > 1) {
-        const index = (variantSeen.get(k) ?? 0) + 1;
-        variantSeen.set(k, index);
-        variantInfo.set(`${gi}-${pi}`, { index, total });
-      }
-    });
+  const variantInfo = new Map<number, { index: number; total: number }>();
+  group.parts.forEach((p, pi) => {
+    const k = p.positionNumber || "";
+    const total = k ? posCounts.get(k) ?? 0 : 0;
+    if (total > 1) {
+      const index = (variantSeen.get(k) ?? 0) + 1;
+      variantSeen.set(k, index);
+      variantInfo.set(pi, { index, total });
+    }
   });
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Схема с кликабельными выносками */}
-      {img(parts.img) && (
-        <div className="lg:sticky lg:top-4 self-start space-y-2">
-          <div className="relative overflow-hidden rounded-xl border border-neutral-800 bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={img(parts.img)}
-              alt={parts.imgDescription || "Схема узла"}
-              className="block h-auto w-full select-none"
-              onLoad={(e) =>
-                setDims({
-                  w: e.currentTarget.naturalWidth,
-                  h: e.currentTarget.naturalHeight,
-                })
-              }
-            />
-            {dims &&
-              positions.map((pos) => {
-                const c = pos.coordinates;
-                if (!c || c.length < 4) return null;
-                const PAD = 7;
-                const x = Math.max(0, c[0] - PAD);
-                const y = Math.max(0, c[1] - PAD);
-                const left = (x / dims.w) * 100;
-                const top = (y / dims.h) * 100;
-                const width = ((c[2] + PAD * 2) / dims.w) * 100;
-                const height = ((c[3] + PAD * 2) / dims.h) * 100;
-                const isActive = active === pos.number;
-                return (
-                  <button
-                    key={`${pos.number}-${left}-${top}`}
-                    type="button"
-                    onClick={() => selectFromImage(pos.number)}
-                    title={`Позиция ${pos.number} — нажмите, чтобы найти деталь в списке`}
-                    style={{
-                      left: `${left}%`,
-                      top: `${top}%`,
-                      width: `${width}%`,
-                      height: `${height}%`,
-                    }}
-                    className={`absolute cursor-pointer rounded-md border transition-all ${
-                      isActive
-                        ? "border-orange-500 bg-orange-500/40 ring-2 ring-orange-500/30"
-                        : "border-orange-400/70 bg-orange-400/15 hover:border-orange-500 hover:bg-orange-500/30 hover:ring-2 hover:ring-orange-500/25"
-                    }`}
-                  />
-                );
-              })}
-          </div>
-          {hasHotspots && (
-            <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-              <span className="inline-block h-3 w-4 rounded-[3px] border border-orange-400/70 bg-orange-400/15" />
-              Номера на схеме кликабельны — нажмите, чтобы найти деталь в списке
-            </p>
-          )}
-        </div>
+    <div
+      className={
+        single ? "" : "rounded-xl border border-neutral-800 bg-neutral-900/30 p-3 md:p-4"
+      }
+    >
+      {/* Название узла — только когда узлов несколько (иначе оно уже в шапке). */}
+      {!single && group.name && (
+        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+          <FolderTree className="h-4 w-4 shrink-0 text-orange-500" />
+          {group.name}
+        </p>
       )}
-
-      {/* Список деталей */}
-      <div className="space-y-5">
-        {parts.partGroups.map((pg, gi) => (
-          <div key={`${pg.number}-${gi}`} className="space-y-2">
-            {pg.name && (
-              <p className="text-sm font-semibold text-white">{pg.name}</p>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Схема с выносками */}
+        {img(group.img) && (
+          <div className="lg:sticky lg:top-4 self-start space-y-2">
+            <div className="relative overflow-hidden rounded-xl border border-neutral-800 bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={img(group.img)}
+                alt={group.imgDescription || "Схема узла"}
+                className="block h-auto w-full select-none"
+                onLoad={(e) =>
+                  setDims({
+                    w: e.currentTarget.naturalWidth,
+                    h: e.currentTarget.naturalHeight,
+                  })
+                }
+              />
+              {dims &&
+                positions.map((pos) => {
+                  const c = pos.coordinates;
+                  if (!c || c.length < 4) return null;
+                  const PAD = 7;
+                  const x = Math.max(0, c[0] - PAD);
+                  const y = Math.max(0, c[1] - PAD);
+                  const left = (x / dims.w) * 100;
+                  const top = (y / dims.h) * 100;
+                  const width = ((c[2] + PAD * 2) / dims.w) * 100;
+                  const height = ((c[3] + PAD * 2) / dims.h) * 100;
+                  const isActive = active === pos.number;
+                  return (
+                    <button
+                      key={`${pos.number}-${left}-${top}`}
+                      type="button"
+                      onClick={() => selectFromImage(pos.number)}
+                      title={`Позиция ${pos.number} — нажмите, чтобы найти деталь в списке`}
+                      style={{
+                        left: `${left}%`,
+                        top: `${top}%`,
+                        width: `${width}%`,
+                        height: `${height}%`,
+                      }}
+                      className={`absolute cursor-pointer rounded-md border transition-all ${
+                        isActive
+                          ? "border-orange-500 bg-orange-500/40 ring-2 ring-orange-500/30"
+                          : "border-orange-400/70 bg-orange-400/15 hover:border-orange-500 hover:bg-orange-500/30 hover:ring-2 hover:ring-orange-500/25"
+                      }`}
+                    />
+                  );
+                })}
+            </div>
+            {hasHotspots && (
+              <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
+                <span className="inline-block h-3 w-4 rounded-[3px] border border-orange-400/70 bg-orange-400/15" />
+                Номера на схеме кликабельны — нажмите, чтобы найти деталь
+              </p>
             )}
-            <div className="divide-y divide-neutral-800 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
-              {pg.parts.map((part, pi) => {
-                const pos = part.positionNumber || "";
-                const isActive = pos !== "" && active === pos;
-                const variant = variantInfo.get(`${gi}-${pi}`);
-                return (
-                  <div
-                    key={`${part.id}-${pi}`}
-                    ref={(el) => {
-                      if (pos) rowRefs.current[pos] = el;
-                    }}
-                    onClick={() => pos && selectFromList(pos)}
-                    className={`flex items-center gap-3 p-3 transition-colors ${
-                      pos ? "cursor-pointer" : ""
-                    } ${
+          </div>
+        )}
+
+        {/* Список деталей этого узла */}
+        <div className="divide-y divide-neutral-800 self-start overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
+          {group.parts.map((part, pi) => {
+            const pos = part.positionNumber || "";
+            const isActive = pos !== "" && active === pos;
+            const variant = variantInfo.get(pi);
+            return (
+              <div
+                key={`${part.id}-${pi}`}
+                ref={(el) => {
+                  if (pos) rowRefs.current[pos] = el;
+                }}
+                onClick={() => pos && selectFromList(pos)}
+                className={`flex items-center gap-3 p-3 transition-colors ${
+                  pos ? "cursor-pointer" : ""
+                } ${
+                  isActive
+                    ? "bg-orange-500/10 ring-1 ring-inset ring-orange-500/50"
+                    : "hover:bg-neutral-800/40"
+                }`}
+              >
+                {part.positionNumber && (
+                  <span
+                    className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
                       isActive
-                        ? "bg-orange-500/10 ring-1 ring-inset ring-orange-500/50"
-                        : "hover:bg-neutral-800/40"
+                        ? "bg-orange-500 text-white"
+                        : "bg-orange-500/15 text-orange-400"
                     }`}
                   >
-                    {part.positionNumber && (
+                    {part.positionNumber}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-neutral-100">
+                    {part.name}
+                    {variant && (
                       <span
-                        className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
-                          isActive
-                            ? "bg-orange-500 text-white"
-                            : "bg-orange-500/15 text-orange-400"
-                        }`}
+                        title="На этой позиции схемы несколько артикулов — выберите подходящий"
+                        className="ml-2 inline-block whitespace-nowrap rounded bg-orange-500/10 px-1.5 py-0.5 align-middle text-[11px] font-medium text-orange-400/90"
                       >
-                        {part.positionNumber}
+                        вариант {variant.index} из {variant.total}
                       </span>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-neutral-100">
-                        {part.name}
-                        {variant && (
-                          <span
-                            title="На этой позиции схемы несколько артикулов — выберите подходящий"
-                            className="ml-2 inline-block whitespace-nowrap rounded bg-orange-500/10 px-1.5 py-0.5 align-middle text-[11px] font-medium text-orange-400/90"
-                          >
-                            вариант {variant.index} из {variant.total}
-                          </span>
-                        )}
-                      </p>
-                      {part.number && (
-                        <p className="font-mono text-xs text-neutral-400">
-                          {part.number}
-                        </p>
-                      )}
-                      {part.notice && (
-                        <p className="text-xs text-neutral-500">{part.notice}</p>
-                      )}
-                    </div>
-                    {part.number && (
-                      <Link
-                        href={`/catalog?article=${encodeURIComponent(
-                          part.number
-                        )}${
-                          backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
-                        }`}
-                        className="shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button size="sm" variant="outline" className="gap-1.5">
-                          <Tag className="h-3.5 w-3.5" />
-                          Цены
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                  </p>
+                  {part.number && (
+                    <p className="font-mono text-xs text-neutral-400">
+                      {part.number}
+                    </p>
+                  )}
+                  {part.notice && (
+                    <p className="text-xs text-neutral-500">{part.notice}</p>
+                  )}
+                </div>
+                {part.number && (
+                  <Link
+                    href={`/catalog?article=${encodeURIComponent(part.number)}${
+                      backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
+                    }`}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Tag className="h-3.5 w-3.5" />
+                      Цены
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

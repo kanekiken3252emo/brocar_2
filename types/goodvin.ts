@@ -79,12 +79,17 @@ export interface GoodvinPart {
   url?: string;
 }
 
-/** Группа деталей на схеме (по позициям). */
+/** Группа деталей = один УЗЕЛ (unit) со своей схемой, выносками и деталями.
+ *  Узел показывается полностью со своей картинкой (у сложных групп узлов
+ *  несколько — каждый со своей схемой). */
 export interface GoodvinPartGroup {
   name: string;
   number: string;
   positionNumber: string;
   description?: string;
+  img?: string; // схема этого узла
+  imgDescription?: string;
+  positions?: GoodvinPartPosition[]; // кликабельные выноски этого узла
   parts: GoodvinPart[];
 }
 

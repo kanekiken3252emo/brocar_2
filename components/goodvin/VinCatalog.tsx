@@ -25,6 +25,7 @@ import type {
   GoodvinCarInfo,
   GoodvinGroupNode,
   GoodvinPart,
+  GoodvinPartPosition,
   GoodvinParts,
 } from "@/types/goodvin";
 
@@ -107,17 +108,23 @@ function Spinner({ label }: { label: string }) {
 
 /** Полноэкранный просмотр схемы с зумом (клик по схеме / кнопка-лупа).
  *  Работает и на мобилке: кнопки +/−, двойной тап — быстрый зум, прокрутка
- *  увеличенной схемы пальцем/колесом. */
+ *  увеличенной схемы пальцем/колесом. Выноски остаются кликабельными:
+ *  тап по номеру выбирает деталь в списке (onSelectPosition). */
 function ImageLightbox({
   src,
   alt,
   onClose,
+  positions = [],
+  onSelectPosition,
 }: {
   src: string;
   alt: string;
   onClose: () => void;
+  positions?: GoodvinPartPosition[];
+  onSelectPosition?: (num: string) => void;
 }) {
   const [scale, setScale] = useState(1);
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -182,7 +189,7 @@ function ImageLightbox({
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="mx-auto min-h-full rounded-xl bg-white"
+          className="relative mx-auto min-h-full rounded-xl bg-white"
           style={{ width: `${scale * 100}%`, maxWidth: scale === 1 ? 1200 : undefined }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -191,8 +198,39 @@ function ImageLightbox({
             alt={alt}
             className="block h-auto w-full select-none"
             onDoubleClick={() => setScale((s) => (s > 1 ? 1 : 2.5))}
+            onLoad={(e) =>
+              setDims({
+                w: e.currentTarget.naturalWidth,
+                h: e.currentTarget.naturalHeight,
+              })
+            }
             draggable={false}
           />
+          {/* Кликабельные выноски — те же, что на обычной схеме */}
+          {dims &&
+            onSelectPosition &&
+            positions.map((pos) => {
+              const c = pos.coordinates;
+              if (!c || c.length < 4) return null;
+              const PAD = 7;
+              const x = Math.max(0, c[0] - PAD);
+              const y = Math.max(0, c[1] - PAD);
+              return (
+                <button
+                  key={`${pos.number}-${x}-${y}`}
+                  type="button"
+                  onClick={() => onSelectPosition(pos.number)}
+                  title={`Позиция ${pos.number} — показать деталь в списке`}
+                  style={{
+                    left: `${(x / dims.w) * 100}%`,
+                    top: `${(y / dims.h) * 100}%`,
+                    width: `${((c[2] + PAD * 2) / dims.w) * 100}%`,
+                    height: `${((c[3] + PAD * 2) / dims.h) * 100}%`,
+                  }}
+                  className="absolute cursor-pointer rounded-md border border-orange-400/70 bg-orange-400/15 transition-all hover:border-orange-500 hover:bg-orange-500/30 hover:ring-2 hover:ring-orange-500/25"
+                />
+              );
+            })}
         </div>
       </div>
     </div>
@@ -1755,6 +1793,13 @@ function UnitBlock({
                 src={img(group.img)!}
                 alt={group.imgDescription || group.name || "Схема узла"}
                 onClose={() => setLightbox(false)}
+                positions={positions}
+                onSelectPosition={(num) => {
+                  // Выбираем деталь и закрываем просмотр — список уже
+                  // подскроллен к нужной строке (selectFromImage).
+                  selectFromImage(num);
+                  setLightbox(false);
+                }}
               />
             )}
           </div>

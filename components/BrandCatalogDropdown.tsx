@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { X } from "lucide-react";
+import { X, ScanLine, ChevronRight } from "lucide-react";
 import { brandCatalogUrl } from "@/lib/catalog/urls";
 
 // Brands grouped by letters
@@ -73,6 +73,27 @@ export default function BrandCatalogDropdown({ isOpen, onClose }: BrandCatalogDr
           <h3 className="text-xl font-bold text-white mb-8 hidden lg:block">
             Выберите марку автомобиля
           </h3>
+
+          {/* Не знаете VIN → подбор авто по марке/модели/году в каталоге VIN */}
+          <Link
+            href="/catalog-vin"
+            onClick={onClose}
+            className="group mb-6 flex items-center gap-4 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-4 transition-colors hover:border-orange-500/60 hover:bg-orange-500/15 lg:mb-8"
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 text-orange-500">
+              <ScanLine className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-white">
+                Не знаете VIN? Подберём автомобиль по марке, модели и году
+              </p>
+              <p className="text-sm text-neutral-400">
+                Оригинальный каталог: схемы узлов и точные номера деталей —
+                марка → модель → год → двигатель
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-orange-500 transition-transform group-hover:translate-x-1" />
+          </Link>
 
           {/* Brands Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6">

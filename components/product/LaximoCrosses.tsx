@@ -34,11 +34,13 @@ async function withPriceSlot<T>(fn: () => Promise<T>): Promise<T> {
 const groupCache = new Map<string, SupplierGroup | null>();
 
 /** Предложения поставщиков для одного кросса (загрузка с лимитом очереди).
- *  undefined = ещё грузится / не проверяли. */
+ *  undefined = ещё грузится / не проверяли. onResolved дёргает родителя,
+ *  чтобы тот пересортировал список (наличие вверх, «под заказ» вниз). */
 function useCrossGroup(
   article: string,
   brand: string,
-  eager: boolean
+  eager: boolean,
+  onResolved?: () => void
 ): SupplierGroup | null | undefined {
   const cacheKey = `${brand}|${article}`;
   const [group, setGroup] = useState<SupplierGroup | null | undefined>(() =>
@@ -64,6 +66,7 @@ function useCrossGroup(
         groupCache.set(cacheKey, null);
         if (alive) setGroup(null);
       }
+      onResolved?.();
     });
     return () => {
       alive = false;
@@ -96,6 +99,9 @@ export function LaximoCrosses({
   const [showAll, setShowAll] = useState(false);
   // Поиск по аналогам: мгновенный фильтр списка по бренду/артикулу/названию.
   const [filterQ, setFilterQ] = useState("");
+  // Тик пересортировки: каждая завершённая проверка наличия перерисовывает
+  // список (в наличии — вверх, «под заказ» — вниз).
+  const [, setResolvedTick] = useState(0);
 
   useEffect(() => {
     if (!article) return;
@@ -156,6 +162,22 @@ export function LaximoCrosses({
     : visible;
   const shown = fq ? matched : showAll ? visible : visible.slice(0, INITIAL);
 
+  // Автопроверку наличия получают первые PRICE_LIMIT карточек ИСХОДНОГО
+  // порядка — фиксированный набор, чтобы пересортировка не выстраивала
+  // очередь на проверку всех 300+ позиций.
+  const eagerKeys = new Set(
+    shown.slice(0, PRICE_LIMIT).map((c) => `${c.brand}|${c.number}`)
+  );
+
+  // Порядок показа: с наличием — вверх, «под заказ» — вниз, непроверенные —
+  // между ними (сортировка стабильная, внутри группы порядок каталога).
+  const rank = (c: Cross) => {
+    const k = `${c.brand}|${c.number}`;
+    if (!groupCache.has(k)) return 1;
+    return groupCache.get(k) ? 0 : 2;
+  };
+  const ordered = [...shown].sort((a, b) => rank(a) - rank(b));
+
   return (
     <div className="mt-12">
       <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold text-white">
@@ -188,11 +210,12 @@ export function LaximoCrosses({
       )}
 
       <div className="space-y-4">
-        {shown.map((c, i) => (
+        {ordered.map((c) => (
           <CrossCard
-            key={`${c.brand}-${c.number}-${i}`}
+            key={`${c.brand}-${c.number}`}
             cross={c}
-            eager={i < PRICE_LIMIT}
+            eager={eagerKeys.has(`${c.brand}|${c.number}`)}
+            onResolved={() => setResolvedTick((v) => v + 1)}
           />
         ))}
       </div>
@@ -212,8 +235,16 @@ export function LaximoCrosses({
  * ТОТ ЖЕ SupplierGroupListItem, что в «Аналогах в наличии» (единый формат,
  * корзина прямо из списка). Иначе — справочная карточка каталога.
  */
-function CrossCard({ cross, eager }: { cross: Cross; eager: boolean }) {
-  const group = useCrossGroup(cross.number, cross.brand, eager);
+function CrossCard({
+  cross,
+  eager,
+  onResolved,
+}: {
+  cross: Cross;
+  eager: boolean;
+  onResolved?: () => void;
+}) {
+  const group = useCrossGroup(cross.number, cross.brand, eager, onResolved);
 
   // Есть в наличии у поставщиков → полная карточка с предложениями.
   if (group) return <SupplierGroupListItem group={group} />;

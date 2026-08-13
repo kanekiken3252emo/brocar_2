@@ -493,6 +493,8 @@ export function VinCatalog({
 
   const [cars, setCars] = useState<GoodvinCarInfo[]>([]);
   const [car, setCar] = useState<GoodvinCarInfo | null>(null);
+  // Окно с параметрами машины (кнопка-ⓘ рядом с названием, как у Армтек).
+  const [carInfoOpen, setCarInfoOpen] = useState(false);
 
   const [tree, setTree] = useState<GoodvinGroupNode[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -1118,7 +1120,9 @@ export function VinCatalog({
 
   return (
     <div className="space-y-6">
-      {/* Поиск авто по VIN */}
+      {/* Поиск авто по VIN. Когда машина уже выбрана — прячем: ту же функцию
+          выполняет поиск в шапке сайта, а тут место нужнее деталям. */}
+      {!car && (
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -1151,6 +1155,7 @@ export function VinCatalog({
           Найти авто
         </Button>
       </form>
+      )}
 
       {error && <ErrorBox message={error} />}
       {loading === "cars" && <Spinner label="Ищем автомобиль по номеру…" />}
@@ -1329,6 +1334,56 @@ export function VinCatalog({
         </div>
       )}
 
+      {/* Окно с параметрами машины (как «Список параметров» у Армтек) */}
+      {car && carInfoOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setCarInfoOpen(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-neutral-800 bg-neutral-900 p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <p className="text-lg font-bold text-white">
+                {car.brand} {car.modelName}
+              </p>
+              <button
+                type="button"
+                onClick={() => setCarInfoOpen(false)}
+                className="rounded-lg bg-neutral-800 p-2 text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-white"
+                title="Закрыть"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              {(car.vin || car.frame) && (
+                <p>
+                  <span className="text-neutral-500">
+                    {car.vin ? "VIN: " : "Кузов: "}
+                  </span>
+                  <span className="font-mono text-neutral-200">
+                    {car.vin || car.frame}
+                  </span>
+                </p>
+              )}
+              {[...(car.parameters ?? [])]
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((p) => (
+                  <p key={p.idx}>
+                    <span className="text-neutral-500">{p.name}: </span>
+                    <span className="text-neutral-200">{p.value}</span>
+                  </p>
+                ))}
+              {!car.parameters?.length && car.description && (
+                <p className="text-neutral-300">{car.description}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Выбранное авто + дерево слева, детали справа */}
       {car && (
         <div className="space-y-4">
@@ -1376,14 +1431,18 @@ export function VinCatalog({
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500">
                 <Car className="h-5 w-5" />
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-white truncate">
-                  {car.brand} {car.modelName}
-                </p>
-                <p className="text-xs text-neutral-400 truncate">
-                  {car.description || car.title}
-                </p>
-              </div>
+              <p className="font-semibold text-white truncate">
+                {car.brand} {car.modelName}
+              </p>
+              {/* Параметры машины — в отдельном окне, чтобы не съедали место */}
+              <button
+                type="button"
+                onClick={() => setCarInfoOpen(true)}
+                title="Параметры автомобиля"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-700 text-neutral-400 transition-colors hover:border-orange-500 hover:text-orange-400"
+              >
+                <Info className="h-4 w-4" />
+              </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {/* Как у Армтек: «Поиск по группам» / «Перейти на список узлов» */}

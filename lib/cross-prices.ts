@@ -14,6 +14,7 @@ import armtekAdapter from "@/lib/suppliers/armtek";
 import autotradeAdapter from "@/lib/suppliers/autotrade";
 import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
+import { sameBrandFamily } from "@/lib/brands/families.mjs";
 
 /**
  * Предложения ОДНОГО аналога из каталога Laximo у наших поставщиков — блок
@@ -101,13 +102,10 @@ export async function getCrossPrice(
   const groups = groupOffers(items, (base, ctx) => applyPricingSync(base, ctx));
 
   const sameArticle = groups.filter((g) => normalizeArticle(g.article) === na);
-  const nb = normBrand(brand ?? "");
+  // Сначала бренд того же семейства (CITROEN ≈ PSA), потом любой с тем же
+  // артикулом — кросс из Laximo и так однозначен по номеру.
   const g =
-    (nb &&
-      sameArticle.find((x) => {
-        const gb = normBrand(x.brand);
-        return gb === nb || gb.includes(nb) || nb.includes(gb);
-      })) ||
+    (brand && sameArticle.find((x) => sameBrandFamily(x.brand, brand))) ||
     sameArticle[0] ||
     null;
 

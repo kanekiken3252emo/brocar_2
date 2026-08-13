@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import type { BergResource } from "@/types/berg-api";
 import { seedProductImageCache } from "@/lib/hooks/useProductImage";
+import { sameBrandFamily } from "@/lib/brands/families.mjs";
 
 /**
  * Засеять in-memory кэш картинок до того как карточки смонтируются.
@@ -528,16 +529,11 @@ function CatalogContent({
       });
 
   // Буст бренда машины из VIN-каталога: его товары — в начало (стабильно,
-  // внутри групп порядок сортировки сохраняется).
+  // внутри групп порядок сортировки сохраняется). Семейства концернов учтены:
+  // для машины Citroën «своими» считаются и PSA, и Peugeot/Citroen.
   const boosted = (() => {
     if (!fromBrand) return sorted;
-    const norm = (s: string) => s.replace(/[^A-Za-zА-Яа-я0-9]/g, "").toUpperCase();
-    const nb = norm(fromBrand);
-    if (!nb) return sorted;
-    const isOwn = (g: SupplierGroup) => {
-      const gb = norm(g.brand);
-      return gb === nb || gb.includes(nb) || nb.includes(gb);
-    };
+    const isOwn = (g: SupplierGroup) => sameBrandFamily(g.brand, fromBrand);
     return [...sorted.filter(isOwn), ...sorted.filter((g) => !isOwn(g))];
   })();
 

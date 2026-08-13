@@ -9,6 +9,7 @@ import {
   type SupplierItem,
 } from "@/lib/suppliers/adapter";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
+import { sameBrandFamily } from "@/lib/brands/families.mjs";
 import bergAdapter from "@/lib/suppliers/berg";
 import rosskoAdapter from "@/lib/suppliers/rossko";
 import shateMAdapter, {
@@ -57,8 +58,12 @@ async function getHandler(
     // так что урезание не «портит» ответ, лишь отсекает не успевших. Быстрые
     // (Berg/ShATE-M/Forum) укладываются; для каталожных товаров цена и так уже
     // показана из локального сида (см. app/product/[id]/page.tsx).
+    // Поставщиков спрашиваем БЕЗ бренда: оригинал концерна лежит под разными
+    // ярлыками (CITROEN / PEUGEOT / PSA; OPEL / GM), и сужение запроса брендом
+    // прятало и оригинал под другим ярлыком, и его кроссы («OPEL — 2 аналога,
+    // GM — 50»). Свою группу выбираем ниже по артикулу + семейству брендов.
     const [mainItems, shateArticleId] = await Promise.all([
-      searchAllSuppliers(adapters, { article: decoded, brand }, 6000).catch(
+      searchAllSuppliers(adapters, { article: decoded }, 6000).catch(
         () => [] as SupplierItem[]
       ),
       (shateMAdapter as ShateMAdapter).findArticleId(decoded, brand).catch(() => null),
@@ -79,12 +84,15 @@ async function getHandler(
     const wantedArticle = normalizeArticle(decoded);
     const wantedBrandKey = brand ? brandKey(canonicalBrand(brand)) : "";
     const sameArticle = mainGroups.filter((g) => g.article === wantedArticle);
+    // Приоритет: точный бренд → бренд того же СЕМЕЙСТВА (CITROEN ≈ PSA ≈
+    // Peugeot/Citroen — это тот же оригинал) → без брендового запроса берём
+    // первую группу. Если бренд задан, но ни одна группа не из его семейства —
+    // главной НЕ подменяем (чужой бренд с тем же артикулом уйдёт в аналоги).
     let mainGroup: SupplierGroup | null =
       (wantedBrandKey
-        ? sameArticle.find((g) => brandKey(g.brand) === wantedBrandKey)
-        : undefined) ??
-      sameArticle[0] ??
-      null;
+        ? sameArticle.find((g) => brandKey(g.brand) === wantedBrandKey) ??
+          sameArticle.find((g) => sameBrandFamily(g.brand, brand))
+        : sameArticle[0]) ?? null;
 
     // Поставщики ничего не дали — пробуем каталог из БД (ручные/тестовые товары).
     if (!mainGroup) {
@@ -133,10 +141,20 @@ async function getHandler(
       const mainKey = mainGroup
         ? `${normalizeArticle(mainGroup.article)}|${brandKey(canonicalBrand(mainGroup.brand))}`
         : `${wantedArticle}|${wantedBrandKey}`;
-      analogs = dedupeGroups(analogCandidates)
+      const sortedAnalogs = dedupeGroups(analogCandidates)
         .filter((g) => `${g.article}|${brandKey(g.brand)}` !== mainKey)
-        .sort(compareGroupsByDelivery)
-        .slice(0, 20);
+        .sort(compareGroupsByDelivery);
+      // Оригиналы того же концерна (PSA для Citroën, GM для Opel…) — первыми:
+      // покупатель прежде всего ищет оригинал, аналоги ниже.
+      const ownBrand = brand || mainGroup?.brand || "";
+      analogs = (
+        ownBrand
+          ? [
+              ...sortedAnalogs.filter((g) => sameBrandFamily(g.brand, ownBrand)),
+              ...sortedAnalogs.filter((g) => !sameBrandFamily(g.brand, ownBrand)),
+            ]
+          : sortedAnalogs
+      ).slice(0, 20);
 
       // Подмешиваем готовые URL картинок из кэша product_images, чтобы клиент
       // засеял in-memory cache и не делал N запросов к /api/product-image на

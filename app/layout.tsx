@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { Suspense } from "react";
 import "./globals.css";
 import { HeaderWrapper } from "@/components/header-wrapper";
@@ -12,11 +12,14 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { organizationSchema, websiteSchema } from "@/lib/seo/structured-data";
 import YandexMetrika from "@/components/YandexMetrika";
 
-const inter = Inter({
-  subsets: ["latin", "cyrillic"],
-  // Только реально используемые начертания (в разметке нет font-light/extrabold/
-  // black). Раньше грузилось 7 весов × 2 субсета = до 14 woff2 впустую.
-  weight: ["400", "500", "600", "700"],
+// Inter лежит В РЕПОЗИТОРИИ (app/fonts) — вариативный woff2, латиница+кириллица.
+// Раньше шрифт тянулся с fonts.gstatic.com ВО ВРЕМЯ СБОРКИ: с VPS в РФ Google
+// периодически недоступен и docker build падал. Локальный файл = сборка
+// без сети и без Google, один woff2 вместо 8 (все веса в одном файле).
+const inter = localFont({
+  src: "./fonts/InterVariable.woff2",
+  weight: "100 900",
+  style: "normal",
   display: "swap",
   variable: "--font-inter",
 });

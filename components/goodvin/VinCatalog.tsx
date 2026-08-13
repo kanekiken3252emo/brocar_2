@@ -1102,7 +1102,11 @@ function PartsView({
     <div className="space-y-4">
       {units.map((g, i) => (
         <UnitBlock
-          key={`${g.number}-${i}`}
+          // Ключ ОБЯЗАН меняться при смене узла: у узлов бывает пустой code, и
+          // одинаковый ключ заставлял React переиспользовать блок — состояние
+          // «все детали узла» предыдущего узла утекало в новый (схема ремня,
+          // а справа детали масляного фильтра).
+          key={`${g.unitId || g.number || g.name}-${i}`}
           group={g}
           backVin={backVin}
           single={single}
@@ -1167,6 +1171,41 @@ function UnitBlock({
 
   const positions = group.positions ?? [];
   const hasHotspots = Boolean(img(group.img)) && positions.length > 0;
+
+  // Смена узла: сбрасываем «полный список» предыдущего узла (страховка вдобавок
+  // к key — иначе чужие детали остались бы под новой схемой). И если на схеме
+  // выносок больше, чем деталей в быстрой группе (схема узла с 14 позициями, а
+  // в группе «Фильтр масляный» — один фильтр) — полный список узла догружаем
+  // СРАЗУ, не дожидаясь клика (ответ в кэше 24ч — тариф не страдает).
+  useEffect(() => {
+    setFullParts(null);
+    setShowFull(false);
+    if (!(catalogId && carId && group.unitId && group.unitSsd)) return;
+    if ((group.positions?.length ?? 0) <= group.parts.length) return;
+    let alive = true;
+    setLoadingFull(true);
+    fetchJson<{ parts: GoodvinPart[] }>(
+      `/api/goodvin/unit-parts?catalogId=${encodeURIComponent(
+        catalogId
+      )}&carId=${encodeURIComponent(carId)}&unitId=${encodeURIComponent(
+        group.unitId
+      )}&ssd=${encodeURIComponent(group.unitSsd)}`
+    )
+      .then((d) => {
+        if (alive) {
+          setFullParts(d.parts);
+          setShowFull(true);
+        }
+      })
+      .catch(() => {}) // не вышло — остаёмся на деталях группы
+      .finally(() => {
+        if (alive) setLoadingFull(false);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group.unitId, group.unitSsd, group.number, group.name]);
 
   const selectFromImage = useCallback((num: string) => {
     setActive((prev) => (prev === num ? null : num));

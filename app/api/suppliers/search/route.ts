@@ -18,6 +18,7 @@ import autotradeAdapter from "@/lib/suppliers/autotrade";
 import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
 import { enrichGroupsWithImages } from "@/lib/product-images";
+import { brandFamilyId } from "@/lib/brands/families.mjs";
 
 const searchSchema = z.object({
   article: z.string().optional(),
@@ -84,7 +85,15 @@ export async function POST(request: NextRequest) {
     // по скорости поставки. Клиент сохраняет этот порядок («Сначала подходящие»).
     if (validatedData.withAnalogs && validatedData.article) {
       const na = normalizeArticle(validatedData.article);
-      const exact = groups.filter((g) => g.article === na);
+      // Внутри точного артикула ОРИГИНАЛ концерна (бренд из таблицы семейств)
+      // идёт выше noname-двойников («КИТАЙ», «OEM», «PRC» с тем же номером).
+      const exact = groups
+        .filter((g) => g.article === na)
+        .sort(
+          (a, b) =>
+            (brandFamilyId(b.brand) !== null ? 1 : 0) -
+            (brandFamilyId(a.brand) !== null ? 1 : 0)
+        );
       const rest = groups
         .filter((g) => g.article !== na)
         .sort(compareGroupsByDelivery);

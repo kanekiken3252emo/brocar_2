@@ -107,25 +107,29 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
-/** Полноэкранный просмотр схемы с зумом (клик по схеме / кнопка-лупа).
- *  Работает и на мобилке: кнопки +/−, двойной тап — быстрый зум, прокрутка
- *  увеличенной схемы пальцем/колесом. Выноски остаются кликабельными:
- *  тап по номеру выбирает деталь в списке (onSelectPosition). */
-function ImageLightbox({
+/** Полноэкранное «рабочее место» узла (как у Армтек): большая схема с зумом
+ *  слева + список деталей справа (на мобилке — снизу). Выноски кликабельны:
+ *  тап по номеру подсвечивает деталь в списке и подскролливает к ней; клик
+ *  по строке — подсвечивает выноску. */
+function UnitLightbox({
   src,
   alt,
-  onClose,
   positions = [],
-  onSelectPosition,
+  parts,
+  backVin,
+  onClose,
 }: {
   src: string;
   alt: string;
-  onClose: () => void;
   positions?: GoodvinPartPosition[];
-  onSelectPosition?: (num: string) => void;
+  parts: GoodvinPart[];
+  backVin?: string;
+  onClose: () => void;
 }) {
   const [scale, setScale] = useState(1);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -144,21 +148,23 @@ function ImageLightbox({
   const zoom = (dir: 1 | -1) =>
     setScale((s) => Math.min(4, Math.max(1, +(s + dir * 0.5).toFixed(1))));
 
+  const pick = (num: string) => {
+    setActive((prev) => (prev === num ? null : num));
+    rowRefs.current[num]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black/95"
-      onClick={onClose}
-    >
-      {/* Панель управления */}
-      <div
-        className="flex items-center justify-end gap-2 p-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[100] flex flex-col bg-neutral-950">
+      {/* Шапка: название узла + зум + закрыть */}
+      <div className="flex items-center gap-2 border-b border-neutral-800 p-3">
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+          {alt}
+        </p>
         <button
           type="button"
           onClick={() => zoom(-1)}
           disabled={scale <= 1}
-          className="rounded-xl bg-neutral-800 p-3 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
+          className="rounded-xl bg-neutral-800 p-2.5 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
           title="Уменьшить"
         >
           <ZoomOut className="h-5 w-5" />
@@ -170,7 +176,7 @@ function ImageLightbox({
           type="button"
           onClick={() => zoom(1)}
           disabled={scale >= 4}
-          className="rounded-xl bg-neutral-800 p-3 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
+          className="rounded-xl bg-neutral-800 p-2.5 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
           title="Увеличить"
         >
           <ZoomIn className="h-5 w-5" />
@@ -178,60 +184,130 @@ function ImageLightbox({
         <button
           type="button"
           onClick={onClose}
-          className="ml-2 rounded-xl bg-orange-500 p-3 text-white transition-colors hover:bg-orange-600"
+          className="ml-1 rounded-xl bg-orange-500 p-2.5 text-white transition-colors hover:bg-orange-600"
           title="Закрыть"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
-      {/* Схема: белая подложка (схемы Laximo с прозрачным/белым фоном) */}
-      <div
-        className="flex-1 overflow-auto p-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="relative mx-auto min-h-full rounded-xl bg-white"
-          style={{ width: `${scale * 100}%`, maxWidth: scale === 1 ? 1200 : undefined }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt}
-            className="block h-auto w-full select-none"
-            onDoubleClick={() => setScale((s) => (s > 1 ? 1 : 2.5))}
-            onLoad={(e) =>
-              setDims({
-                w: e.currentTarget.naturalWidth,
-                h: e.currentTarget.naturalHeight,
-              })
-            }
-            draggable={false}
-          />
-          {/* Кликабельные выноски — те же, что на обычной схеме */}
-          {dims &&
-            onSelectPosition &&
-            positions.map((pos) => {
-              const c = pos.coordinates;
-              if (!c || c.length < 4) return null;
-              const PAD = 7;
-              const x = Math.max(0, c[0] - PAD);
-              const y = Math.max(0, c[1] - PAD);
+
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* Схема (белая подложка — схемы Laximo под белый фон) */}
+        <div className="min-h-0 flex-1 overflow-auto p-2">
+          <div
+            className="relative mx-auto rounded-xl bg-white"
+            style={{
+              width: `${scale * 100}%`,
+              maxWidth: scale === 1 ? 1400 : undefined,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt}
+              className="block h-auto w-full select-none"
+              onDoubleClick={() => setScale((s) => (s > 1 ? 1 : 2.5))}
+              onLoad={(e) =>
+                setDims({
+                  w: e.currentTarget.naturalWidth,
+                  h: e.currentTarget.naturalHeight,
+                })
+              }
+              draggable={false}
+            />
+            {dims &&
+              positions.map((pos) => {
+                const c = pos.coordinates;
+                if (!c || c.length < 4) return null;
+                const PAD = 7;
+                const x = Math.max(0, c[0] - PAD);
+                const y = Math.max(0, c[1] - PAD);
+                const isActive = active === pos.number;
+                return (
+                  <button
+                    key={`${pos.number}-${x}-${y}`}
+                    type="button"
+                    onClick={() => pick(pos.number)}
+                    title={`Позиция ${pos.number}`}
+                    style={{
+                      left: `${(x / dims.w) * 100}%`,
+                      top: `${(y / dims.h) * 100}%`,
+                      width: `${((c[2] + PAD * 2) / dims.w) * 100}%`,
+                      height: `${((c[3] + PAD * 2) / dims.h) * 100}%`,
+                    }}
+                    className={`absolute cursor-pointer rounded-md border transition-all ${
+                      isActive
+                        ? "border-orange-500 bg-orange-500/40 ring-2 ring-orange-500/30"
+                        : "border-orange-400/70 bg-orange-400/15 hover:border-orange-500 hover:bg-orange-500/30"
+                    }`}
+                  />
+                );
+              })}
+          </div>
+        </div>
+
+        {/* Детали узла: справа на десктопе, снизу на мобилке */}
+        <div className="h-[38vh] shrink-0 overflow-y-auto border-t border-neutral-800 lg:h-auto lg:w-[380px] lg:border-l lg:border-t-0">
+          <div className="divide-y divide-neutral-800">
+            {parts.map((part, pi) => {
+              const pos = part.positionNumber || "";
+              const isActive = pos !== "" && active === pos;
               return (
-                <button
-                  key={`${pos.number}-${x}-${y}`}
-                  type="button"
-                  onClick={() => onSelectPosition(pos.number)}
-                  title={`Позиция ${pos.number} — показать деталь в списке`}
-                  style={{
-                    left: `${(x / dims.w) * 100}%`,
-                    top: `${(y / dims.h) * 100}%`,
-                    width: `${((c[2] + PAD * 2) / dims.w) * 100}%`,
-                    height: `${((c[3] + PAD * 2) / dims.h) * 100}%`,
+                <div
+                  key={`${part.id}-${pi}`}
+                  ref={(el) => {
+                    if (pos) rowRefs.current[pos] = el;
                   }}
-                  className="absolute cursor-pointer rounded-md border border-orange-400/70 bg-orange-400/15 transition-all hover:border-orange-500 hover:bg-orange-500/30 hover:ring-2 hover:ring-orange-500/25"
-                />
+                  onClick={() => pos && setActive(pos)}
+                  className={`flex items-center gap-2.5 p-2.5 transition-colors ${
+                    pos ? "cursor-pointer" : ""
+                  } ${
+                    isActive
+                      ? "bg-orange-500/10 ring-1 ring-inset ring-orange-500/50"
+                      : "hover:bg-neutral-800/40"
+                  }`}
+                >
+                  {pos && (
+                    <span
+                      className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
+                        isActive
+                          ? "bg-orange-500 text-white"
+                          : "bg-orange-500/15 text-orange-400"
+                      }`}
+                    >
+                      {pos}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-neutral-100">
+                      {part.name}
+                    </p>
+                    {part.number && (
+                      <p className="font-mono text-xs text-neutral-400">
+                        {part.number}
+                      </p>
+                    )}
+                  </div>
+                  {part.number && (
+                    <Link
+                      href={`/catalog?article=${encodeURIComponent(
+                        part.number
+                      )}${
+                        backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
+                      }`}
+                      className="shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button size="sm" variant="outline" className="gap-1.5">
+                        <Tag className="h-3.5 w-3.5" />
+                        Цены
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               );
             })}
+          </div>
         </div>
       </div>
     </div>
@@ -1806,17 +1882,13 @@ function UnitBlock({
               </p>
             )}
             {lightbox && (
-              <ImageLightbox
+              <UnitLightbox
                 src={img(group.img)!}
                 alt={group.imgDescription || group.name || "Схема узла"}
-                onClose={() => setLightbox(false)}
                 positions={positions}
-                onSelectPosition={(num) => {
-                  // Выбираем деталь и закрываем просмотр — список уже
-                  // подскроллен к нужной строке (selectFromImage).
-                  selectFromImage(num);
-                  setLightbox(false);
-                }}
+                parts={shownParts}
+                backVin={backVin}
+                onClose={() => setLightbox(false)}
               />
             )}
           </div>

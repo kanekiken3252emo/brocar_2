@@ -7,11 +7,99 @@ import { Loader2, Layers, ChevronRight } from "lucide-react";
 import ProductImage from "@/components/Items/ProductImage";
 
 type Cross = { brand: string; number: string; name: string };
+type CrossPrice = {
+  minPrice: number | null;
+  totalStock: number;
+  offerCount: number;
+};
 
 const INITIAL = 12; // сколько показываем сразу (остальные — по кнопке)
+const PRICE_LIMIT = 24; // для скольких первых карточек тянем живую цену
 
 /** Артикул без разделителей — для сравнения с товарами поставщиков. */
 const normArt = (s: string) => s.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+// ── Живые цены для карточек: очередь не шире 3 запросов + кэш на сессию ─────
+let inflight = 0;
+const priceWaiters: Array<() => void> = [];
+async function withPriceSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (inflight >= 3)
+    await new Promise<void>((resolve) => priceWaiters.push(resolve));
+  inflight++;
+  try {
+    return await fn();
+  } finally {
+    inflight--;
+    priceWaiters.shift()?.();
+  }
+}
+const priceCache = new Map<string, CrossPrice>();
+
+/** Бейдж «от X ₽ · N шт.» — сервер кэширует ответ на 6ч, клиент на сессию. */
+function CrossPriceTag({
+  article,
+  brand,
+  eager,
+}: {
+  article: string;
+  brand: string;
+  eager: boolean;
+}) {
+  const cacheKey = `${brand}|${article}`;
+  const [info, setInfo] = useState<CrossPrice | null | undefined>(() =>
+    priceCache.get(cacheKey)
+  );
+
+  useEffect(() => {
+    if (!eager || info !== undefined) return;
+    let alive = true;
+    setInfo(null); // загрузка
+    void withPriceSlot(async () => {
+      try {
+        const r = await fetch(
+          `/api/cross-price?article=${encodeURIComponent(
+            article
+          )}&brand=${encodeURIComponent(brand)}`
+        );
+        const d: CrossPrice = r.ok
+          ? await r.json()
+          : { minPrice: null, totalStock: 0, offerCount: 0 };
+        priceCache.set(cacheKey, d);
+        if (alive) setInfo(d);
+      } catch {
+        if (alive) setInfo({ minPrice: null, totalStock: 0, offerCount: 0 });
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eager, article, brand]);
+
+  if (!eager && info === undefined) return null;
+  if (info === null || info === undefined) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        цену уточняем…
+      </span>
+    );
+  }
+  if (info.minPrice === null) {
+    return <span className="text-xs text-neutral-500">под заказ</span>;
+  }
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className="text-base font-bold text-white">
+        от {info.minPrice.toLocaleString("ru-RU")}{" "}
+        <span className="text-sm font-normal text-neutral-500">₽</span>
+      </span>
+      <span className="text-xs text-green-400">
+        {info.totalStock} шт. · {info.offerCount} предл.
+      </span>
+    </span>
+  );
+}
 
 /**
  * Аналоги/кроссы по OEM-номеру из базы Laximo.DOC. Тянет /api/laximo/crosses
@@ -121,6 +209,13 @@ export function LaximoCrosses({
                 <h3 className="line-clamp-2 break-words text-base text-neutral-100 transition-colors group-hover:text-orange-400">
                   {c.name || "Деталь-аналог"}
                 </h3>
+                <div className="mt-2">
+                  <CrossPriceTag
+                    article={c.number}
+                    brand={c.brand}
+                    eager={i < PRICE_LIMIT}
+                  />
+                </div>
               </div>
               <ChevronRight className="ml-auto h-5 w-5 shrink-0 self-center text-neutral-600 transition-colors group-hover:text-orange-500" />
             </div>

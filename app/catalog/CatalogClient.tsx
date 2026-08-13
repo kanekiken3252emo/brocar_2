@@ -199,21 +199,9 @@ function CatalogContent({
   const [categoryHub, setCategoryHub] = useState<CategoryHub[] | null>(null);
   const [loading, setLoading] = useState(!seedable);
   const [error, setError] = useState<string | null>(null);
+  // По умолчанию всегда сетка — как было. Таблица (как у Армтека) осталась
+  // доступной третьей кнопкой, но сама не включается.
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
-
-  // Поиск по артикулу/VIN — это сравнение предложений поставщиков: на десктопе
-  // сразу включаем плотный табличный вид (как у Армтека). На мобилке таблица
-  // неудобна — остаётся сетка, вид можно переключить вручную.
-  useEffect(() => {
-    if (
-      (article || vin) &&
-      typeof window !== "undefined" &&
-      window.innerWidth >= 1024
-    ) {
-      setViewMode("table");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // «Поиск по результату» — мгновенный фильтр уже полученной выдачи по бренду,
   // артикулу или названию (не новый запрос к поставщикам).

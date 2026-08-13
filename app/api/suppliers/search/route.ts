@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { searchAllSuppliers, groupOffers } from "@/lib/suppliers/adapter";
+import {
+  searchAllSuppliers,
+  groupOffers,
+  dedupeGroups,
+  compareGroupsByDelivery,
+  normalizeArticle,
+  type SupplierItem,
+} from "@/lib/suppliers/adapter";
 import bergAdapter from "@/lib/suppliers/berg";
 import rosskoAdapter from "@/lib/suppliers/rossko";
-import shateMAdapter from "@/lib/suppliers/shate-m";
+import shateMAdapter, { ShateMAdapter } from "@/lib/suppliers/shate-m";
 import forumAutoAdapter from "@/lib/suppliers/forum-auto";
 import armtekAdapter from "@/lib/suppliers/armtek";
 import autotradeAdapter from "@/lib/suppliers/autotrade";
@@ -14,6 +21,9 @@ import { enrichGroupsWithImages } from "@/lib/product-images";
 const searchSchema = z.object({
   article: z.string().optional(),
   brand: z.string().optional(),
+  // Поиск «как у Армтек»: к точному артикулу добавить ЗАМЕНИТЕЛИ других
+  // брендов (кроссы ShATE-M) — выдача не «Найдено: 1», а оригинал + аналоги.
+  withAnalogs: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -37,11 +47,42 @@ export async function POST(request: NextRequest) {
       autotradeAdapter,
       partKomAdapter,
     ];
-    const items = await searchAllSuppliers(adapters, validatedData);
+    // Основной поиск + (для withAnalogs) поиск articleId в ШАТЕ-М параллельно.
+    const [items, shateArticleId] = await Promise.all([
+      searchAllSuppliers(adapters, {
+        article: validatedData.article,
+        brand: validatedData.brand,
+      }),
+      validatedData.withAnalogs && validatedData.article
+        ? (shateMAdapter as ShateMAdapter)
+            .findArticleId(validatedData.article, validatedData.brand)
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]);
 
-    const groups = groupOffers(items, (base, ctx) =>
-      applyPricingSync(base, ctx)
+    // Заменители по кроссам ШАТЕ-М — оригинал + аналоги в одной выдаче.
+    let allItems: SupplierItem[] = items;
+    if (shateArticleId) {
+      const analogItems = await (shateMAdapter as ShateMAdapter)
+        .searchWithAnalogsById(shateArticleId)
+        .catch(() => [] as SupplierItem[]);
+      allItems = [...items, ...analogItems];
+    }
+
+    let groups = dedupeGroups(
+      groupOffers(allItems, (base, ctx) => applyPricingSync(base, ctx))
     );
+
+    // Точный артикул (оригинал и его двойники) — первым, заменители следом
+    // по скорости поставки. Клиент сохраняет этот порядок («Сначала подходящие»).
+    if (validatedData.withAnalogs && validatedData.article) {
+      const na = normalizeArticle(validatedData.article);
+      const exact = groups.filter((g) => g.article === na);
+      const rest = groups
+        .filter((g) => g.article !== na)
+        .sort(compareGroupsByDelivery);
+      groups = [...exact, ...rest];
+    }
 
     // Подсеваем картинки из кэша product_images, чтобы клиент не делал
     // N round-trip'ов к /api/product-image при рендере грида карточек.

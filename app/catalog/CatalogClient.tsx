@@ -419,6 +419,9 @@ function CatalogContent({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               article: parsed.article,
+              // Как у Армтек: оригинал + заменители других брендов в одной
+              // выдаче (кроссы ШАТЕ-М), а не «Найдено товаров: 1».
+              withAnalogs: true,
               ...(brand
                 ? { brand }
                 : parsed.brand
@@ -483,6 +486,9 @@ function CatalogContent({
   // а не пересортировываем по алфавиту. Цена/срок — выбор пользователя — ниже
   // всё равно применяются.
   const isTextSearch = !!article && isFreeText(article);
+  // Порядок сервера сохраняем для ЛЮБОГО поиска: текстовый ранжирован по
+  // релевантности, артикульный — «оригинал первым, заменители по сроку».
+  const preserveServerOrder = !!article;
 
   // Для serverPagination фильтрация/сортировка уже применены сервером,
   // а пагинация = текущая страница. Клиентский фильтр/sort всё равно
@@ -510,8 +516,9 @@ function CatalogContent({
             (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999)
         )
       : filtered
-    : isTextSearch && sortBy === "name"
-    ? // «Сначала подходящие»: сохраняем порядок релевантности от сервера.
+    : preserveServerOrder && sortBy === "name"
+    ? // «Сначала подходящие»: сохраняем порядок от сервера (релевантность /
+      // оригинал первым).
       filtered
     : [...filtered].sort((a, b) => {
         switch (sortBy) {
@@ -724,13 +731,15 @@ function CatalogContent({
                     {/* В режиме поиска дефолт — «Сначала подходящие» (тот же
                         sort=name, но клиент сохраняет порядок релевантности от
                         сервера). В каталоге/по марке — обычная сортировка по имени. */}
-                    {isTextSearch && (
+                    {preserveServerOrder && (
                       <option value="name">Сначала подходящие</option>
                     )}
                     <option value="price-asc">Цена: по возрастанию</option>
                     <option value="price-desc">Цена: по убыванию</option>
                     <option value="delivery">По сроку доставки</option>
-                    {!isTextSearch && <option value="name">По названию</option>}
+                    {!preserveServerOrder && (
+                      <option value="name">По названию</option>
+                    )}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
                 </div>

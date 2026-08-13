@@ -4,6 +4,7 @@ import {
   searchAllSuppliers,
   groupOffers,
   normalizeArticle,
+  type SupplierGroup,
 } from "@/lib/suppliers/adapter";
 import bergAdapter from "@/lib/suppliers/berg";
 import rosskoAdapter from "@/lib/suppliers/rossko";
@@ -15,19 +16,18 @@ import partKomAdapter from "@/lib/suppliers/partkom";
 import { applyPricingSync } from "@/lib/pricing";
 
 /**
- * Цена/наличие ОДНОГО аналога из каталога Laximo у наших поставщиков —
- * для бейджей «от X ₽ · N шт.» в блоке «Ещё аналоги из каталога».
+ * Предложения ОДНОГО аналога из каталога Laximo у наших поставщиков — блок
+ * «Ещё аналоги из каталога» рендерит их тем же SupplierGroupListItem, что и
+ * «Аналоги в наличии» (единый формат карточек, корзина прямо из списка).
  *
  * Один вызов = опрос всех поставщиков, поэтому ОБЯЗАТЕЛЕН кэш в БД:
  * первый посетитель платит, остальные 6 часов читают из кэша. Отрицательный
- * результат («нет ни у кого») кэшируется тоже — иначе каждый просмотр
- * страницы заново молотил бы поставщиков по отсутствующим позициям.
+ * результат («нет ни у кого», group=null) кэшируется тоже — иначе каждый
+ * просмотр страницы заново молотил бы поставщиков по отсутствующим позициям.
  */
 
-export type CrossPrice = {
-  minPrice: number | null; // null = нет у поставщиков
-  totalStock: number;
-  offerCount: number;
+export type CrossPriceResult = {
+  group: SupplierGroup | null; // null = нет у поставщиков («под заказ»)
 };
 
 const TTL_MS = 6 * 60 * 60 * 1000; // 6 часов — цены живее, чем каталог
@@ -44,7 +44,7 @@ async function ensure(): Promise<void> {
   ensured = true;
 }
 
-async function cacheGet(key: string): Promise<CrossPrice | null> {
+async function cacheGet(key: string): Promise<CrossPriceResult | null> {
   try {
     await ensure();
     const rows = await client<{ value: string; created_at: Date }[]>`
@@ -52,13 +52,16 @@ async function cacheGet(key: string): Promise<CrossPrice | null> {
     const row = rows[0];
     if (!row) return null;
     if (Date.now() - new Date(row.created_at).getTime() > TTL_MS) return null;
-    return JSON.parse(row.value) as CrossPrice;
+    const parsed = JSON.parse(row.value) as CrossPriceResult;
+    // Записи старого формата ({minPrice,...} без поля group) игнорируем.
+    if (!("group" in parsed)) return null;
+    return parsed;
   } catch {
     return null;
   }
 }
 
-async function cacheSet(key: string, value: CrossPrice): Promise<void> {
+async function cacheSet(key: string, value: CrossPriceResult): Promise<void> {
   try {
     await ensure();
     await client`
@@ -76,7 +79,7 @@ const normBrand = (s: string) => s.replace(/[^A-Za-zА-Яа-я0-9]/g, "").toUppe
 export async function getCrossPrice(
   article: string,
   brand?: string
-): Promise<CrossPrice> {
+): Promise<CrossPriceResult> {
   const na = normalizeArticle(article);
   const key = `${na}|${normBrand(brand ?? "")}`;
   const hit = await cacheGet(key);
@@ -108,9 +111,7 @@ export async function getCrossPrice(
     sameArticle[0] ||
     null;
 
-  const result: CrossPrice = g
-    ? { minPrice: g.minPrice, totalStock: g.totalStock, offerCount: g.offers.length }
-    : { minPrice: null, totalStock: 0, offerCount: 0 };
+  const result: CrossPriceResult = { group: g || null };
   await cacheSet(key, result);
   return result;
 }

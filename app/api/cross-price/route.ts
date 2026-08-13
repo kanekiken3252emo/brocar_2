@@ -3,9 +3,9 @@ import { getCrossPrice } from "@/lib/cross-prices";
 import { CACHE_PRODUCT } from "@/lib/http-cache";
 
 /**
- * Минимальная цена и наличие аналога у поставщиков (для бейджей в блоке
- * «Ещё аналоги из каталога» на карточке товара).
- * GET /api/cross-price?article=<номер>&brand=<бренд>
+ * Предложения аналога у поставщиков — полная группа (склады/цены/сроки) для
+ * рендера тем же SupplierGroupListItem, что «Аналоги в наличии».
+ * GET /api/cross-price?article=<номер>&brand=<бренд> → { group | null }
  * Кэш: 6ч в БД (см. lib/cross-prices) + короткий HTTP-кэш.
  */
 export async function GET(request: NextRequest) {
@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       headers: { "Cache-Control": CACHE_PRODUCT },
     });
   } catch {
-    // Ошибка опроса поставщиков — не 500, просто «цены нет» (бейдж скроется).
+    // Ошибка опроса поставщиков — не 500, просто «предложений нет».
     return NextResponse.json(
-      { minPrice: null, totalStock: 0, offerCount: 0 },
+      { group: null },
       { headers: { "Cache-Control": "no-store" } }
     );
   }

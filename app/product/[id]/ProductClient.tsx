@@ -914,12 +914,16 @@ export default function ProductClient({
           </div>
         )}
 
-        {/* Аналоги искомого бренда */}
+        {/* Аналоги в наличии у поставщиков — с ценами и корзиной сразу */}
         {analogs.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Аналоги искомого бренда
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Аналоги в наличии
             </h2>
+            <p className="text-sm text-neutral-400 mb-6">
+              Эти заменители есть у наших поставщиков — цена и склад уже
+              известны, можно сразу в корзину.
+            </p>
             <div className="space-y-4">
               {analogs.map((g) => (
                 <SupplierGroupListItem
@@ -931,10 +935,12 @@ export default function ProductClient({
           </div>
         )}
 
-        {/* Аналоги/кроссы из базы Laximo (по OEM-номеру) */}
+        {/* Аналоги/кроссы из базы Laximo (по OEM-номеру) — то, что уже показано
+            выше с ценами, внутри отфильтровывается (excludeArticles). */}
         <LaximoCrosses
           article={productId}
           brand={product?.brand?.name || brand}
+          excludeArticles={analogs.map((g) => g.article)}
         />
       </div>
     </div>

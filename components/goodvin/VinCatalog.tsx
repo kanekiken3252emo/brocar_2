@@ -589,6 +589,45 @@ export function VinCatalog({
       {/* Выбранное авто + дерево слева, детали справа */}
       {car && (
         <div className="space-y-4">
+          {/* Хлебные крошки — как в демо Laximo: клик по уровню возвращает назад
+              (к списку узлов / к новому поиску). Интуитивная навигация. */}
+          <nav
+            aria-label="Навигация по каталогу"
+            className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm"
+          >
+            <button
+              type="button"
+              onClick={resetSearch}
+              className="text-neutral-400 transition-colors hover:text-orange-400"
+            >
+              Поиск по VIN
+            </button>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-600" />
+            {parts || searchResults !== null ? (
+              <button
+                type="button"
+                onClick={backToTree}
+                className="max-w-[45vw] truncate text-neutral-400 transition-colors hover:text-orange-400"
+              >
+                {car.brand} {car.modelName}
+              </button>
+            ) : (
+              <span className="max-w-[60vw] truncate font-medium text-white">
+                {car.brand} {car.modelName}
+              </span>
+            )}
+            {(parts || searchResults !== null) && (
+              <>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-neutral-600" />
+                <span className="max-w-[60vw] truncate font-medium text-white">
+                  {searchResults !== null
+                    ? `Поиск: ${partQuery}`
+                    : selectedName}
+                </span>
+              </>
+            )}
+          </nav>
+
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500">

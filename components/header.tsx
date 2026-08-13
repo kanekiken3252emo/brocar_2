@@ -5,7 +5,6 @@ import StoryLogo from "@/components/stories/StoryLogo";
 import { ShoppingCart, User, Menu, ChevronDown, MapPin, Phone, Wrench, LogOut, Search, X, Car, ClipboardList } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
-import BrandCatalogDropdown from "./BrandCatalogDropdown";
 import { usePathname, useRouter } from "next/navigation";
 
 interface HeaderProps {
@@ -75,7 +74,6 @@ const CATALOG_ITEMS = [
 export function Header({ user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const [isBrandCatalogOpen, setIsBrandCatalogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useState(0);
   const [hideHeader, setHideHeader] = useState(false);
@@ -417,14 +415,14 @@ export function Header({ user }: HeaderProps) {
                 КАТАЛОГ
               </Link>
 
-              {/* Brand Catalog Dropdown */}
-              <button
-                onClick={() => setIsBrandCatalogOpen(!isBrandCatalogOpen)}
-                className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap"
+              {/* Подбор машины по марке/модели/году — для тех, кто не знает VIN
+                  (бывшие «Автомарки»; страницы марок остались на /automarki) */}
+              <Link
+                href="/catalog-vin"
+                className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap"
               >
-                АВТОМАРКИ
-                <ChevronDown className={`h-4 w-4 transition-transform ${isBrandCatalogOpen ? 'rotate-180' : ''}`} />
-              </button>
+                ПОДБОР АВТО
+              </Link>
 
               {/* Подписи укорачиваются на узких десктопах (lg–xl), на широких (xl+) — полные. */}
               <Link href="/catalog-vin" className="px-2.5 xl:px-4 h-full flex items-center text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
@@ -487,15 +485,14 @@ export function Header({ user }: HeaderProps) {
                 <Link href="/catalog" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   Каталоги
                 </Link>
-                <button
-                  onClick={() => {
-                    setIsBrandCatalogOpen(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg text-left transition-colors font-medium"
+                {/* Подбор машины по марке/модели/году (бывшие «Автомарки») */}
+                <Link
+                  href="/catalog-vin"
+                  className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium"
+                  onClick={() => setIsMenuOpen(false)}
                 >
-                  Автомарки
-                </button>
+                  Подбор авто
+                </Link>
                 <Link href="/catalog-vin" className="px-4 py-3 text-neutral-300 hover:text-orange-500 hover:bg-neutral-800/50 rounded-lg transition-colors font-medium" onClick={() => setIsMenuOpen(false)}>
                   Каталог по VIN
                 </Link>
@@ -522,11 +519,6 @@ export function Header({ user }: HeaderProps) {
           )}
         </div>
 
-        {/* Brand Catalog Dropdown - Full Width */}
-        <BrandCatalogDropdown
-          isOpen={isBrandCatalogOpen}
-          onClose={() => setIsBrandCatalogOpen(false)}
-        />
       </div>
     </header>
   );

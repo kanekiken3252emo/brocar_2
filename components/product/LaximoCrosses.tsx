@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Loader2, Layers, ChevronRight } from "lucide-react";
+import { Loader2, Layers, ChevronRight, Search } from "lucide-react";
 import ProductImage from "@/components/Items/ProductImage";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
@@ -94,6 +94,8 @@ export function LaximoCrosses({
   const [crosses, setCrosses] = useState<Cross[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  // Поиск по аналогам: мгновенный фильтр списка по бренду/артикулу/названию.
+  const [filterQ, setFilterQ] = useState("");
 
   useEffect(() => {
     if (!article) return;
@@ -139,7 +141,20 @@ export function LaximoCrosses({
   if (visible.length === 0) return null;
 
   const hasSupplierBlock = excludeArticles.length > 0;
-  const shown = showAll ? visible : visible.slice(0, INITIAL);
+
+  // Фильтр по бренду/артикулу/названию. При активном фильтре показываем ВСЕ
+  // совпадения сразу (кнопка «показать все» не нужна).
+  const fq = filterQ.trim().toLowerCase();
+  const fqArt = normArt(filterQ);
+  const matched = fq
+    ? visible.filter(
+        (c) =>
+          c.brand.toLowerCase().includes(fq) ||
+          c.name.toLowerCase().includes(fq) ||
+          (fqArt && normArt(c.number).includes(fqArt))
+      )
+    : visible;
+  const shown = fq ? matched : showAll ? visible : visible.slice(0, INITIAL);
 
   return (
     <div className="mt-12">
@@ -149,10 +164,29 @@ export function LaximoCrosses({
           ? `Ещё аналоги из каталога (${visible.length})`
           : `Аналоги (${visible.length})`}
       </h2>
-      <p className="mb-6 text-sm text-neutral-400">
+      <p className="mb-4 text-sm text-neutral-400">
         Заменители по каталогу Laximo. Нажмите на карточку — проверим цены и
         наличие у поставщиков.
       </p>
+
+      {/* Поиск по аналогам — мгновенный фильтр списка (без запросов) */}
+      <div className="relative mb-5 max-w-md">
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+        <input
+          value={filterQ}
+          onChange={(e) => setFilterQ(e.target.value)}
+          placeholder="Найти аналог: бренд, артикул или название…"
+          className="w-full rounded-xl border border-neutral-700 bg-neutral-800 py-2.5 pl-10 pr-4 text-white placeholder:text-neutral-600 transition-colors focus:border-orange-500 focus:outline-none"
+        />
+      </div>
+      {fq && (
+        <p className="mb-4 text-sm text-neutral-400">
+          {matched.length
+            ? `Совпадений: ${matched.length}`
+            : "Совпадений нет — попробуйте короче (например, только бренд или часть номера)."}
+        </p>
+      )}
+
       <div className="space-y-4">
         {shown.map((c, i) => (
           <CrossCard
@@ -162,7 +196,7 @@ export function LaximoCrosses({
           />
         ))}
       </div>
-      {!showAll && visible.length > INITIAL && (
+      {!fq && !showAll && visible.length > INITIAL && (
         <div className="mt-4 text-center">
           <Button variant="outline" onClick={() => setShowAll(true)}>
             Показать все аналоги ({visible.length})

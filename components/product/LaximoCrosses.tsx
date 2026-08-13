@@ -234,10 +234,12 @@ export function LaximoCrosses({
         </select>
 
         <div className="flex overflow-hidden rounded-xl border border-neutral-700">
+          {/* «В продаже», не «В наличии»: всё едет от поставщиков со сроком
+              поставки — владелец просил не обещать наличие на полке. */}
           {(
             [
               ["all", "Все"],
-              ["stock", "В наличии"],
+              ["stock", "В продаже"],
               ["order", "Под заказ"],
             ] as const
           ).map(([key, label]) => (
@@ -264,7 +266,7 @@ export function LaximoCrosses({
           {availF === "stock" && (
             <span className="text-neutral-500">
               {" "}
-              (наличие проверяется у первых {PRICE_LIMIT} позиций)
+              (доступность проверяется у первых {PRICE_LIMIT} позиций)
             </span>
           )}
         </p>

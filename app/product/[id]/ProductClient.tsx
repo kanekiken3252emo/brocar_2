@@ -918,11 +918,11 @@ export default function ProductClient({
         {analogs.length > 0 && (
           <div className="mt-12">
             <h2 className="text-2xl font-bold text-white mb-2">
-              Аналоги в наличии
+              Аналоги в продаже
             </h2>
             <p className="text-sm text-neutral-400 mb-6">
-              Эти заменители есть у наших поставщиков — цена и склад уже
-              известны, можно сразу в корзину.
+              Эти заменители есть у наших поставщиков — цена и срок поставки
+              уже известны, можно сразу в корзину.
             </p>
             <div className="space-y-4">
               {analogs.map((g) => (

@@ -14,6 +14,10 @@ import {
   Tag,
   FolderTree,
   MousePointerClick,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +101,100 @@ function Spinner({ label }: { label: string }) {
     <div className="flex items-center justify-center gap-3 py-16 text-neutral-400">
       <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
       <span className="text-sm">{label}</span>
+    </div>
+  );
+}
+
+/** Полноэкранный просмотр схемы с зумом (клик по схеме / кнопка-лупа).
+ *  Работает и на мобилке: кнопки +/−, двойной тап — быстрый зум, прокрутка
+ *  увеличенной схемы пальцем/колесом. */
+function ImageLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    // Блокируем прокрутку страницы под оверлеем.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const zoom = (dir: 1 | -1) =>
+    setScale((s) => Math.min(4, Math.max(1, +(s + dir * 0.5).toFixed(1))));
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-black/95"
+      onClick={onClose}
+    >
+      {/* Панель управления */}
+      <div
+        className="flex items-center justify-end gap-2 p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => zoom(-1)}
+          disabled={scale <= 1}
+          className="rounded-xl bg-neutral-800 p-3 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
+          title="Уменьшить"
+        >
+          <ZoomOut className="h-5 w-5" />
+        </button>
+        <span className="min-w-[3.5rem] text-center font-mono text-sm text-neutral-300">
+          {Math.round(scale * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={() => zoom(1)}
+          disabled={scale >= 4}
+          className="rounded-xl bg-neutral-800 p-3 text-white transition-colors hover:bg-neutral-700 disabled:opacity-40"
+          title="Увеличить"
+        >
+          <ZoomIn className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-2 rounded-xl bg-orange-500 p-3 text-white transition-colors hover:bg-orange-600"
+          title="Закрыть"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      {/* Схема: белая подложка (схемы Laximo с прозрачным/белым фоном) */}
+      <div
+        className="flex-1 overflow-auto p-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="mx-auto min-h-full rounded-xl bg-white"
+          style={{ width: `${scale * 100}%`, maxWidth: scale === 1 ? 1200 : undefined }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            className="block h-auto w-full select-none"
+            onDoubleClick={() => setScale((s) => (s > 1 ? 1 : 2.5))}
+            draggable={false}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1471,6 +1569,8 @@ function UnitBlock({
 }) {
   const [active, setActive] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  // Полноэкранный просмотр схемы (клик по картинке / кнопка-лупа).
+  const [lightbox, setLightbox] = useState(false);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Быстрая группа содержит лишь часть деталей узла (напр., один фильтр из 14
@@ -1589,11 +1689,21 @@ function UnitBlock({
         {img(group.img) && (
           <div className="lg:sticky lg:top-4 self-start space-y-2">
             <div className="relative overflow-hidden rounded-xl border border-neutral-800 bg-white">
+              {/* Кнопка-лупа: раскрыть схему на весь экран */}
+              <button
+                type="button"
+                onClick={() => setLightbox(true)}
+                title="Увеличить схему"
+                className="absolute right-2 top-2 z-10 rounded-lg bg-neutral-900/75 p-2.5 text-white shadow-md transition-colors hover:bg-orange-500"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img(group.img)}
                 alt={group.imgDescription || "Схема узла"}
-                className="block h-auto w-full select-none"
+                className="block h-auto w-full cursor-zoom-in select-none"
+                onClick={() => setLightbox(true)}
                 onLoad={(e) =>
                   setDims({
                     w: e.currentTarget.naturalWidth,
@@ -1639,6 +1749,13 @@ function UnitBlock({
                 <span className="inline-block h-3 w-4 rounded-[3px] border border-orange-400/70 bg-orange-400/15" />
                 Номера на схеме кликабельны — нажмите, чтобы найти деталь
               </p>
+            )}
+            {lightbox && (
+              <ImageLightbox
+                src={img(group.img)!}
+                alt={group.imgDescription || group.name || "Схема узла"}
+                onClose={() => setLightbox(false)}
+              />
             )}
           </div>
         )}

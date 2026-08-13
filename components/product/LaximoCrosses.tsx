@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Loader2, Tag, Layers } from "lucide-react";
+import ProductImage from "@/components/Items/ProductImage";
 
 type Cross = { brand: string; number: string; name: string };
 
@@ -70,32 +71,44 @@ export function LaximoCrosses({
         Заменители по каталогу Laximo. Нажмите «Цены», чтобы найти вариант у
         поставщиков.
       </p>
-      <div className="divide-y divide-neutral-800 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
+      {/* Карточки в том же оформлении, что «Аналоги искомого бренда»:
+          фото (лениво, только в зоне видимости), бренд, артикул, название.
+          Цен здесь нет — их узнаём по кнопке (373 запроса цен разом нельзя). */}
+      <div className="grid gap-3 sm:grid-cols-2">
         {visible.map((c, i) => (
           <div
             key={`${c.brand}-${c.number}-${i}`}
-            className="flex items-center gap-3 p-3.5 transition-colors hover:bg-neutral-800/40"
+            className="group flex items-start gap-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 transition-colors hover:border-orange-500/40"
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-neutral-100">
-                {c.name || c.number}
+            <ProductImage
+              brand={c.brand}
+              article={c.number}
+              alt={c.name || c.number}
+              className="h-20 w-20 shrink-0 rounded-xl"
+              innerPadding="p-2"
+              sizes="80px"
+            />
+            <div className="flex min-w-0 flex-1 flex-col self-stretch">
+              <div className="mb-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-sm font-bold uppercase tracking-wide text-orange-500">
+                  {c.brand || "Без бренда"}
+                </span>
+                <span className="rounded-md bg-neutral-800 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                  {c.number}
+                </span>
+              </div>
+              <p className="line-clamp-2 break-words text-sm text-neutral-100">
+                {c.name || "Деталь-аналог"}
               </p>
-              <p className="text-xs text-neutral-400">
-                <span className="font-medium text-orange-400/90">
-                  {c.brand}
-                </span>{" "}
-                · <span className="font-mono">{c.number}</span>
-              </p>
+              <div className="mt-auto pt-2">
+                <Link href={`/catalog?article=${encodeURIComponent(c.number)}`}>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    Цены и наличие
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <Link
-              href={`/catalog?article=${encodeURIComponent(c.number)}`}
-              className="shrink-0"
-            >
-              <Button size="sm" variant="outline" className="gap-1.5">
-                <Tag className="h-3.5 w-3.5" />
-                Цены
-              </Button>
-            </Link>
           </div>
         ))}
       </div>

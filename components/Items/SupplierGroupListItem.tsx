@@ -174,7 +174,7 @@ export default function SupplierGroupListItem({ group }: Props) {
                 {group.article}
               </span>
             </div>
-            <h3 className="text-base text-neutral-100 group-hover:text-orange-400 transition-colors line-clamp-2">
+            <h3 className="text-base text-neutral-100 group-hover:text-orange-400 transition-colors line-clamp-2 break-words [overflow-wrap:anywhere]">
               {group.name}
             </h3>
             <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-neutral-500">

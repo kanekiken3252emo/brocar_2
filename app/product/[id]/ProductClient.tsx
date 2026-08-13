@@ -398,7 +398,7 @@ export default function ProductClient({
               </span>
             </div>
             <h1
-              className={`text-2xl md:text-3xl font-bold text-white leading-tight transition-opacity duration-300 ${
+              className={`text-2xl md:text-3xl font-bold text-white leading-tight break-words [overflow-wrap:anywhere] transition-opacity duration-300 ${
                 loading && product ? "opacity-80" : "opacity-100"
               }`}
             >
@@ -418,8 +418,10 @@ export default function ProductClient({
               initialUrl={shell.imageUrl}
             />
 
-            {/* Покупка: цена + кнопка сразу, ниже — наличие/гарантия/описание */}
-            <div className="space-y-5">
+            {/* Покупка: цена + кнопка сразу, ниже — наличие/гарантия/описание.
+                min-w-0 обязателен: длинные артикулы в названии («TU1JP/TU5JP/…»)
+                не переносятся браузером и без него распирают грид шире экрана. */}
+            <div className="min-w-0 space-y-5">
               {/* Price — скелетон только если данных ещё нет (нет сида и идёт загрузка) */}
               {!product && loading ? (
                 <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-5 md:p-6">
@@ -576,7 +578,9 @@ export default function ProductClient({
               {/* Description */}
               <div className="border-t border-neutral-800 pt-5">
                 <h3 className="font-semibold text-white mb-2">Описание</h3>
-                <p className="text-neutral-400">{displayName}</p>
+                <p className="text-neutral-400 break-words [overflow-wrap:anywhere]">
+                  {displayName}
+                </p>
               </div>
             </div>
           </div>

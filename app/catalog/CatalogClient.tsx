@@ -168,6 +168,9 @@ function CatalogContent({
   // ссылка несёт исходный VIN — он нужен только чтобы кнопка «Назад» вернула
   // на ту же схему, а не на главную. На выборку товаров не влияет.
   const fromVin = searchParams?.get("fromVin");
+  // Бренд машины из VIN-каталога: клиент смотрел, например, Тойоту — товары
+  // этого бренда поднимаем в начало выдачи (искал для Тойоты → Тойота первая).
+  const fromBrand = searchParams?.get("fromBrand");
 
   // Серверный засев первого показа: страница пришла server-rendered с готовыми
   // данными категории ИЛИ марки (initialData) и URL — «чистый» заход в ту же
@@ -524,12 +527,26 @@ function CatalogContent({
         }
       });
 
+  // Буст бренда машины из VIN-каталога: его товары — в начало (стабильно,
+  // внутри групп порядок сортировки сохраняется).
+  const boosted = (() => {
+    if (!fromBrand) return sorted;
+    const norm = (s: string) => s.replace(/[^A-Za-zА-Яа-я0-9]/g, "").toUpperCase();
+    const nb = norm(fromBrand);
+    if (!nb) return sorted;
+    const isOwn = (g: SupplierGroup) => {
+      const gb = norm(g.brand);
+      return gb === nb || gb.includes(nb) || nb.includes(gb);
+    };
+    return [...sorted.filter(isOwn), ...sorted.filter((g) => !isOwn(g))];
+  })();
+
   const totalCount = useServerPagination ? serverTotalCount : filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
-  // На серверной пагинации `sorted` уже = 20 нужных товаров текущей страницы.
+  // На серверной пагинации `boosted` уже = 20 нужных товаров текущей страницы.
   const paginated = useServerPagination
-    ? sorted
-    : sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    ? boosted
+    : boosted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // Сайдбар характеристик показываем только в режиме категории и только если
   // у неё есть фасеты (сервер их вернул). Для поиска по артикулу/VIN — нет.

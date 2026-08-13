@@ -117,6 +117,7 @@ function UnitLightbox({
   positions = [],
   parts,
   backVin,
+  fromBrand,
   onClose,
 }: {
   src: string;
@@ -124,11 +125,14 @@ function UnitLightbox({
   positions?: GoodvinPartPosition[];
   parts: GoodvinPart[];
   backVin?: string;
+  fromBrand?: string;
   onClose: () => void;
 }) {
   const [scale, setScale] = useState(1);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [active, setActive] = useState<string | null>(null);
+  // Открытая подсказка-ⓘ (индекс детали) — как в обычном списке.
+  const [infoOpen, setInfoOpen] = useState<number | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
@@ -259,7 +263,7 @@ function UnitLightbox({
                     if (pos) rowRefs.current[pos] = el;
                   }}
                   onClick={() => pos && setActive(pos)}
-                  className={`flex items-center gap-2.5 p-2.5 transition-colors ${
+                  className={`p-2.5 transition-colors ${
                     pos ? "cursor-pointer" : ""
                   } ${
                     isActive
@@ -267,42 +271,82 @@ function UnitLightbox({
                       : "hover:bg-neutral-800/40"
                   }`}
                 >
-                  {pos && (
-                    <span
-                      className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
-                        isActive
-                          ? "bg-orange-500 text-white"
-                          : "bg-orange-500/15 text-orange-400"
-                      }`}
-                    >
-                      {pos}
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-neutral-100">
-                      {part.name}
-                    </p>
-                    {part.number && (
-                      <p className="font-mono text-xs text-neutral-400">
-                        {part.number}
+                  <div className="flex items-center gap-2.5">
+                    {pos && (
+                      <span
+                        className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
+                          isActive
+                            ? "bg-orange-500 text-white"
+                            : "bg-orange-500/15 text-orange-400"
+                        }`}
+                      >
+                        {pos}
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-neutral-100">
+                        {part.name}
                       </p>
+                      {part.number && (
+                        <p className="font-mono text-xs text-neutral-400">
+                          {part.number}
+                        </p>
+                      )}
+                    </div>
+                    {!!part.attributes?.length && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInfoOpen((v) => (v === pi ? null : pi));
+                        }}
+                        title="Информация о детали"
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                          infoOpen === pi
+                            ? "border-orange-500 bg-orange-500 text-white"
+                            : "border-neutral-700 text-neutral-400 hover:border-orange-500 hover:text-orange-400"
+                        }`}
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
+                    )}
+                    {part.number && (
+                      <Link
+                        href={`/catalog?article=${encodeURIComponent(
+                          part.number
+                        )}${
+                          backVin
+                            ? `&fromVin=${encodeURIComponent(backVin)}`
+                            : ""
+                        }${
+                          fromBrand
+                            ? `&fromBrand=${encodeURIComponent(fromBrand)}`
+                            : ""
+                        }`}
+                        className="shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button size="sm" variant="outline" className="gap-1.5">
+                          <Tag className="h-3.5 w-3.5" />
+                          Цены
+                        </Button>
+                      </Link>
                     )}
                   </div>
-                  {part.number && (
-                    <Link
-                      href={`/catalog?article=${encodeURIComponent(
-                        part.number
-                      )}${
-                        backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
-                      }`}
-                      className="shrink-0"
+                  {infoOpen === pi && !!part.attributes?.length && (
+                    <div
+                      className="mt-2 space-y-1 rounded-lg border border-neutral-800 bg-neutral-950/60 p-2.5 text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Button size="sm" variant="outline" className="gap-1.5">
-                        <Tag className="h-3.5 w-3.5" />
-                        Цены
-                      </Button>
-                    </Link>
+                      {part.attributes.map((a) => (
+                        <p key={a.key}>
+                          <span className="text-neutral-500">
+                            {attrLabel(a)}:{" "}
+                          </span>
+                          <span className="text-neutral-200">{a.value}</span>
+                        </p>
+                      ))}
+                    </div>
                   )}
                 </div>
               );
@@ -943,6 +987,46 @@ export function VinCatalog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Новый номер из ШАПКИ сайта, когда каталог уже открыт с машиной: URL
+  // меняется, но компонент не перемонтируется — mount-эффект выше не
+  // срабатывает. Реагируем на смену initial-пропсов и ищем новое авто.
+  const initialRef = useRef({
+    vin: initialVin,
+    plate: initialPlate,
+    frame: initialFrame,
+  });
+  useEffect(() => {
+    const prev = initialRef.current;
+    if (
+      prev.vin === initialVin &&
+      prev.plate === initialPlate &&
+      prev.frame === initialFrame
+    )
+      return;
+    initialRef.current = {
+      vin: initialVin,
+      plate: initialPlate,
+      frame: initialFrame,
+    };
+    if (initialVin) {
+      setQuery(initialVin);
+      void runSearch(initialVin);
+    } else if (initialPlate) {
+      setQuery(initialPlate);
+      void runPlateSearch(initialPlate);
+    } else if (initialFrame) {
+      setQuery(initialFrame);
+      void runFrameSearch(initialFrame);
+    }
+  }, [
+    initialVin,
+    initialPlate,
+    initialFrame,
+    runSearch,
+    runPlateSearch,
+    runFrameSearch,
+  ]);
+
   // Запоминаем позицию, пока выбрано авто.
   useEffect(() => {
     if (!car) return;
@@ -1493,6 +1577,7 @@ export function VinCatalog({
                       <UnitBlock
                         group={schemeGroup}
                         backVin={car.vin || car.frame || query}
+                        fromBrand={car.brand}
                         single
                         catalogId={car.catalogId}
                         carId={car.carId}
@@ -1558,6 +1643,7 @@ export function VinCatalog({
                     results={searchResults}
                     query={partQuery}
                     backVin={car.vin || car.frame || query}
+                    fromBrand={car.brand}
                   />
                 ) : parts ? (
                   <div className="space-y-3">
@@ -1570,6 +1656,7 @@ export function VinCatalog({
                     <PartsView
                       parts={parts}
                       backVin={car.vin || car.frame || query}
+                      fromBrand={car.brand}
                       catalogId={car.catalogId}
                       carId={car.carId}
                     />
@@ -1598,10 +1685,12 @@ function SearchResultsView({
   results,
   query,
   backVin,
+  fromBrand,
 }: {
   results: Array<{ number: string; name: string }>;
   query: string;
   backVin?: string;
+  fromBrand?: string;
 }) {
   return (
     <div className="space-y-3">
@@ -1624,6 +1713,8 @@ function SearchResultsView({
               <Link
                 href={`/catalog?article=${encodeURIComponent(r.number)}${
                   backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
+                }${
+                  fromBrand ? `&fromBrand=${encodeURIComponent(fromBrand)}` : ""
                 }`}
                 className="shrink-0"
               >
@@ -1645,11 +1736,13 @@ function SearchResultsView({
 function PartsView({
   parts,
   backVin,
+  fromBrand,
   catalogId,
   carId,
 }: {
   parts: GoodvinParts;
   backVin?: string;
+  fromBrand?: string;
   catalogId?: string;
   carId?: string;
 }) {
@@ -1673,6 +1766,7 @@ function PartsView({
           key={`${g.unitId || g.number || g.name}-${i}`}
           group={g}
           backVin={backVin}
+          fromBrand={fromBrand}
           single={single}
           catalogId={catalogId}
           carId={carId}
@@ -1686,12 +1780,14 @@ function PartsView({
 function UnitBlock({
   group,
   backVin,
+  fromBrand,
   single,
   catalogId,
   carId,
 }: {
   group: GoodvinParts["partGroups"][number];
   backVin?: string;
+  fromBrand?: string;
   single: boolean;
   catalogId?: string;
   carId?: string;
@@ -1888,6 +1984,7 @@ function UnitBlock({
                 positions={positions}
                 parts={shownParts}
                 backVin={backVin}
+                fromBrand={fromBrand}
                 onClose={() => setLightbox(false)}
               />
             )}
@@ -1970,6 +2067,10 @@ function UnitBlock({
                   <Link
                     href={`/catalog?article=${encodeURIComponent(part.number)}${
                       backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
+                    }${
+                      fromBrand
+                        ? `&fromBrand=${encodeURIComponent(fromBrand)}`
+                        : ""
                     }`}
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}

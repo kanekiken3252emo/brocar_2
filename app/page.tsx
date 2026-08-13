@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import BrandCatalogHero from "@/components/BrandCatalogHero";
+import CarPickerWidget from "@/components/home/CarPickerWidget";
 import { NewsSection } from "@/components/news-section";
 import ContactRequestForm from "@/components/contact-request-form";
 
@@ -116,16 +116,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Brand Catalog Section */}
+      {/* Подбор по автомобилю (мастер Laximo в сжатой форме) — по просьбе
+          владельца заменил простой список марок: важнее подбор по параметрам. */}
       <section className="py-8 md:py-12 border-y border-neutral-800/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h2 className="text-lg md:text-2xl font-bold text-white">Выберите марку</h2>
+            <h2 className="text-lg md:text-2xl font-bold text-white">
+              Подберите запчасти по автомобилю
+            </h2>
             <Link href="/automarki" className="text-orange-500 hover:text-orange-400 flex items-center gap-1 transition-colors text-sm md:text-base">
               Все марки <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          <BrandCatalogHero />
+          <CarPickerWidget />
         </div>
       </section>
 

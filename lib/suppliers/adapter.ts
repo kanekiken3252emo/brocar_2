@@ -1,6 +1,7 @@
 // Каноничный бренд: схлопывает разные написания одного бренда (STELLOX/Stellox)
 // и в живых ответах поставщиков, как и в импортированном каталоге.
 import { canonicalBrand, brandKey } from "../brands/canonical.mjs";
+import { brandFamilyId } from "../brands/families.mjs";
 // Ремонт битых названий из живых ответов поставщиков (особенно Armtek):
 // «KopfstГ tze» → «Kopfstütze», выбор чистого дубля вместо «Р С С Р».
 import { repairSupplierName, nameScore, pickBetterName } from "./mojibake";
@@ -192,6 +193,61 @@ export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
   }
 
   return Array.from(map.values()).sort((a, b) => a.minPrice - b.minPrice);
+}
+
+/**
+ * Склейка «один артикул + один КОНЦЕРН = одна карточка» (решение владельца):
+ * PSA / PEUGEOT/CITROEN / Citroen с одним артикулом — это один оригинал,
+ * раздельные карточки тянули каждая свой кусок предложений и аналогов.
+ * Предложения объединяются, агрегаты пересчитываются; ярлык и название — от
+ * группы с бОльшим числом предложений (реальный ярлык → работают картинки).
+ * Бренды вне таблицы семейств (аналоги SUFIX/Pilenga…) не трогаются.
+ */
+export function mergeFamilyGroups(groups: SupplierGroup[]): SupplierGroup[] {
+  const byKey = new Map<string, { g: SupplierGroup; topOffers: number }>();
+  const out: SupplierGroup[] = [];
+
+  for (const g of groups) {
+    const fam = brandFamilyId(g.brand);
+    if (fam === null) {
+      out.push(g);
+      continue;
+    }
+    const key = `${normalizeArticle(g.article)}|fam${fam}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      const copy: SupplierGroup = { ...g, offers: [...g.offers] };
+      byKey.set(key, { g: copy, topOffers: g.offers.length });
+      out.push(copy);
+      continue;
+    }
+    const ex = existing.g;
+    // Ярлык/имя/картинка — от самой «толстой» составляющей.
+    if (g.offers.length > existing.topOffers) {
+      ex.brand = g.brand;
+      ex.name = pickBetterName(g.name, ex.name);
+      if (g.imageUrl) ex.imageUrl = g.imageUrl;
+      existing.topOffers = g.offers.length;
+    } else {
+      ex.name = pickBetterName(ex.name, g.name);
+      if (!ex.imageUrl && g.imageUrl) ex.imageUrl = g.imageUrl;
+    }
+    ex.offers.push(...g.offers);
+    ex.totalStock += g.totalStock;
+    ex.minPrice = Math.min(ex.minPrice, g.minPrice);
+    ex.maxPrice = Math.max(ex.maxPrice, g.maxPrice);
+    if (
+      g.minDeliveryDays != null &&
+      (ex.minDeliveryDays == null || g.minDeliveryDays < ex.minDeliveryDays)
+    ) {
+      ex.minDeliveryDays = g.minDeliveryDays;
+    }
+  }
+
+  for (const { g } of byKey.values()) {
+    g.offers.sort(compareOffers);
+  }
+  return out;
 }
 
 /**

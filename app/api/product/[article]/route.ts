@@ -3,6 +3,7 @@ import {
   searchAllSuppliers,
   groupOffers,
   dedupeGroups,
+  mergeFamilyGroups,
   compareGroupsByDelivery,
   normalizeArticle,
   type SupplierGroup,
@@ -76,7 +77,9 @@ async function getHandler(
     const pricing = (base: number, ctx: { brand?: string }) =>
       applyPricingSync(base, ctx);
 
-    const mainGroups = groupOffers(mainItems, pricing);
+    // Ярлыки одного концерна с одним артикулом (PSA / PEUGEOT/CITROEN /
+    // Citroen) сливаются в одну группу со всеми предложениями.
+    const mainGroups = mergeFamilyGroups(groupOffers(mainItems, pricing));
 
     // Главная группа: сверяем И артикул, И бренд. Раньше матчили только бренд
     // с фолбэком на mainGroups[0] (группы отсортированы по цене) — и на карточку
@@ -145,7 +148,7 @@ async function getHandler(
       const mainKey = mainGroup
         ? `${normalizeArticle(mainGroup.article)}|${brandKey(canonicalBrand(mainGroup.brand))}`
         : `${wantedArticle}|${wantedBrandKey}`;
-      const sortedAnalogs = dedupeGroups(analogCandidates)
+      const sortedAnalogs = mergeFamilyGroups(dedupeGroups(analogCandidates))
         .filter((g) => `${g.article}|${brandKey(g.brand)}` !== mainKey)
         .sort(compareGroupsByDelivery);
       // Оригиналы того же концерна (PSA для Citroën, GM для Opel…) — первыми:

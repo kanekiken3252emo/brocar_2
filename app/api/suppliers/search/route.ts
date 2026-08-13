@@ -4,6 +4,7 @@ import {
   searchAllSuppliers,
   groupOffers,
   dedupeGroups,
+  mergeFamilyGroups,
   compareGroupsByDelivery,
   normalizeArticle,
   type SupplierItem,
@@ -71,8 +72,12 @@ export async function POST(request: NextRequest) {
       allItems = [...items, ...analogItems];
     }
 
-    let groups = dedupeGroups(
-      groupOffers(allItems, (base, ctx) => applyPricingSync(base, ctx))
+    // «Один артикул + один концерн = одна карточка»: PSA / PEUGEOT/CITROEN /
+    // Citroen с тем же номером объединяются со всеми предложениями.
+    let groups = mergeFamilyGroups(
+      dedupeGroups(
+        groupOffers(allItems, (base, ctx) => applyPricingSync(base, ctx))
+      )
     );
 
     // Точный артикул (оригинал и его двойники) — первым, заменители следом

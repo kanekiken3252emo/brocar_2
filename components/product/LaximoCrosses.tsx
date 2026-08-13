@@ -99,6 +99,9 @@ export function LaximoCrosses({
   const [showAll, setShowAll] = useState(false);
   // Поиск по аналогам: мгновенный фильтр списка по бренду/артикулу/названию.
   const [filterQ, setFilterQ] = useState("");
+  // Фильтры «с выбором» (как на категориях): бренд + наличие.
+  const [brandF, setBrandF] = useState("");
+  const [availF, setAvailF] = useState<"all" | "stock" | "order">("all");
   // Тик пересортировки: каждая завершённая проверка наличия перерисовывает
   // список (в наличии — вверх, «под заказ» — вниз).
   const [, setResolvedTick] = useState(0);
@@ -148,19 +151,38 @@ export function LaximoCrosses({
 
   const hasSupplierBlock = excludeArticles.length > 0;
 
-  // Фильтр по бренду/артикулу/названию. При активном фильтре показываем ВСЕ
-  // совпадения сразу (кнопка «показать все» не нужна).
+  // Бренды для выпадающего фильтра — со счётчиком позиций.
+  const brandOptions = (() => {
+    const m = new Map<string, number>();
+    for (const c of visible) {
+      const b = c.brand || "Без бренда";
+      m.set(b, (m.get(b) ?? 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "en"));
+  })();
+
+  // Фильтры: текст (бренд/артикул/название) + выбор бренда + наличие.
+  // При любом активном фильтре показываем ВСЕ совпадения сразу.
   const fq = filterQ.trim().toLowerCase();
   const fqArt = normArt(filterQ);
-  const matched = fq
-    ? visible.filter(
-        (c) =>
-          c.brand.toLowerCase().includes(fq) ||
-          c.name.toLowerCase().includes(fq) ||
-          (fqArt && normArt(c.number).includes(fqArt))
+  const statusOf = (c: Cross) => groupCache.get(`${c.brand}|${c.number}`);
+  const hasFilters = Boolean(fq) || Boolean(brandF) || availF !== "all";
+  const matched = visible.filter((c) => {
+    if (
+      fq &&
+      !(
+        c.brand.toLowerCase().includes(fq) ||
+        c.name.toLowerCase().includes(fq) ||
+        (fqArt && normArt(c.number).includes(fqArt))
       )
-    : visible;
-  const shown = fq ? matched : showAll ? visible : visible.slice(0, INITIAL);
+    )
+      return false;
+    if (brandF && (c.brand || "Без бренда") !== brandF) return false;
+    if (availF === "stock" && !statusOf(c)) return false;
+    if (availF === "order" && statusOf(c) !== null) return false;
+    return true;
+  });
+  const shown = hasFilters ? matched : showAll ? visible : visible.slice(0, INITIAL);
 
   // Автопроверку наличия получают первые PRICE_LIMIT карточек ИСХОДНОГО
   // порядка — фиксированный набор, чтобы пересортировка не выстраивала
@@ -186,21 +208,65 @@ export function LaximoCrosses({
           ? `Ещё аналоги из каталога (${visible.length})`
           : `Аналоги (${visible.length})`}
       </h2>
-      {/* Поиск по аналогам — мгновенный фильтр списка (без запросов) */}
-      <div className="relative mb-5 mt-4 max-w-md">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-        <input
-          value={filterQ}
-          onChange={(e) => setFilterQ(e.target.value)}
-          placeholder="Найти аналог: бренд, артикул или название…"
-          className="w-full rounded-xl border border-neutral-700 bg-neutral-800 py-2.5 pl-10 pr-4 text-white placeholder:text-neutral-600 transition-colors focus:border-orange-500 focus:outline-none"
-        />
+      {/* Поиск + фильтры с выбором (как на категориях): бренд, наличие */}
+      <div className="mb-5 mt-4 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[220px] flex-1 sm:max-w-md">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+          <input
+            value={filterQ}
+            onChange={(e) => setFilterQ(e.target.value)}
+            placeholder="Найти аналог: бренд, артикул или название…"
+            className="w-full rounded-xl border border-neutral-700 bg-neutral-800 py-2.5 pl-10 pr-4 text-white placeholder:text-neutral-600 transition-colors focus:border-orange-500 focus:outline-none"
+          />
+        </div>
+
+        <select
+          value={brandF}
+          onChange={(e) => setBrandF(e.target.value)}
+          className="rounded-xl border border-neutral-700 bg-neutral-800 px-3 py-2.5 text-white transition-colors focus:border-orange-500 focus:outline-none"
+        >
+          <option value="">Все бренды ({visible.length})</option>
+          {brandOptions.map(([b, n]) => (
+            <option key={b} value={b}>
+              {b} ({n})
+            </option>
+          ))}
+        </select>
+
+        <div className="flex overflow-hidden rounded-xl border border-neutral-700">
+          {(
+            [
+              ["all", "Все"],
+              ["stock", "В наличии"],
+              ["order", "Под заказ"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setAvailF(key)}
+              className={`px-3 py-2.5 text-sm font-medium transition-colors ${
+                availF === key
+                  ? "bg-orange-500 text-white"
+                  : "bg-neutral-800 text-neutral-300 hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-      {fq && (
+      {hasFilters && (
         <p className="mb-4 text-sm text-neutral-400">
           {matched.length
             ? `Совпадений: ${matched.length}`
-            : "Совпадений нет — попробуйте короче (например, только бренд или часть номера)."}
+            : "Совпадений нет — измените фильтры или запрос."}
+          {availF === "stock" && (
+            <span className="text-neutral-500">
+              {" "}
+              (наличие проверяется у первых {PRICE_LIMIT} позиций)
+            </span>
+          )}
         </p>
       )}
 
@@ -214,7 +280,7 @@ export function LaximoCrosses({
           />
         ))}
       </div>
-      {!fq && !showAll && visible.length > INITIAL && (
+      {!hasFilters && !showAll && visible.length > INITIAL && (
         <div className="mt-4 text-center">
           <Button variant="outline" onClick={() => setShowAll(true)}>
             Показать все аналоги ({visible.length})

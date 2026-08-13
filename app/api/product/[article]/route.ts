@@ -63,9 +63,13 @@ async function getHandler(
     // прятало и оригинал под другим ярлыком, и его кроссы («OPEL — 2 аналога,
     // GM — 50»). Свою группу выбираем ниже по артикулу + семейству брендов.
     const [mainItems, shateArticleId] = await Promise.all([
-      searchAllSuppliers(adapters, { article: decoded }, 6000).catch(
-        () => [] as SupplierItem[]
-      ),
+      searchAllSuppliers(
+        adapters,
+        // withCrosses: Rossko/Berg отдают и заменители — блок «Аналоги в
+        // продаже» наполняется реальными кроссами, а не 1-2 позициями.
+        { article: decoded, withCrosses: true },
+        6000
+      ).catch(() => [] as SupplierItem[]),
       (shateMAdapter as ShateMAdapter).findArticleId(decoded, brand).catch(() => null),
     ]);
 

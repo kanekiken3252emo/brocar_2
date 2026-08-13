@@ -71,7 +71,7 @@ export class RosskoAdapter implements SupplierAdapter {
         }
       );
 
-      return parseSearchResponse(response.data);
+      return parseSearchResponse(response.data, Boolean(params.withCrosses));
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Rossko API error:", {
@@ -142,7 +142,54 @@ function extractAllBlocks(xml: string, tag: string): string[] {
   return blocks;
 }
 
-function parseSearchResponse(xml: string): SupplierItem[] {
+/** Один Part-блок (артикул + склады) → офферы. Общий для основных позиций
+ *  и заменителей из блока crosses — структура у них одинаковая. */
+function parsePartBlock(partXml: string, items: SupplierItem[]): void {
+  const brand = extractTag(partXml, "brand") || "";
+  const partnumber = extractTag(partXml, "partnumber") || "";
+  const name = extractTag(partXml, "name") || "";
+
+  const stocksContainer = extractAllBlocks(partXml, "stocks")[0] || "";
+  const stockBlocks = extractAllBlocks(stocksContainer, "stock");
+
+  for (const stockXml of stockBlocks) {
+    const price = parseFloat(extractTag(stockXml, "price") || "0");
+    const count = parseInt(extractTag(stockXml, "count") || "0", 10);
+    const description = extractTag(stockXml, "description") || "склад";
+    const type = extractTag(stockXml, "type") || "0";
+    const delivery = extractTag(stockXml, "delivery") || "";
+
+    // Берём только обычные предложения (type=0) с ненулевым остатком
+    if (count > 0 && price > 0 && type === "0") {
+      const deliveryDays = delivery ? parseInt(delivery, 10) : null;
+      items.push({
+        article: partnumber,
+        brand,
+        name,
+        price,
+        stock: count,
+        supplier: `Rossko (${description})`,
+        supplierCode: "rossko",
+        deliveryDays,
+        raw: {
+          stock_id: extractTag(stockXml, "id"),
+          delivery_days: delivery ? parseInt(delivery, 10) : null,
+          multiplicity: parseInt(
+            extractTag(stockXml, "multiplicity") || "1",
+            10
+          ),
+          delivery_start: extractTag(stockXml, "deliveryStart"),
+          delivery_end: extractTag(stockXml, "deliveryEnd"),
+        },
+      });
+    }
+  }
+}
+
+function parseSearchResponse(
+  xml: string,
+  includeCrosses: boolean
+): SupplierItem[] {
   const success = extractTag(xml, "success");
   if (success !== "true") {
     const message = extractTag(xml, "message");
@@ -154,56 +201,24 @@ function parseSearchResponse(xml: string): SupplierItem[] {
 
   const items: SupplierItem[] = [];
 
-  // PartsList -> Part (без аналогов: берём только первый уровень Part,
-  // а crosses блок находится внутри каждого Part и должен быть проигнорирован)
+  // PartsList -> Part. Блок crosses внутри каждого Part содержит ЗАМЕНИТЕЛИ
+  // (такие же Part'ы других брендов): для точного поиска их вырезаем, для
+  // поиска «с аналогами» — парсим тем же кодом.
   const partsListBlocks = extractAllBlocks(xml, "PartsList");
   for (const partsListXml of partsListBlocks) {
-    // Вырезаем блоки <ns1:crosses>...</ns1:crosses>, чтобы не подхватить
-    // аналоги как обычные Part'ы
+    const crossBlocks = extractAllBlocks(partsListXml, "crosses");
     const cleaned = partsListXml.replace(
       /<ns1:crosses>[\s\S]*?<\/ns1:crosses>/g,
       ""
     );
 
-    const partBlocks = extractAllBlocks(cleaned, "Part");
-    for (const partXml of partBlocks) {
-      const brand = extractTag(partXml, "brand") || "";
-      const partnumber = extractTag(partXml, "partnumber") || "";
-      const name = extractTag(partXml, "name") || "";
-
-      const stocksContainer = extractAllBlocks(partXml, "stocks")[0] || "";
-      const stockBlocks = extractAllBlocks(stocksContainer, "stock");
-
-      for (const stockXml of stockBlocks) {
-        const price = parseFloat(extractTag(stockXml, "price") || "0");
-        const count = parseInt(extractTag(stockXml, "count") || "0", 10);
-        const description = extractTag(stockXml, "description") || "склад";
-        const type = extractTag(stockXml, "type") || "0";
-        const delivery = extractTag(stockXml, "delivery") || "";
-
-        // Берём только обычные предложения (type=0) с ненулевым остатком
-        if (count > 0 && price > 0 && type === "0") {
-          const deliveryDays = delivery ? parseInt(delivery, 10) : null;
-          items.push({
-            article: partnumber,
-            brand,
-            name,
-            price,
-            stock: count,
-            supplier: `Rossko (${description})`,
-            supplierCode: "rossko",
-            deliveryDays,
-            raw: {
-              stock_id: extractTag(stockXml, "id"),
-              delivery_days: delivery ? parseInt(delivery, 10) : null,
-              multiplicity: parseInt(
-                extractTag(stockXml, "multiplicity") || "1",
-                10
-              ),
-              delivery_start: extractTag(stockXml, "deliveryStart"),
-              delivery_end: extractTag(stockXml, "deliveryEnd"),
-            },
-          });
+    for (const partXml of extractAllBlocks(cleaned, "Part")) {
+      parsePartBlock(partXml, items);
+    }
+    if (includeCrosses) {
+      for (const crossXml of crossBlocks) {
+        for (const partXml of extractAllBlocks(crossXml, "Part")) {
+          parsePartBlock(partXml, items);
         }
       }
     }

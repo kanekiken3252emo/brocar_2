@@ -63,6 +63,9 @@ export interface SupplierGroup {
 export interface SearchParams {
   article?: string;
   brand?: string;
+  /** Вернуть и ЗАМЕНИТЕЛИ других брендов (кроссы поставщика), а не только
+   *  точный артикул. Поддерживают Rossko (блок crosses) и Berg (analogs=1). */
+  withCrosses?: boolean;
 }
 
 /**

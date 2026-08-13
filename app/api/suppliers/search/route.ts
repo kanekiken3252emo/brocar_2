@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       searchAllSuppliers(adapters, {
         article: validatedData.article,
         brand: validatedData.brand,
+        // Кроссы Rossko/Berg — заменители прямо в выдаче поиска.
+        withCrosses: validatedData.withAnalogs,
       }),
       validatedData.withAnalogs && validatedData.article
         ? (shateMAdapter as ShateMAdapter)

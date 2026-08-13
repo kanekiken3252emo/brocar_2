@@ -36,7 +36,8 @@ export class BergAdapter implements SupplierAdapter {
       // Berg.ru requires specific URL format without encoding
       
       // Build URL manually without encoding brackets
-      let url = `${this.baseUrl}/v1.0/ordering/get_stock.json?key=${this.apiKey}&analogs=0`;
+      // analogs=1 — Berg добавляет в ответ заменители других брендов (кроссы).
+      let url = `${this.baseUrl}/v1.0/ordering/get_stock.json?key=${this.apiKey}&analogs=${params.withCrosses ? 1 : 0}`;
 
       if (params.article) {
         url += `&items[0][resource_article]=${encodeURIComponent(params.article)}`;

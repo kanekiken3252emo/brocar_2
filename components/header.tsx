@@ -78,8 +78,10 @@ export function Header({ user }: HeaderProps) {
   const [isBrandCatalogOpen, setIsBrandCatalogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useState(0);
+  const [hideHeader, setHideHeader] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const onVinCatalog = pathname === "/catalog-vin";
 
   // Блокируем скролл фона, пока открыто мобильное меню — иначе палец скроллил
   // страницу под меню. Само меню скроллится внутри (overflow-y-auto ниже).
@@ -145,6 +147,24 @@ export function Header({ user }: HeaderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  // На странице каталога по VIN прячем шапку при скролле ВНИЗ (чтобы не мешала
+  // смотреть схему) и возвращаем при скролле ВВЕРХ. На других страницах не трогаем.
+  useEffect(() => {
+    if (!onVinCatalog) {
+      setHideHeader(false);
+      return;
+    }
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > lastY && y > 80) setHideHeader(true);
+      else if (y < lastY) setHideHeader(false);
+      lastY = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [onVinCatalog]);
+
   const handleLogout = async () => {
     const { signOut } = await import("@/lib/auth/client-actions");
     await signOut();
@@ -171,10 +191,16 @@ export function Header({ user }: HeaderProps) {
   };
 
   return (
-    // На мобилке хедер НЕ sticky — уезжает вместе с контентом, виден только
-    // наверху страницы (по просьбе: не «вылезать» при скролле вверх). На десктопе
-    // (lg+) остаётся прилипшим к верху.
-    <header className="lg:sticky lg:top-0 z-50">
+    // На мобилке хедер НЕ sticky — уезжает вместе с контентом. На десктопе (lg+)
+    // прилипший. На каталоге по VIN — sticky на всех экранах + прячется при
+    // скролле вниз и возвращается при скролле вверх (чтобы не мешал схеме).
+    <header
+      className={`z-50 transition-transform duration-300 ${
+        onVinCatalog
+          ? `sticky top-0 ${hideHeader ? "-translate-y-full" : "translate-y-0"}`
+          : "lg:sticky lg:top-0"
+      }`}
+    >
       {/* Top Bar */}
       <div className="bg-neutral-950">
         <div className="container mx-auto px-4">

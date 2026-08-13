@@ -444,6 +444,75 @@ async function getUnitParts(
   );
 }
 
+// ── Режим «Все схемы» (как у Армтек): категории → узлы с превью схем ────────
+
+export type LaximoUnit = {
+  unitId: string;
+  code: string;
+  name: string;
+  /** Превью схемы для плитки. */
+  img?: string;
+  /** Полноразмерная схема для просмотра узла. */
+  largeImg?: string;
+  ssd: string;
+};
+
+/** Категории каталога (для «Всех схем»). Работает и у quick-каталогов —
+ *  ListCategories доступен почти везде. Кэш 24ч. */
+async function getCategories(
+  catalogId: string,
+  opts: { carId: string; criteria?: string }
+): Promise<GoodvinGroupNode[]> {
+  return laximoCached(
+    `cats:${catalogId}:${opts.carId}:${ssdKey(opts.criteria)}`,
+    () => categoryTree(catalogId, opts.carId, opts.criteria ?? "")
+  );
+}
+
+/** Узлы категории со схемами-превью (ListUnits). Кэш 24ч. */
+async function getUnits(
+  catalogId: string,
+  opts: { carId: string; categoryId: string; criteria?: string }
+): Promise<LaximoUnit[]> {
+  return laximoCached(
+    `units:${catalogId}:${opts.carId}:${opts.categoryId}:${ssdKey(opts.criteria)}`,
+    async () => {
+      const resp = await laximoQuery(
+        "oem",
+        `ListUnits:Locale=${LOCALE}|Catalog=${catalogId}|VehicleId=${opts.carId}|CategoryId=${opts.categoryId}|ssd=${opts.criteria ?? ""}`
+      );
+      const rows = asArray(
+        (resp as { ListUnits?: { row?: unknown } }).ListUnits?.row
+      ) as Rec[];
+      return rows.map((u) => ({
+        unitId: String(u.unitid ?? ""),
+        code: String(u.code ?? ""),
+        name: String(u.name ?? ""),
+        img: laximoImage(u.imageurl as string | undefined, "250"),
+        largeImg: laximoImage(u.imageurl as string | undefined),
+        ssd: String(u.ssd ?? ""),
+      }));
+    }
+  );
+}
+
+/** Узел целиком для «Всех схем»: детали + карта выносок. Кэш 24ч. */
+async function getUnitView(
+  catalogId: string,
+  opts: { carId: string; unitId: string; ssd: string }
+): Promise<{ parts: GoodvinPart[]; positions: GoodvinPartPosition[] }> {
+  return laximoCached(
+    `unitview:${catalogId}:${opts.carId}:${opts.unitId}:${ssdKey(opts.ssd)}`,
+    async () => {
+      const [parts, positions] = await Promise.all([
+        listDetailsByUnit(catalogId, opts.carId, opts.unitId, opts.ssd),
+        unitImageMap(catalogId, opts.carId, opts.unitId, opts.ssd),
+      ]);
+      return { parts, positions };
+    }
+  );
+}
+
 // ── Поиск детали по названию/номеру ─────────────────────────────────────────
 async function searchParts(
   catalogId: string,
@@ -621,6 +690,9 @@ export const laximo = {
   getTree,
   getParts,
   getUnitParts,
+  getCategories,
+  getUnits,
+  getUnitView,
   searchParts,
   listBrands,
   getWizard,

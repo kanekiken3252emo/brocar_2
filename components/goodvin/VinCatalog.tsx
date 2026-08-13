@@ -55,6 +55,16 @@ type WizardState = {
   steps: WizardStep[];
 };
 
+// ── Режим «Все схемы» (как у Армтек): категории → плитка узлов с превью ─────
+type SchemeUnit = {
+  unitId: string;
+  code: string;
+  name: string;
+  img?: string;
+  largeImg?: string;
+  ssd: string;
+};
+
 interface SavedNav {
   query: string;
   car: GoodvinCarInfo;
@@ -228,6 +238,21 @@ export function VinCatalog({
   const [wiz, setWiz] = useState<WizardState | null>(null);
   const [wizLoading, setWizLoading] = useState(false);
 
+  // Режим «Все схемы»: вкладка, категории, плитка узлов, открытый узел.
+  const [viewTab, setViewTab] = useState<"groups" | "schemes">("groups");
+  const [cats, setCats] = useState<GoodvinGroupNode[] | null>(null);
+  const [catsLoading, setCatsLoading] = useState(false);
+  const [catExpanded, setCatExpanded] = useState<Set<string>>(new Set());
+  const [selCatId, setSelCatId] = useState<string | null>(null);
+  const [selCatName, setSelCatName] = useState("");
+  const [unitsList, setUnitsList] = useState<SchemeUnit[] | null>(null);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [schemeUnit, setSchemeUnit] = useState<SchemeUnit | null>(null);
+  const [schemeGroup, setSchemeGroup] = useState<
+    GoodvinParts["partGroups"][number] | null
+  >(null);
+  const [schemeLoading, setSchemeLoading] = useState(false);
+
   // Поиск детали по названию/номеру внутри каталога авто.
   const [partQuery, setPartQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{
@@ -317,6 +342,107 @@ export function VinCatalog({
     [car, loadParts]
   );
 
+  // ── «Все схемы»: категории → плитка узлов со схемами → узел ───────────────
+  const toggleCat = useCallback((id: string) => {
+    setCatExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const openSchemesTab = useCallback(async () => {
+    setViewTab("schemes");
+    setSearchResults(null);
+    if (cats !== null || !car) return;
+    setCatsLoading(true);
+    setError("");
+    try {
+      const data = await fetchJson<{ categories: GoodvinGroupNode[] }>(
+        `/api/goodvin/categories?catalogId=${encodeURIComponent(
+          car.catalogId
+        )}&carId=${encodeURIComponent(car.carId)}&criteria=${encodeURIComponent(
+          car.criteria || ""
+        )}`
+      );
+      setCats(data.categories);
+    } catch (e) {
+      setError((e as Error).message);
+      setViewTab("groups");
+    } finally {
+      setCatsLoading(false);
+    }
+  }, [car, cats]);
+
+  const selectSchemeCat = useCallback(
+    async (node: GoodvinGroupNode) => {
+      if (!car) return;
+      setSelCatId(node.id);
+      setSelCatName(node.name);
+      setSchemeUnit(null);
+      setSchemeGroup(null);
+      setUnitsLoading(true);
+      setError("");
+      try {
+        const data = await fetchJson<{ units: SchemeUnit[] }>(
+          `/api/goodvin/units?catalogId=${encodeURIComponent(
+            car.catalogId
+          )}&carId=${encodeURIComponent(
+            car.carId
+          )}&categoryId=${encodeURIComponent(
+            node.id
+          )}&criteria=${encodeURIComponent(node.ssd || car.criteria || "")}`
+        );
+        setUnitsList(data.units);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setUnitsLoading(false);
+      }
+    },
+    [car]
+  );
+
+  const openSchemeUnit = useCallback(
+    async (u: SchemeUnit) => {
+      if (!car) return;
+      setSchemeUnit(u);
+      setSchemeGroup(null);
+      setSchemeLoading(true);
+      setError("");
+      try {
+        const data = await fetchJson<{
+          parts: GoodvinParts["partGroups"][number]["parts"];
+          positions: NonNullable<
+            GoodvinParts["partGroups"][number]["positions"]
+          >;
+        }>(
+          `/api/goodvin/unit-view?catalogId=${encodeURIComponent(
+            car.catalogId
+          )}&carId=${encodeURIComponent(car.carId)}&unitId=${encodeURIComponent(
+            u.unitId
+          )}&ssd=${encodeURIComponent(u.ssd)}`
+        );
+        setSchemeGroup({
+          name: u.name,
+          number: u.code,
+          positionNumber: "",
+          img: u.largeImg,
+          imgDescription: u.name,
+          positions: data.positions,
+          parts: data.parts,
+        });
+      } catch (e) {
+        setError((e as Error).message);
+        setSchemeUnit(null);
+      } finally {
+        setSchemeLoading(false);
+      }
+    },
+    [car]
+  );
+
   const doPartSearch = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -358,6 +484,13 @@ export function VinCatalog({
       setSelectedId(null);
       setSelectedName("");
       setFilter("");
+      // Режим «Все схемы» — данные другого авто не переиспользуем.
+      setViewTab("groups");
+      setCats(null);
+      setSelCatId(null);
+      setUnitsList(null);
+      setSchemeUnit(null);
+      setSchemeGroup(null);
       void loadTree(selectedCar);
     },
     [loadTree]
@@ -648,9 +781,25 @@ export function VinCatalog({
   // (мастер-деталь) — иначе длинное дерево «отжимает» схему вниз. На десктопе
   // (lg+) видно и то, и другое. Кнопка «← К узлам» возвращает к дереву.
   const mobileShowContent =
-    loading === "parts" || searching || searchResults !== null || parts !== null;
+    viewTab === "schemes"
+      ? unitsLoading || unitsList !== null || schemeUnit !== null
+      : loading === "parts" ||
+        searching ||
+        searchResults !== null ||
+        parts !== null;
 
   function backToTree() {
+    if (viewTab === "schemes") {
+      // Шаг назад: из узла — к плитке узлов, из плитки — к категориям.
+      if (schemeUnit) {
+        setSchemeUnit(null);
+        setSchemeGroup(null);
+      } else {
+        setUnitsList(null);
+        setSelCatId(null);
+      }
+      return;
+    }
     setParts(null);
     setSelectedId(null);
     setSearchResults(null);
@@ -925,15 +1074,42 @@ export function VinCatalog({
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetSearch}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Другой VIN
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Как у Армтек: «Поиск по группам» / «Перейти на список узлов» */}
+              <div className="flex overflow-hidden rounded-lg border border-neutral-700">
+                <button
+                  type="button"
+                  onClick={() => setViewTab("groups")}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    viewTab === "groups"
+                      ? "bg-orange-500 text-white"
+                      : "bg-neutral-800 text-neutral-300 hover:text-white"
+                  }`}
+                >
+                  Группы
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openSchemesTab()}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    viewTab === "schemes"
+                      ? "bg-orange-500 text-white"
+                      : "bg-neutral-800 text-neutral-300 hover:text-white"
+                  }`}
+                >
+                  Все схемы
+                </button>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetSearch}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Другой VIN
+              </Button>
+            </div>
           </div>
 
           {/* Поиск детали по названию или OEM-номеру внутри этого авто */}
@@ -987,39 +1163,67 @@ export function VinCatalog({
                   mobileShowContent ? "hidden lg:block" : ""
                 }`}
               >
-                <div className="border-b border-neutral-800 p-2.5">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
-                    <input
-                      value={filter}
-                      onChange={(e) =>
-                        setFilter(e.target.value.toLowerCase())
-                      }
-                      placeholder="Название узла…"
-                      className="w-full rounded-lg bg-neutral-950 border border-neutral-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-neutral-600 focus:border-orange-500/50 focus:outline-none"
-                    />
+                {viewTab === "schemes" ? (
+                  // «Все схемы»: слева категории каталога
+                  <div className="max-h-[70vh] overflow-y-auto p-1.5">
+                    {catsLoading ? (
+                      <Spinner label="Загружаем категории…" />
+                    ) : cats && cats.length ? (
+                      cats.map((n) => (
+                        <TreeNode
+                          key={n.id}
+                          node={n}
+                          depth={0}
+                          filter=""
+                          expanded={catExpanded}
+                          toggle={toggleCat}
+                          selectedId={selCatId}
+                          onSelect={(node) => void selectSchemeCat(node)}
+                        />
+                      ))
+                    ) : (
+                      <p className="p-3 text-sm text-neutral-500">
+                        Категории недоступны для этого каталога
+                      </p>
+                    )}
                   </div>
-                </div>
-                <div className="max-h-[70vh] overflow-y-auto p-1.5">
-                  {visibleTop.length ? (
-                    visibleTop.map((n) => (
-                      <TreeNode
-                        key={n.id}
-                        node={n}
-                        depth={0}
-                        filter={filter}
-                        expanded={expanded}
-                        toggle={toggle}
-                        selectedId={selectedId}
-                        onSelect={onSelectLeaf}
-                      />
-                    ))
-                  ) : (
-                    <p className="p-3 text-sm text-neutral-500">
-                      Ничего не найдено
-                    </p>
-                  )}
-                </div>
+                ) : (
+                  <>
+                    <div className="border-b border-neutral-800 p-2.5">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
+                        <input
+                          value={filter}
+                          onChange={(e) =>
+                            setFilter(e.target.value.toLowerCase())
+                          }
+                          placeholder="Название узла…"
+                          className="w-full rounded-lg bg-neutral-950 border border-neutral-800 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-neutral-600 focus:border-orange-500/50 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-[70vh] overflow-y-auto p-1.5">
+                      {visibleTop.length ? (
+                        visibleTop.map((n) => (
+                          <TreeNode
+                            key={n.id}
+                            node={n}
+                            depth={0}
+                            filter={filter}
+                            expanded={expanded}
+                            toggle={toggle}
+                            selectedId={selectedId}
+                            onSelect={onSelectLeaf}
+                          />
+                        ))
+                      ) : (
+                        <p className="p-3 text-sm text-neutral-500">
+                          Ничего не найдено
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
               </aside>
 
               {/* Панель деталей справа (на мобилке — вместо дерева) */}
@@ -1035,7 +1239,90 @@ export function VinCatalog({
                   <ArrowLeft className="h-4 w-4" />
                   К списку узлов
                 </button>
-                {loading === "parts" || searching ? (
+                {viewTab === "schemes" ? (
+                  // «Все схемы»: плитка узлов категории → открытый узел
+                  schemeLoading ? (
+                    <Spinner label="Загружаем узел…" />
+                  ) : schemeUnit && schemeGroup ? (
+                    <div className="space-y-3">
+                      {/* Кнопка как у Армтек: «Перейти на список узлов» */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSchemeUnit(null);
+                          setSchemeGroup(null);
+                        }}
+                        className="hidden lg:inline-flex items-center gap-1.5 text-sm text-neutral-400 transition-colors hover:text-orange-400"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        К списку узлов
+                      </button>
+                      <div className="flex items-center gap-2 text-sm text-neutral-300">
+                        <FolderTree className="h-4 w-4 text-orange-500" />
+                        <span className="font-semibold text-white">
+                          {schemeGroup.number} · {schemeGroup.name}
+                        </span>
+                      </div>
+                      <UnitBlock
+                        group={schemeGroup}
+                        backVin={car.vin || car.frame || query}
+                        single
+                        catalogId={car.catalogId}
+                        carId={car.carId}
+                      />
+                    </div>
+                  ) : unitsLoading ? (
+                    <Spinner label="Загружаем узлы…" />
+                  ) : unitsList ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-neutral-400">
+                        <span className="font-semibold text-white">
+                          {selCatName}
+                        </span>{" "}
+                        — узлов: {unitsList.length}. Нажмите на схему.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                        {unitsList.map((u) => (
+                          <button
+                            key={`${u.unitId}-${u.code}`}
+                            type="button"
+                            onClick={() => void openSchemeUnit(u)}
+                            className="group rounded-xl border border-neutral-800 bg-neutral-900 p-2 text-left transition-colors hover:border-orange-500/50"
+                          >
+                            <div className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-white">
+                              {u.img ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={u.img}
+                                  alt={u.name}
+                                  loading="lazy"
+                                  className="h-full w-full object-contain p-1"
+                                />
+                              ) : (
+                                <Package className="h-8 w-8 text-neutral-300" />
+                              )}
+                            </div>
+                            <p className="font-mono text-xs font-bold text-orange-400">
+                              {u.code}
+                            </p>
+                            <p className="line-clamp-2 text-xs text-neutral-300 transition-colors group-hover:text-white">
+                              {u.name}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-neutral-800 py-20 text-center text-neutral-500">
+                      <MousePointerClick className="h-8 w-8 text-neutral-700" />
+                      <p className="text-sm">
+                        Выберите категорию слева —
+                        <br />
+                        покажем все схемы узлов с превью
+                      </p>
+                    </div>
+                  )
+                ) : loading === "parts" || searching ? (
                   <Spinner
                     label={searching ? "Ищем деталь…" : "Загружаем детали узла…"}
                   />

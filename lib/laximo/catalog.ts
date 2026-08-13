@@ -245,12 +245,22 @@ async function getTree(
 // ── Детали узла ─────────────────────────────────────────────────────────────
 
 function mapDetail(d: Rec): GoodvinPart {
+  // Атрибуты детали (примечание, количество, период, применимость) — для
+  // подсказки-ⓘ, как в демо-витрине Laximo.
+  const attributes = (asArray(d.attribute) as Attr[])
+    .map((a) => ({
+      key: String(a.key ?? ""),
+      name: String(a.name ?? a.key ?? ""),
+      value: String(a.value ?? ""),
+    }))
+    .filter((a) => a.value);
   return {
     id: String(d.oem ?? d.codeonimage ?? d.name ?? ""),
     nameId: "",
     name: String(d.name ?? ""),
     number: String(d.oem ?? ""),
     positionNumber: d.codeonimage != null ? String(d.codeonimage) : undefined,
+    attributes: attributes.length ? attributes : undefined,
   };
 }
 
@@ -421,7 +431,7 @@ async function getParts(
   // без них прятали бы кнопку «Все детали узла» до истечения 24ч. ssd в ключе
   // обязателен (см. ssdKey): у PSA carId=0 у всех модификаций каталога.
   return laximoCached(
-    `parts2:${catalogId}:${opts.carId}:${mode}:${opts.groupId}:${ssdKey(opts.criteria)}`,
+    `parts3:${catalogId}:${opts.carId}:${mode}:${opts.groupId}:${ssdKey(opts.criteria)}`,
     async () =>
       mode === "cat"
         ? categoryParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")
@@ -439,7 +449,7 @@ async function getUnitParts(
   return laximoCached(
     // ssd в ключе ОБЯЗАТЕЛЕН: у PSA unitId=0 у всех узлов — без ssd ключ один
     // на все узлы, и «Свечи зажигания» отдавали детали масляного фильтра.
-    `unitparts:${catalogId}:${opts.carId}:${opts.unitId}:${ssdKey(opts.ssd)}`,
+    `unitparts2:${catalogId}:${opts.carId}:${opts.unitId}:${ssdKey(opts.ssd)}`,
     () => listDetailsByUnit(catalogId, opts.carId, opts.unitId, opts.ssd)
   );
 }
@@ -502,7 +512,7 @@ async function getUnitView(
   opts: { carId: string; unitId: string; ssd: string }
 ): Promise<{ parts: GoodvinPart[]; positions: GoodvinPartPosition[] }> {
   return laximoCached(
-    `unitview:${catalogId}:${opts.carId}:${opts.unitId}:${ssdKey(opts.ssd)}`,
+    `unitview2:${catalogId}:${opts.carId}:${opts.unitId}:${ssdKey(opts.ssd)}`,
     async () => {
       const [parts, positions] = await Promise.all([
         listDetailsByUnit(catalogId, opts.carId, opts.unitId, opts.ssd),

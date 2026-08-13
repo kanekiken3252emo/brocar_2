@@ -18,6 +18,7 @@ import {
   ZoomIn,
   ZoomOut,
   X,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -337,6 +338,20 @@ function TreeNode({
 
 const PLATE_RE =
   /^[АВЕКМНОРСТУХABEKMHOPCTYX]\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}\d{2,3}$/i;
+
+/** Человеческие названия атрибутов детали Laximo (для подсказки-ⓘ).
+ *  Некоторые приходят непереведёнными (range, applicablemodels). */
+const ATTR_LABELS: Record<string, string> = {
+  note: "Примечание",
+  addnote: "Дополнительно",
+  amount: "Количество",
+  range: "Период выпуска",
+  applicablemodels: "Применимость",
+  applicability: "Применимость",
+  replacedoem: "Заменяет номер",
+};
+const attrLabel = (a: { key: string; name: string }) =>
+  ATTR_LABELS[a.key.toLowerCase()] || a.name || a.key;
 
 // Номер кузова японских авто: «серия-номер» (AGH30-0115914, QG10-015252).
 const FRAME_RE = /^[A-Z][A-Z0-9]{1,9}-\d{4,8}$/i;
@@ -1609,6 +1624,8 @@ function UnitBlock({
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   // Полноэкранный просмотр схемы (клик по картинке / кнопка-лупа).
   const [lightbox, setLightbox] = useState(false);
+  // Открытая подсказка-ⓘ (индекс детали) — примечание/количество/период.
+  const [infoOpen, setInfoOpen] = useState<number | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Быстрая группа содержит лишь часть деталей узла (напр., один фильтр из 14
@@ -1818,7 +1835,7 @@ function UnitBlock({
                   if (pos) rowRefs.current[pos] = el;
                 }}
                 onClick={() => pos && selectFromList(pos)}
-                className={`flex items-center gap-3 p-3 transition-colors ${
+                className={`p-3 transition-colors ${
                   pos ? "cursor-pointer" : ""
                 } ${
                   isActive
@@ -1826,6 +1843,7 @@ function UnitBlock({
                     : "hover:bg-neutral-800/40"
                 }`}
               >
+              <div className="flex items-center gap-3">
                 {part.positionNumber && (
                   <span
                     className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1.5 text-xs font-bold ${
@@ -1858,6 +1876,24 @@ function UnitBlock({
                     <p className="text-xs text-neutral-500">{part.notice}</p>
                   )}
                 </div>
+                {/* Подсказка-ⓘ: примечание, количество, период, применимость */}
+                {!!part.attributes?.length && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInfoOpen((v) => (v === pi ? null : pi));
+                    }}
+                    title="Информация о детали"
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                      infoOpen === pi
+                        ? "border-orange-500 bg-orange-500 text-white"
+                        : "border-neutral-700 text-neutral-400 hover:border-orange-500 hover:text-orange-400"
+                    }`}
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                )}
                 {part.number && (
                   <Link
                     href={`/catalog?article=${encodeURIComponent(part.number)}${
@@ -1872,6 +1908,29 @@ function UnitBlock({
                     </Button>
                   </Link>
                 )}
+              </div>
+              {/* Раскрытая подсказка */}
+              {infoOpen === pi && !!part.attributes?.length && (
+                <div
+                  className="mt-2 space-y-1 rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 text-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {part.number && (
+                    <p>
+                      <span className="text-neutral-500">OEM: </span>
+                      <span className="font-mono text-neutral-200">
+                        {part.number}
+                      </span>
+                    </p>
+                  )}
+                  {part.attributes.map((a) => (
+                    <p key={a.key}>
+                      <span className="text-neutral-500">{attrLabel(a)}: </span>
+                      <span className="text-neutral-200">{a.value}</span>
+                    </p>
+                  ))}
+                </div>
+              )}
               </div>
             );
           })}

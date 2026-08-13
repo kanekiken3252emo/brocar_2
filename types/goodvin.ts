@@ -80,6 +80,9 @@ export interface GoodvinPart {
   description?: string;
   positionNumber?: string;
   url?: string;
+  /** Атрибуты детали из Laximo (примечание, количество, период выпуска,
+   *  применимость к моделям…) — для подсказки-ⓘ в списке. */
+  attributes?: Array<{ key: string; name: string; value: string }>;
 }
 
 /** Группа деталей = один УЗЕЛ (unit) со своей схемой, выносками и деталями.

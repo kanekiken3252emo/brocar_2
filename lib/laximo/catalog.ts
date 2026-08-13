@@ -41,6 +41,15 @@ type Rec = Record<string, unknown>;
 
 const normVin = (vin: string) => vin.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
+/**
+ * Короткий хэш ssd для ключей кэша. КРИТИЧНО: у каталогов PSA (Citroën/
+ * Peugeot) vehicleid=0 у ВСЕХ авто и unitid=0 у ВСЕХ узлов — идентичность
+ * живёт только в ssd. Ключ без ssd коллапсирует в один на все узлы/авто:
+ * так «Свечи зажигания» отдавали закэшированные детали масляного фильтра.
+ */
+const ssdKey = (ssd: string | undefined) =>
+  createHash("md5").update(ssd ?? "").digest("hex").slice(0, 16);
+
 /** Ошибка «операция не разрешена для каталога» → повод переключить режим. */
 function isNotPermitted(e: unknown): boolean {
   const m = e instanceof Error ? e.message : String(e);
@@ -194,7 +203,7 @@ async function getTree(
 ): Promise<{ mode: CatalogMode; tree: GoodvinGroupNode[] }> {
   const result = await laximoCached<
     { mode: CatalogMode; tree: GoodvinGroupNode[] } | GoodvinGroupNode[]
-  >(`tree:${catalogId}:${opts.carId}`, async () => {
+  >(`tree:${catalogId}:${opts.carId}:${ssdKey(opts.criteria)}`, async () => {
     const ssd = opts.criteria ?? "";
     try {
       const tree = await quickTree(catalogId, opts.carId, ssd);
@@ -386,9 +395,10 @@ async function getParts(
 ): Promise<GoodvinParts> {
   const mode: CatalogMode = opts.mode === "cat" ? "cat" : "quick";
   // parts2 (не parts): в ответ добавились unitId/unitSsd — старые кэш-записи
-  // без них прятали бы кнопку «Все детали узла» до истечения 24ч.
+  // без них прятали бы кнопку «Все детали узла» до истечения 24ч. ssd в ключе
+  // обязателен (см. ssdKey): у PSA carId=0 у всех модификаций каталога.
   return laximoCached(
-    `parts2:${catalogId}:${opts.carId}:${mode}:${opts.groupId}`,
+    `parts2:${catalogId}:${opts.carId}:${mode}:${opts.groupId}:${ssdKey(opts.criteria)}`,
     async () =>
       mode === "cat"
         ? categoryParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")
@@ -404,7 +414,9 @@ async function getUnitParts(
   opts: { carId: string; unitId: string; ssd: string }
 ): Promise<GoodvinPart[]> {
   return laximoCached(
-    `unitparts:${catalogId}:${opts.carId}:${opts.unitId}`,
+    // ssd в ключе ОБЯЗАТЕЛЕН: у PSA unitId=0 у всех узлов — без ssd ключ один
+    // на все узлы, и «Свечи зажигания» отдавали детали масляного фильтра.
+    `unitparts:${catalogId}:${opts.carId}:${opts.unitId}:${ssdKey(opts.ssd)}`,
     () => listDetailsByUnit(catalogId, opts.carId, opts.unitId, opts.ssd)
   );
 }
@@ -417,7 +429,7 @@ async function searchParts(
   const q = opts.query.replace(/[|=]/g, " ").trim();
   if (!q) return [];
   return laximoCached(
-    `search:${catalogId}:${opts.carId}:${q.toLowerCase()}`,
+    `search:${catalogId}:${opts.carId}:${ssdKey(opts.criteria)}:${q.toLowerCase()}`,
     async () => {
       try {
         const resp = await laximoQuery(
@@ -444,10 +456,6 @@ async function searchParts(
 
 // ── Выбор авто без VIN: марка → мастер параметров → список авто ────────────
 // (как на главной демо-витрины Laximo: список марок A–Z и «поиск по параметрам»)
-
-/** ssd бывает длиной в килобайты — в ключ кэша кладём короткий хэш. */
-const shortSsd = (ssd: string) =>
-  createHash("md5").update(ssd).digest("hex").slice(0, 16);
 
 export type LaximoBrand = {
   code: string;
@@ -492,7 +500,7 @@ async function listBrands(): Promise<LaximoBrand[]> {
 /** Шаги мастера подбора авто по параметрам (GetWizard2). Выбор опции даёт
  *  новый ssd → повторный вызов с ним возвращает уточнённые шаги. */
 async function getWizard(catalogId: string, ssd = ""): Promise<WizardStep[]> {
-  return laximoCached(`wizard:${catalogId}:${shortSsd(ssd)}`, async () => {
+  return laximoCached(`wizard:${catalogId}:${ssdKey(ssd)}`, async () => {
     const resp = await laximoQuery(
       "oem",
       `GetWizard2:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${ssd}`
@@ -521,7 +529,7 @@ async function findByWizard(
   ssd: string
 ): Promise<GoodvinCarInfo[]> {
   if (!ssd) return [];
-  return laximoCached(`wizardcars:${catalogId}:${shortSsd(ssd)}`, async () => {
+  return laximoCached(`wizardcars:${catalogId}:${ssdKey(ssd)}`, async () => {
     const resp = await laximoQuery(
       "oem",
       `FindVehicleByWizard2:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${ssd}|Localized=true`

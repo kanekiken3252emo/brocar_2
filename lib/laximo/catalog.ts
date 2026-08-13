@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "crypto";
 import { laximoQuery, asArray, laximoImage, LaximoError } from "./client";
 import { laximoCached } from "./cache";
 import type {
@@ -412,6 +413,98 @@ async function searchParts(
   );
 }
 
+// ── Выбор авто без VIN: марка → мастер параметров → список авто ────────────
+// (как на главной демо-витрины Laximo: список марок A–Z и «поиск по параметрам»)
+
+/** ssd бывает длиной в килобайты — в ключ кэша кладём короткий хэш. */
+const shortSsd = (ssd: string) =>
+  createHash("md5").update(ssd).digest("hex").slice(0, 16);
+
+export type LaximoBrand = {
+  code: string;
+  brand: string;
+  name: string;
+  /** Каталог поддерживает подбор по параметрам (feature wizardsearch2). */
+  wizard: boolean;
+};
+
+export type WizardStep = {
+  conditionId: string;
+  name: string; // «Модель», «Год выпуска», «Двигатель»…
+  determined: boolean; // шаг уже выбран (value заполнен)
+  value?: string;
+  options: Array<{ key: string; label: string }>; // key = новый ssd после выбора
+};
+
+/** Все доступные каталоги-марки (ListCatalogs). Кэш 24ч — список статичный. */
+async function listBrands(): Promise<LaximoBrand[]> {
+  return laximoCached("catalogs:all", async () => {
+    const resp = await laximoQuery("oem", `ListCatalogs:Locale=${LOCALE}`);
+    const rows = asArray(
+      (resp as { ListCatalogs?: { row?: unknown } }).ListCatalogs?.row
+    ) as Rec[];
+    return rows
+      .map((r) => {
+        const feats = asArray(
+          (r.features as Rec | undefined)?.feature
+        ) as Rec[];
+        return {
+          code: String(r.code ?? ""),
+          brand: String(r.brand ?? r.name ?? ""),
+          name: String(r.name ?? r.brand ?? ""),
+          wizard: feats.some((f) => String(f.name) === "wizardsearch2"),
+        };
+      })
+      .filter((b) => b.code)
+      .sort((a, b) => a.name.localeCompare(b.name, "en"));
+  });
+}
+
+/** Шаги мастера подбора авто по параметрам (GetWizard2). Выбор опции даёт
+ *  новый ssd → повторный вызов с ним возвращает уточнённые шаги. */
+async function getWizard(catalogId: string, ssd = ""): Promise<WizardStep[]> {
+  return laximoCached(`wizard:${catalogId}:${shortSsd(ssd)}`, async () => {
+    const resp = await laximoQuery(
+      "oem",
+      `GetWizard2:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${ssd}`
+    );
+    const rows = asArray(
+      (resp as { GetWizard2?: { row?: unknown } }).GetWizard2?.row
+    ) as Rec[];
+    return rows.map((r): WizardStep => {
+      const opts = asArray((r.options as Rec | undefined)?.row) as Rec[];
+      return {
+        conditionId: String(r.conditionid ?? r.name ?? ""),
+        name: String(r.name ?? ""),
+        determined: String(r.determined) === "true",
+        value: r.value != null && r.value !== "" ? String(r.value) : undefined,
+        options: opts
+          .map((o) => ({ key: String(o.key ?? ""), label: String(o.value ?? "") }))
+          .filter((o) => o.key),
+      };
+    });
+  });
+}
+
+/** Автомобили, подходящие под выбранные в мастере параметры. */
+async function findByWizard(
+  catalogId: string,
+  ssd: string
+): Promise<GoodvinCarInfo[]> {
+  if (!ssd) return [];
+  return laximoCached(`wizardcars:${catalogId}:${shortSsd(ssd)}`, async () => {
+    const resp = await laximoQuery(
+      "oem",
+      `FindVehicleByWizard2:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${ssd}|Localized=true`
+    );
+    const rows = asArray(
+      (resp as { FindVehicleByWizard2?: { row?: unknown } })
+        .FindVehicleByWizard2?.row
+    ) as Rec[];
+    return rows.map((r) => mapVehicleRow(r, ""));
+  });
+}
+
 // ── Кроссы/аналоги по OEM (Laximo.DOC / Aftermarket) ────────────────────────
 export type LaximoCross = { brand: string; number: string; name: string };
 
@@ -467,6 +560,9 @@ export const laximo = {
   getTree,
   getParts,
   searchParts,
+  listBrands,
+  getWizard,
+  findByWizard,
 };
 
 export type LaximoCatalog = typeof laximo;

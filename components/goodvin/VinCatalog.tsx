@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -36,6 +36,23 @@ function img(src?: string): string | undefined {
 const NAV_STORAGE_KEY = "vinCatalogNav";
 
 type CatalogMode = "quick" | "cat";
+
+// ── Выбор авто без VIN: марка → мастер параметров (как в демо Laximo) ───────
+type BrandItem = { code: string; brand: string; name: string; wizard: boolean };
+
+type WizardStep = {
+  conditionId: string;
+  name: string;
+  determined: boolean;
+  value?: string;
+  options: Array<{ key: string; label: string }>;
+};
+
+type WizardState = {
+  catalog: BrandItem;
+  ssd: string;
+  steps: WizardStep[];
+};
 
 interface SavedNav {
   query: string;
@@ -200,6 +217,11 @@ export function VinCatalog({
   // Режим каталога (quick/cat) — в ref, чтобы колбэки видели актуальное значение.
   const modeRef = useRef<CatalogMode>("quick");
 
+  // Вход без VIN: список марок и мастер подбора по параметрам.
+  const [brands, setBrands] = useState<BrandItem[] | null>(null);
+  const [wiz, setWiz] = useState<WizardState | null>(null);
+  const [wizLoading, setWizLoading] = useState(false);
+
   // Поиск детали по названию/номеру внутри каталога авто.
   const [partQuery, setPartQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{
@@ -335,6 +357,58 @@ export function VinCatalog({
     [loadTree]
   );
 
+  // ── Мастер «марка → параметры → авто» (вход без VIN) ──────────────────────
+  const loadWizard = useCallback(async (b: BrandItem, ssd: string) => {
+    setWizLoading(true);
+    setError("");
+    try {
+      const data = await fetchJson<{ steps: WizardStep[] }>(
+        `/api/goodvin/wizard?catalogId=${encodeURIComponent(
+          b.code
+        )}&ssd=${encodeURIComponent(ssd)}`
+      );
+      setWiz({ catalog: b, ssd, steps: data.steps });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWizLoading(false);
+    }
+  }, []);
+
+  const openBrand = useCallback(
+    (b: BrandItem) => {
+      setWiz({ catalog: b, ssd: "", steps: [] });
+      void loadWizard(b, "");
+    },
+    [loadWizard]
+  );
+
+  const wizardShowCars = useCallback(async () => {
+    if (!wiz?.ssd) return;
+    setLoading("cars");
+    setError("");
+    try {
+      const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
+        `/api/goodvin/wizard-cars?catalogId=${encodeURIComponent(
+          wiz.catalog.code
+        )}&ssd=${encodeURIComponent(wiz.ssd)}`
+      );
+      if (!data.cars.length) {
+        setError(
+          "Под выбранные параметры автомобилей не нашлось. Попробуйте изменить параметры."
+        );
+        return;
+      }
+      setWiz(null);
+      if (data.cars.length === 1) selectCar(data.cars[0]);
+      else setCars(data.cars);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(null);
+    }
+  }, [wiz, selectCar]);
+
   // Поиск авто по ГОС НОМЕРУ (Laximo FindVehicleByPlateNumber).
   const runPlateSearch = useCallback(
     async (plate: string) => {
@@ -350,6 +424,7 @@ export function VinCatalog({
       setParts(null);
       setSelectedId(null);
       setTree([]);
+      setWiz(null);
       try {
         const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
           `/api/goodvin/car-info?plate=${encodeURIComponent(value)}`
@@ -404,6 +479,7 @@ export function VinCatalog({
       setParts(null);
       setSelectedId(null);
       setTree([]);
+      setWiz(null);
       try {
         const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
           `/api/goodvin/car-info?q=${encodeURIComponent(vin)}`
@@ -482,9 +558,40 @@ export function VinCatalog({
     setParts(null);
     setSelectedId(null);
     setError("");
+    setWiz(null);
   }
 
   const visibleTop = tree.filter((n) => nodeMatches(n, filter));
+
+  // Список марок нужен только в «пустом» состоянии (нет авто и не идёт поиск).
+  const showBrowse = !car && cars.length === 0 && loading === null;
+
+  useEffect(() => {
+    if (!showBrowse || brands !== null) return;
+    let alive = true;
+    fetchJson<{ brands: BrandItem[] }>("/api/goodvin/brands")
+      .then((d) => {
+        if (alive) setBrands(d.brands.filter((b) => b.wizard));
+      })
+      .catch(() => {
+        if (alive) setBrands([]); // без списка марок каталог по VIN всё равно работает
+      });
+    return () => {
+      alive = false;
+    };
+  }, [showBrowse, brands]);
+
+  // Марки, сгруппированные по первой букве (как в демо Laximo: колонки A–Z).
+  const groupedBrands = useMemo(() => {
+    if (!brands) return [];
+    const m = new Map<string, BrandItem[]>();
+    for (const b of brands) {
+      const letter = (b.name[0] || "#").toUpperCase();
+      if (!m.has(letter)) m.set(letter, []);
+      m.get(letter)!.push(b);
+    }
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [brands]);
 
   // На мобилке показываем ЛИБО дерево, ЛИБО выбранный узел/результаты поиска
   // (мастер-деталь) — иначе длинное дерево «отжимает» схему вниз. На десктопе
@@ -583,6 +690,131 @@ export function VinCatalog({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Вход без VIN: выбор марки → мастер «модель / год / двигатель…» */}
+      {showBrowse && wiz && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setWiz(null)}
+            className="inline-flex items-center gap-1.5 text-sm text-neutral-400 transition-colors hover:text-orange-400"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Все марки
+          </button>
+
+          <div className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4 md:p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500">
+                <Car className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">{wiz.catalog.name}</p>
+                <p className="text-xs text-neutral-400">
+                  Подбор автомобиля по параметрам
+                </p>
+              </div>
+            </div>
+
+            {wizLoading && wiz.steps.length === 0 ? (
+              <Spinner label="Загружаем параметры…" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {wiz.steps
+                  .filter((s) => s.options.length > 0 || s.determined)
+                  .map((s) => (
+                    <label key={s.conditionId || s.name} className="block">
+                      <span className="mb-1 block text-xs text-neutral-500">
+                        {s.name}
+                      </span>
+                      {s.options.length > 0 ? (
+                        <select
+                          value=""
+                          disabled={wizLoading}
+                          onChange={(e) => {
+                            if (e.target.value)
+                              void loadWizard(wiz.catalog, e.target.value);
+                          }}
+                          className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-white focus:border-orange-500/50 focus:outline-none disabled:opacity-50"
+                        >
+                          <option value="">
+                            {s.determined && s.value ? s.value : "Не выбрано"}
+                          </option>
+                          {s.options.map((o) => (
+                            <option key={o.key} value={o.key}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-300">
+                          {s.value ?? "—"}
+                        </div>
+                      )}
+                    </label>
+                  ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => void wizardShowCars()}
+                disabled={!wiz.ssd || wizLoading}
+                className="gap-2"
+              >
+                <Car className="h-4 w-4" />
+                Показать автомобили
+              </Button>
+              {wiz.ssd && (
+                <Button
+                  variant="outline"
+                  disabled={wizLoading}
+                  onClick={() => void loadWizard(wiz.catalog, "")}
+                >
+                  Сбросить
+                </Button>
+              )}
+              {wizLoading && wiz.steps.length > 0 && (
+                <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+              )}
+            </div>
+            <p className="text-xs text-neutral-500">
+              Чем больше параметров выберете, тем точнее список автомобилей.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {showBrowse && !wiz && (
+        <div className="space-y-3">
+          <p className="text-sm text-neutral-400">
+            Не знаете VIN? Выберите марку автомобиля:
+          </p>
+          {brands === null ? (
+            <Spinner label="Загружаем марки…" />
+          ) : brands.length > 0 ? (
+            <div className="columns-2 gap-6 sm:columns-3 lg:columns-4">
+              {groupedBrands.map(([letter, list]) => (
+                <div key={letter} className="mb-4 break-inside-avoid">
+                  <p className="mb-1 px-2 text-xs font-bold text-neutral-600">
+                    {letter}
+                  </p>
+                  {list.map((b) => (
+                    <button
+                      key={b.code}
+                      type="button"
+                      onClick={() => openBrand(b)}
+                      className="block w-full rounded-md px-2 py-1.5 text-left text-sm text-neutral-300 transition-colors hover:bg-neutral-800/60 hover:text-orange-400"
+                    >
+                      {b.name}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
 

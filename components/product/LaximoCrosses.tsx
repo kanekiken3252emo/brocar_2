@@ -186,13 +186,8 @@ export function LaximoCrosses({
           ? `Ещё аналоги из каталога (${visible.length})`
           : `Аналоги (${visible.length})`}
       </h2>
-      <p className="mb-4 text-sm text-neutral-400">
-        Заменители по каталогу Laximo. Нажмите на карточку — проверим цены и
-        наличие у поставщиков.
-      </p>
-
       {/* Поиск по аналогам — мгновенный фильтр списка (без запросов) */}
-      <div className="relative mb-5 max-w-md">
+      <div className="relative mb-5 mt-4 max-w-md">
         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
         <input
           value={filterQ}

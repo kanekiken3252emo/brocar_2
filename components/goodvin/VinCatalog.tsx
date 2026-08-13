@@ -192,12 +192,17 @@ function TreeNode({
 const PLATE_RE =
   /^[АВЕКМНОРСТУХABEKMHOPCTYX]\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}\d{2,3}$/i;
 
+// Номер кузова японских авто: «серия-номер» (AGH30-0115914, QG10-015252).
+const FRAME_RE = /^[A-Z][A-Z0-9]{1,9}-\d{4,8}$/i;
+
 export function VinCatalog({
   initialVin,
   initialPlate,
+  initialFrame,
 }: {
   initialVin?: string;
   initialPlate?: string;
+  initialFrame?: string;
 }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState<null | "cars" | "tree" | "parts">(
@@ -447,6 +452,43 @@ export function VinCatalog({
     [selectCar]
   );
 
+  // Поиск авто по НОМЕРУ КУЗОВА (японские авто без VIN: AGH30-0115914).
+  const runFrameSearch = useCallback(
+    async (frame: string) => {
+      const value = frame.trim().toUpperCase();
+      if (!value) return;
+      try {
+        sessionStorage.removeItem(NAV_STORAGE_KEY);
+      } catch {}
+      setLoading("cars");
+      setError("");
+      setCar(null);
+      setCars([]);
+      setParts(null);
+      setSelectedId(null);
+      setTree([]);
+      setWiz(null);
+      try {
+        const data = await fetchJson<{ cars: GoodvinCarInfo[] }>(
+          `/api/goodvin/car-info?frame=${encodeURIComponent(value)}`
+        );
+        if (!data.cars.length) {
+          setError(
+            "По этому номеру кузова автомобиль не найден. Проверьте формат: серия-номер, например AGH30-0115914."
+          );
+          return;
+        }
+        if (data.cars.length === 1) selectCar(data.cars[0]);
+        else setCars(data.cars);
+      } catch (e) {
+        setError(friendlyVinError((e as Error).message));
+      } finally {
+        setLoading(null);
+      }
+    },
+    [selectCar]
+  );
+
   const runSearch = useCallback(
     async (q: string) => {
       const value = q.trim();
@@ -455,6 +497,11 @@ export function VinCatalog({
       const compact = value.replace(/\s+/g, "");
       if (PLATE_RE.test(compact)) {
         void runPlateSearch(compact);
+        return;
+      }
+      // Номер кузова (с дефисом) → поиск по FRAME.
+      if (FRAME_RE.test(compact)) {
+        void runFrameSearch(compact);
         return;
       }
       // VIN — ровно 17 символов. Проверяем сами, чтобы клиент видел понятную
@@ -499,7 +546,7 @@ export function VinCatalog({
         setLoading(null);
       }
     },
-    [selectCar, runPlateSearch]
+    [selectCar, runPlateSearch, runFrameSearch]
   );
 
   // Восстановление позиции (возврат «Назад» из карточки цен) либо заход по initialVin.
@@ -529,6 +576,9 @@ export function VinCatalog({
     } else if (!restored && initialPlate) {
       setQuery(initialPlate);
       void runPlateSearch(initialPlate);
+    } else if (!restored && initialFrame) {
+      setQuery(initialFrame);
+      void runFrameSearch(initialFrame);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -621,7 +671,7 @@ export function VinCatalog({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value.toUpperCase())}
-            placeholder="VIN или гос номер — например, WAUZZZ4M6JD010702 или Т500СО66"
+            placeholder="VIN, гос номер или номер кузова — WAUZZZ4M6JD010702 / Т500СО66 / AGH30-0115914"
             className="pl-10 font-mono tracking-wide uppercase"
             autoComplete="off"
             spellCheck={false}

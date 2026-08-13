@@ -134,20 +134,26 @@ function CatalogExtras() {
 export default async function CatalogVinPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vin?: string | string[]; plate?: string | string[] }>;
+  searchParams: Promise<{
+    vin?: string | string[];
+    plate?: string | string[];
+    frame?: string | string[];
+  }>;
 }) {
   const sp = await searchParams;
   const vinRaw = Array.isArray(sp.vin) ? sp.vin[0] : sp.vin;
   const vin = vinRaw?.trim() || undefined;
   const plateRaw = Array.isArray(sp.plate) ? sp.plate[0] : sp.plate;
   const plate = plateRaw?.trim() || undefined;
+  const frameRaw = Array.isArray(sp.frame) ? sp.frame[0] : sp.frame;
+  const frame = frameRaw?.trim() || undefined;
 
   // Пользоваться каталогом могут только авторизованные (гостю — приглашение войти).
   const user = await getUser();
 
-  // Заход с VIN (из верхней строки поиска или гаража) — сразу рабочий каталог
-  // без лендинга: ни заголовка-приглашения, ни блоков-фич, ни дубля поиска.
-  if (vin || plate) {
+  // Заход с VIN/номером (из верхней строки поиска или гаража) — сразу рабочий
+  // каталог без лендинга: ни заголовка-приглашения, ни блоков-фич.
+  if (vin || plate || frame) {
     return (
       <div className="min-h-screen bg-neutral-950">
         <div className="container mx-auto px-4 py-5 md:py-8">
@@ -166,7 +172,11 @@ export default async function CatalogVinPage({
           <Card className="border-neutral-800 bg-neutral-900">
             <CardContent className="p-4 md:p-6">
               {user ? (
-                <VinCatalog initialVin={vin} initialPlate={plate} />
+                <VinCatalog
+                  initialVin={vin}
+                  initialPlate={plate}
+                  initialFrame={frame}
+                />
               ) : (
                 <VinLoginGate />
               )}

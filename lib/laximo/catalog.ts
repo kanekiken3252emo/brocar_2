@@ -129,6 +129,29 @@ async function carInfoByPlate(plate: string): Promise<GoodvinCarInfo[]> {
   });
 }
 
+/** Поиск авто по НОМЕРУ КУЗОВА (FindVehicleByFrame) — основной способ для
+ *  японских авто без VIN (Toyota AGH30-0115914, Nissan QG10-015252…).
+ *  Формат «серия-номер»: до дефиса Frame, после — FrameNo. */
+async function carInfoByFrame(frameFull: string): Promise<GoodvinCarInfo[]> {
+  const clean = frameFull.trim().toUpperCase().replace(/\s+/g, "");
+  const m = clean.match(/^([A-Z0-9]+)-(\d+)$/);
+  if (!m) return [];
+  return laximoCached(`frame:${clean}`, async () => {
+    const resp = await laximoQuery(
+      "oem",
+      `FindVehicleByFrame:Locale=${LOCALE}|Frame=${m[1]}|FrameNo=${m[2]}|Localized=true`
+    );
+    const rows = asArray(
+      (resp as { FindVehicleByFrame?: { row?: unknown } }).FindVehicleByFrame
+        ?.row
+    ) as Rec[];
+    return rows.map((r) => ({
+      ...mapVehicleRow(r, String(r.vin ?? "")),
+      frame: clean,
+    }));
+  });
+}
+
 // ── Дерево узлов ────────────────────────────────────────────────────────────
 
 /** Дерево в режиме QuickGroup (нативно вложенное). */
@@ -594,6 +617,7 @@ export async function findCrosses(
 export const laximo = {
   carInfo: (q: string, _catalogs?: string) => carInfo(q),
   carInfoByPlate,
+  carInfoByFrame,
   getTree,
   getParts,
   getUnitParts,

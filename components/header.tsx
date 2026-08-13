@@ -177,14 +177,18 @@ export function Header({ user }: HeaderProps) {
     const q = searchQuery.trim();
     if (!q) return;
     // 17-значный VIN → каталог по VIN; гос номер (буква-3цифры-2буквы-2/3цифры
-    // региона, кириллица или латиница) → каталог по номеру; остальное
-    // (артикул/наименование) → обычный поиск по поставщикам.
+    // региона, кириллица или латиница) → каталог по номеру; номер кузова
+    // японских авто («серия-номер», AGH30-0115914) → каталог по кузову;
+    // остальное (артикул/наименование) → обычный поиск по поставщикам.
     const compact = q.replace(/\s+/g, "");
     const PLATE_RE = /^[АВЕКМНОРСТУХABEKMHOPCTYX]\d{3}[АВЕКМНОРСТУХABEKMHOPCTYX]{2}\d{2,3}$/i;
+    const FRAME_RE = /^[A-Z][A-Z0-9]{1,9}-\d{4,8}$/i;
     if (/^[A-HJ-NPR-Z0-9]{17}$/i.test(compact)) {
       router.push(`/catalog-vin?vin=${encodeURIComponent(compact.toUpperCase())}`);
     } else if (PLATE_RE.test(compact)) {
       router.push(`/catalog-vin?plate=${encodeURIComponent(compact.toUpperCase())}`);
+    } else if (FRAME_RE.test(compact)) {
+      router.push(`/catalog-vin?frame=${encodeURIComponent(compact.toUpperCase())}`);
     } else {
       router.push(`/catalog?article=${encodeURIComponent(q)}`);
     }

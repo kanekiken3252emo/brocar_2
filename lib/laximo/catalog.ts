@@ -385,8 +385,10 @@ async function getParts(
   opts: { carId: string; groupId: string; criteria?: string; mode?: CatalogMode }
 ): Promise<GoodvinParts> {
   const mode: CatalogMode = opts.mode === "cat" ? "cat" : "quick";
+  // parts2 (не parts): в ответ добавились unitId/unitSsd — старые кэш-записи
+  // без них прятали бы кнопку «Все детали узла» до истечения 24ч.
   return laximoCached(
-    `parts:${catalogId}:${opts.carId}:${mode}:${opts.groupId}`,
+    `parts2:${catalogId}:${opts.carId}:${mode}:${opts.groupId}`,
     async () =>
       mode === "cat"
         ? categoryParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")

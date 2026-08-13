@@ -76,6 +76,10 @@ interface SavedNav {
   car: GoodvinCarInfo;
   mode: CatalogMode;
   leaf: { id: string; name: string; ssd?: string } | null;
+  /** Одноразовая передача машины (виджет подбора на главной): восстановить
+   *  один раз даже без параметров в URL. При обычном заходе без параметров
+   *  прошлую машину НЕ восстанавливаем — юзеру проще искать другую. */
+  handoff?: boolean;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -962,17 +966,25 @@ export function VinCatalog({
       const raw = sessionStorage.getItem(NAV_STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as SavedNav;
-        const sameContext =
-          !initialVin ||
-          (saved.car?.vin || saved.query || "").toUpperCase() ===
-            initialVin.toUpperCase();
-        if (saved?.car && sameContext) {
+        // Восстанавливаем позицию ТОЛЬКО когда: 1) вернулись «Назад» из цен
+        // (в URL тот же номер, что в сохранённой позиции) или 2) машину
+        // передал виджет подбора с главной (handoff). Обычный заход без
+        // параметров — с чистого листа, чтобы легче было искать другую машину.
+        const matchesInitial =
+          !!initialVin &&
+          (saved.car?.vin || saved.car?.frame || saved.query || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "") ===
+            initialVin.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (saved?.car && (matchesInitial || saved.handoff)) {
           restored = true;
           setQuery(saved.query || "");
           setCar(saved.car);
           modeRef.current = saved.mode === "cat" ? "cat" : "quick";
           void loadTree(saved.car);
           if (saved.leaf) void loadParts(saved.car, saved.leaf);
+        } else if (!initialVin && !initialPlate && !initialFrame) {
+          sessionStorage.removeItem(NAV_STORAGE_KEY);
         }
       }
     } catch {}

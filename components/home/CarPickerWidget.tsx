@@ -111,11 +111,13 @@ export default function CarPickerWidget() {
   };
 
   const go = (car: GoodvinCarInfo) => {
-    // Каталог по VIN восстановит позицию из sessionStorage (SavedNav).
+    // Каталог по VIN подхватит машину из sessionStorage (SavedNav).
+    // handoff — одноразовая передача: без него заход на /catalog-vin без
+    // параметров прошлую машину не восстанавливает.
     try {
       sessionStorage.setItem(
         "vinCatalogNav",
-        JSON.stringify({ query: "", car, mode: "quick", leaf: null })
+        JSON.stringify({ query: "", car, mode: "quick", leaf: null, handoff: true })
       );
     } catch {}
     router.push("/catalog-vin");

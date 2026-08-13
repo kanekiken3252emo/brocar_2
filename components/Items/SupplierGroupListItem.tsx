@@ -20,8 +20,9 @@ function formatPrice(n: number | null | undefined) {
   return Number.isFinite(n) ? (n as number).toLocaleString("ru-RU") : "—";
 }
 
-/** Общий обработчик «в корзину» для десктоп-строки и мобильной карточки. */
-async function addOfferToCart(
+/** Общий обработчик «в корзину» для десктоп-строки, мобильной карточки и
+ *  табличного вида каталога (SupplierGroupTable). */
+export async function addOfferToCart(
   e: React.MouseEvent,
   offer: SupplierOffer,
   group: SupplierGroup

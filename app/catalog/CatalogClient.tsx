@@ -7,6 +7,7 @@ import {
   Search,
   Grid3x3,
   List,
+  Rows3,
   Loader2,
   ArrowLeft,
   ChevronDown,
@@ -20,6 +21,7 @@ import { categoryCatalogUrl } from "@/lib/catalog/urls";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
+import SupplierGroupTable from "@/components/Items/SupplierGroupTable";
 import CategoryFacets, { type Facet } from "@/components/catalog/CategoryFacets";
 import { Button } from "@/components/ui/button";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
@@ -197,7 +199,25 @@ function CatalogContent({
   const [categoryHub, setCategoryHub] = useState<CategoryHub[] | null>(null);
   const [loading, setLoading] = useState(!seedable);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+
+  // Поиск по артикулу/VIN — это сравнение предложений поставщиков: на десктопе
+  // сразу включаем плотный табличный вид (как у Армтека). На мобилке таблица
+  // неудобна — остаётся сетка, вид можно переключить вручную.
+  useEffect(() => {
+    if (
+      (article || vin) &&
+      typeof window !== "undefined" &&
+      window.innerWidth >= 1024
+    ) {
+      setViewMode("table");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // «Поиск по результату» — мгновенный фильтр уже полученной выдачи по бренду,
+  // артикулу или названию (не новый запрос к поставщикам).
+  const [resultFilter, setResultFilter] = useState("");
   // Режим текстового поиска: exact — точные совпадения, relaxed — «похожие»,
   // fuzzy — найдено по сходству («вы имели в виду»). Управляет баннером.
   const [searchMode, setSearchMode] = useState<"exact" | "relaxed" | "fuzzy">(
@@ -475,9 +495,19 @@ function CatalogContent({
   // Для serverPagination фильтрация/сортировка уже применены сервером,
   // а пагинация = текущая страница. Клиентский фильтр/sort всё равно
   // прогоняем для пользовательского sort=delivery (его API не знает).
+  const rq = resultFilter.trim().toLowerCase();
+  const matchesResultFilter = (g: SupplierGroup) =>
+    !rq ||
+    g.brand.toLowerCase().includes(rq) ||
+    g.article.toLowerCase().includes(rq) ||
+    g.name.toLowerCase().includes(rq);
   const filtered = useServerPagination
-    ? groups
-    : groups.filter((g) => (brandFilter ? g.brand === brandFilter : true));
+    ? groups.filter(matchesResultFilter)
+    : groups.filter(
+        (g) =>
+          (brandFilter ? g.brand === brandFilter : true) &&
+          matchesResultFilter(g)
+      );
 
   const sorted = useServerPagination
     ? // На серверной пагинации не пересортировываем, КРОМЕ delivery —
@@ -641,6 +671,22 @@ function CatalogContent({
         {groups.length > 0 && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6">
             <div className="flex flex-wrap items-end gap-4">
+              {/* Поиск по результату — мгновенный фильтр выдачи (как у Армтека) */}
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                  Поиск по результату
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <input
+                    value={resultFilter}
+                    onChange={(e) => setResultFilter(e.target.value)}
+                    placeholder="Бренд, артикул или название…"
+                    className="w-full pl-10 pr-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder:text-neutral-600 focus:border-orange-500 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
               {availableBrands.length > 1 && !showFacetSidebar && (
                 <div className="flex-1 min-w-[200px]">
                   <label className="block text-sm font-medium text-neutral-400 mb-1.5">
@@ -711,6 +757,17 @@ function CatalogContent({
                   title="Список"
                 >
                   <List className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={`p-2.5 rounded-xl transition-colors ${
+                    viewMode === "table"
+                      ? "bg-orange-500 text-white"
+                      : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
+                  }`}
+                  title="Таблица (все предложения)"
+                >
+                  <Rows3 className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -813,6 +870,12 @@ function CatalogContent({
                   />
                 ))}
               </div>
+            ) : viewMode === "table" ? (
+              <SupplierGroupTable
+                groups={paginated}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+              />
             ) : (
               <div className="space-y-4">
                 {paginated.map((group) => (

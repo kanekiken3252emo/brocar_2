@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import type {
   GoodvinCarInfo,
   GoodvinGroupNode,
+  GoodvinPart,
   GoodvinParts,
 } from "@/types/goodvin";
 
@@ -1005,6 +1006,8 @@ export function VinCatalog({
                     <PartsView
                       parts={parts}
                       backVin={car.vin || car.frame || query}
+                      catalogId={car.catalogId}
+                      carId={car.carId}
                     />
                   </div>
                 ) : (
@@ -1078,9 +1081,13 @@ function SearchResultsView({
 function PartsView({
   parts,
   backVin,
+  catalogId,
+  carId,
 }: {
   parts: GoodvinParts;
   backVin?: string;
+  catalogId?: string;
+  carId?: string;
 }) {
   const units = parts.partGroups;
   if (!units.length) {
@@ -1099,6 +1106,8 @@ function PartsView({
           group={g}
           backVin={backVin}
           single={single}
+          catalogId={catalogId}
+          carId={carId}
         />
       ))}
     </div>
@@ -1110,14 +1119,51 @@ function UnitBlock({
   group,
   backVin,
   single,
+  catalogId,
+  carId,
 }: {
   group: GoodvinParts["partGroups"][number];
   backVin?: string;
   single: boolean;
+  catalogId?: string;
+  carId?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Быстрая группа содержит лишь часть деталей узла (напр., один фильтр из 14
+  // позиций схемы) — по кнопке догружаем ПОЛНЫЙ список деталей узла.
+  const [fullParts, setFullParts] = useState<GoodvinPart[] | null>(null);
+  const [showFull, setShowFull] = useState(false);
+  const [loadingFull, setLoadingFull] = useState(false);
+  const canLoadFull = Boolean(catalogId && carId && group.unitId && group.unitSsd);
+
+  const toggleFull = useCallback(async () => {
+    if (fullParts) {
+      setShowFull((v) => !v);
+      return;
+    }
+    if (!catalogId || !carId || !group.unitId || !group.unitSsd) return;
+    setLoadingFull(true);
+    try {
+      const data = await fetchJson<{ parts: GoodvinPart[] }>(
+        `/api/goodvin/unit-parts?catalogId=${encodeURIComponent(
+          catalogId
+        )}&carId=${encodeURIComponent(carId)}&unitId=${encodeURIComponent(
+          group.unitId
+        )}&ssd=${encodeURIComponent(group.unitSsd)}`
+      );
+      setFullParts(data.parts);
+      setShowFull(true);
+    } catch {
+      // Не получилось — остаёмся на деталях группы, без пугающих ошибок.
+    } finally {
+      setLoadingFull(false);
+    }
+  }, [fullParts, catalogId, carId, group.unitId, group.unitSsd]);
+
+  const shownParts = showFull && fullParts ? fullParts : group.parts;
 
   const positions = group.positions ?? [];
   const hasHotspots = Boolean(img(group.img)) && positions.length > 0;
@@ -1133,13 +1179,13 @@ function UnitBlock({
 
   // Варианты (несколько деталей на одной выноске) — в рамках этого узла.
   const posCounts = new Map<string, number>();
-  for (const p of group.parts) {
+  for (const p of shownParts) {
     const k = p.positionNumber || "";
     if (k) posCounts.set(k, (posCounts.get(k) ?? 0) + 1);
   }
   const variantSeen = new Map<string, number>();
   const variantInfo = new Map<number, { index: number; total: number }>();
-  group.parts.forEach((p, pi) => {
+  shownParts.forEach((p, pi) => {
     const k = p.positionNumber || "";
     const total = k ? posCounts.get(k) ?? 0 : 0;
     if (total > 1) {
@@ -1223,7 +1269,7 @@ function UnitBlock({
 
         {/* Список деталей этого узла */}
         <div className="divide-y divide-neutral-800 self-start overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
-          {group.parts.map((part, pi) => {
+          {shownParts.map((part, pi) => {
             const pos = part.positionNumber || "";
             const isActive = pos !== "" && active === pos;
             const variant = variantInfo.get(pi);
@@ -1291,6 +1337,32 @@ function UnitBlock({
               </div>
             );
           })}
+
+          {/* Быстрая группа показывает лишь часть узла — кнопка раскрывает
+              полный список деталей со схемы (как в общем каталоге). */}
+          {canLoadFull && (
+            <button
+              type="button"
+              onClick={() => void toggleFull()}
+              disabled={loadingFull}
+              className="flex w-full items-center justify-center gap-2 bg-neutral-800/30 py-2.5 text-xs font-medium text-neutral-400 transition-colors hover:bg-neutral-800/60 hover:text-orange-400 disabled:opacity-60"
+            >
+              {loadingFull ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    showFull ? "rotate-180" : ""
+                  }`}
+                />
+              )}
+              {showFull
+                ? "Только детали группы"
+                : `Все детали узла со схемы${
+                    fullParts ? ` (${fullParts.length})` : ""
+                  }`}
+            </button>
+          )}
         </div>
       </div>
     </div>

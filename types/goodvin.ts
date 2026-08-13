@@ -94,6 +94,11 @@ export interface GoodvinPartGroup {
   imgDescription?: string;
   positions?: GoodvinPartPosition[]; // кликабельные выноски этого узла
   parts: GoodvinPart[];
+  /** id и ssd узла Laximo — только в режиме быстрых групп, где parts содержит
+   *  лишь детали группы (например, один фильтр): по ним можно догрузить ВСЕ
+   *  детали узла (/api/goodvin/unit-parts), как в полном каталоге. */
+  unitId?: string;
+  unitSsd?: string;
 }
 
 /** Позиция (выноска) на изображении схемы. */

@@ -256,7 +256,15 @@ async function unitImageMap(
   }
 }
 
-type Unit = { name: string; code: string; img?: string; parts: GoodvinPart[]; positions: GoodvinPartPosition[] };
+type Unit = {
+  name: string;
+  code: string;
+  img?: string;
+  parts: GoodvinPart[];
+  positions: GoodvinPartPosition[];
+  unitId?: string;
+  unitSsd?: string;
+};
 
 function finalizeParts(units: Unit[]): GoodvinParts {
   const partGroups = units.map((u) => ({
@@ -267,6 +275,8 @@ function finalizeParts(units: Unit[]): GoodvinParts {
     imgDescription: u.name || undefined,
     positions: u.positions,
     parts: u.parts,
+    unitId: u.unitId,
+    unitSsd: u.unitSsd,
   }));
   const first = partGroups.find((g) => g.img) ?? partGroups[0];
   return {
@@ -306,6 +316,10 @@ async function quickParts(
         img: laximoImage(u.imageurl as string | undefined),
         positions,
         parts: (asArray(u.Detail) as Rec[]).map(mapDetail),
+        // Быстрая группа отдаёт лишь «свои» детали узла (напр., только фильтр).
+        // id+ssd узла позволяют клиенту догрузить полный список деталей.
+        unitId: u.unitid != null ? String(u.unitid) : undefined,
+        unitSsd: u.ssd != null ? String(u.ssd) : undefined,
       };
     })
   );
@@ -377,6 +391,19 @@ async function getParts(
       mode === "cat"
         ? categoryParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")
         : quickParts(catalogId, opts.carId, opts.groupId, opts.criteria ?? "")
+  );
+}
+
+/** ВСЕ детали узла (а не только вошедшие в быструю группу — там, например,
+ *  группа «Фильтр масляный» содержит один фильтр, хотя на схеме 14 позиций).
+ *  Кэш 24ч. */
+async function getUnitParts(
+  catalogId: string,
+  opts: { carId: string; unitId: string; ssd: string }
+): Promise<GoodvinPart[]> {
+  return laximoCached(
+    `unitparts:${catalogId}:${opts.carId}:${opts.unitId}`,
+    () => listDetailsByUnit(catalogId, opts.carId, opts.unitId, opts.ssd)
   );
 }
 
@@ -559,6 +586,7 @@ export const laximo = {
   carInfoByPlate,
   getTree,
   getParts,
+  getUnitParts,
   searchParts,
   listBrands,
   getWizard,

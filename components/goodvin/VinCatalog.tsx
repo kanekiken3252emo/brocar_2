@@ -1494,9 +1494,47 @@ export function VinCatalog({
             </div>
           </div>
 
-          {/* Строку «Поиск детали по названию/OEM» убрали по просьбе владельца —
-              место нужнее дереву и схемам (doPartSearch/SearchResultsView
-              оставлены в коде на случай возврата). */}
+          {/* Поиск детали по названию или OEM-номеру внутри этого авто
+              (убирали 13.08 — владелец попросил вернуть на следующий день) */}
+          {!!tree.length && (
+            <form onSubmit={doPartSearch} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+                <Input
+                  value={partQuery}
+                  onChange={(e) => setPartQuery(e.target.value)}
+                  placeholder="Поиск детали по названию или OEM-номеру…"
+                  className="pl-10"
+                  autoComplete="off"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="gap-2 shrink-0"
+                disabled={searching || !partQuery.trim()}
+              >
+                {searching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                Найти
+              </Button>
+              {searchResults !== null && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => {
+                    setSearchResults(null);
+                    setPartQuery("");
+                  }}
+                >
+                  Сбросить
+                </Button>
+              )}
+            </form>
+          )}
 
           {loading === "tree" && <Spinner label="Загружаем каталог…" />}
 

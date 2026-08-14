@@ -1,7 +1,7 @@
 // Каноничный бренд: схлопывает разные написания одного бренда (STELLOX/Stellox)
 // и в живых ответах поставщиков, как и в импортированном каталоге.
 import { canonicalBrand, brandKey } from "../brands/canonical.mjs";
-import { brandFamilyId } from "../brands/families.mjs";
+import { brandFamilyId, familyDisplayName } from "../brands/families.mjs";
 // Ремонт битых названий из живых ответов поставщиков (особенно Armtek):
 // «KopfstГ tze» → «Kopfstütze», выбор чистого дубля вместо «Р С С Р».
 import { repairSupplierName, nameScore, pickBetterName } from "./mojibake";
@@ -214,17 +214,22 @@ export function mergeFamilyGroups(groups: SupplierGroup[]): SupplierGroup[] {
       continue;
     }
     const key = `${normalizeArticle(g.article)}|fam${fam}`;
+    // Принудительное имя семейства (просьба владельца: PSA-ярлыки на карточке
+    // называются «Peugeot/Citroen») — применяется и к одиночным группам.
+    const forcedName = familyDisplayName(g.brand);
     const existing = byKey.get(key);
     if (!existing) {
       const copy: SupplierGroup = { ...g, offers: [...g.offers] };
+      if (forcedName) copy.brand = forcedName;
       byKey.set(key, { g: copy, topOffers: g.offers.length });
       out.push(copy);
       continue;
     }
     const ex = existing.g;
-    // Ярлык/имя/картинка — от самой «толстой» составляющей.
+    // Ярлык/имя/картинка — от самой «толстой» составляющей (кроме
+    // принудительного имени — оно не перетирается).
     if (g.offers.length > existing.topOffers) {
-      ex.brand = g.brand;
+      if (!forcedName) ex.brand = g.brand;
       ex.name = pickBetterName(g.name, ex.name);
       if (g.imageUrl) ex.imageUrl = g.imageUrl;
       existing.topOffers = g.offers.length;

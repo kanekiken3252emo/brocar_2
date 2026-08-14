@@ -556,6 +556,66 @@ async function searchParts(
   );
 }
 
+/** Расположение детали в авто по OEM (GetOEMPartApplicability): узлы со
+ *  схемами и выносками, где встречается номер, — «фото + артикул», как у
+ *  Армтек. Форма ответа как у ListQuickDetail (Category → Unit → Detail).
+ *  null — каталог не поддерживает операцию или номер не найден. Кэш 24ч. */
+async function searchOemLocation(
+  catalogId: string,
+  opts: { carId: string; criteria?: string; oem: string }
+): Promise<GoodvinParts | null> {
+  const oem = opts.oem.replace(/[|=]/g, " ").trim();
+  if (!oem) return null;
+  return laximoCached(
+    `oemloc:${catalogId}:${opts.carId}:${ssdKey(opts.criteria)}:${oem.toUpperCase()}`,
+    async () => {
+      let resp: Rec;
+      try {
+        resp = await laximoQuery(
+          "oem",
+          `GetOEMPartApplicability:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${opts.criteria ?? ""}|OEM=${oem}`
+        );
+      } catch (e) {
+        if (isNotPermitted(e)) return null;
+        throw e;
+      }
+      // Имя корневого элемента у операции не зафиксировано в доке — берём
+      // первый узел ответа, внутри которого есть Category.
+      const root = Object.values(resp).find(
+        (v): v is Rec =>
+          typeof v === "object" && v !== null && "Category" in (v as Rec)
+      );
+      const cats = asArray(root?.Category) as Rec[];
+      const rawUnits = cats.flatMap((c) => asArray(c.Unit)) as Rec[];
+      if (!rawUnits.length) return null;
+
+      const units = await Promise.all(
+        rawUnits.map(async (u): Promise<Unit> => {
+          const positions =
+            u.unitid && u.ssd
+              ? await unitImageMap(
+                  catalogId,
+                  opts.carId,
+                  String(u.unitid),
+                  String(u.ssd)
+                )
+              : [];
+          return {
+            name: String(u.name ?? ""),
+            code: String(u.code ?? ""),
+            img: laximoImage(u.imageurl as string | undefined),
+            positions,
+            parts: (asArray(u.Detail) as Rec[]).map(mapDetail),
+            unitId: u.unitid != null ? String(u.unitid) : undefined,
+            unitSsd: u.ssd != null ? String(u.ssd) : undefined,
+          };
+        })
+      );
+      return finalizeParts(units);
+    }
+  );
+}
+
 // ── Выбор авто без VIN: марка → мастер параметров → список авто ────────────
 // (как на главной демо-витрины Laximo: список марок A–Z и «поиск по параметрам»)
 
@@ -704,6 +764,7 @@ export const laximo = {
   getUnits,
   getUnitView,
   searchParts,
+  searchOemLocation,
   listBrands,
   getWizard,
   findByWizard,

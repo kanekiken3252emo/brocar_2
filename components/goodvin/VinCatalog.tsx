@@ -537,6 +537,13 @@ export function VinCatalog({
     name: string;
   }> | null>(null);
   const [searching, setSearching] = useState(false);
+  // Выбранный результат поиска: узлы со схемами, где стоит этот OEM
+  // (GetOEMPartApplicability) — «фото + артикул», как у Армтек.
+  const [oemView, setOemView] = useState<{
+    oem: string;
+    parts: GoodvinParts | null;
+  } | null>(null);
+  const [oemLoading, setOemLoading] = useState<string | null>(null);
 
   const toggle = useCallback((id: string) => {
     setExpanded((prev) => {
@@ -581,6 +588,7 @@ export function VinCatalog({
       setLoading("parts");
       setError("");
       setSearchResults(null); // выбор узла в дереве убирает результаты поиска
+      setOemView(null);
       setSelectedId(leaf.id);
       setSelectedName(leaf.name);
       setSelectedSsd(leaf.ssd);
@@ -720,6 +728,30 @@ export function VinCatalog({
     [car]
   );
 
+  /** Схема узла для найденного OEM — где деталь стоит в этом авто. */
+  const openOemResult = useCallback(
+    async (oem: string) => {
+      if (!car) return;
+      setOemLoading(oem);
+      setError("");
+      try {
+        const data = await fetchJson<{ parts: GoodvinParts | null }>(
+          `/api/goodvin/search-oem?catalogId=${encodeURIComponent(
+            car.catalogId
+          )}&carId=${encodeURIComponent(car.carId)}&criteria=${encodeURIComponent(
+            car.criteria || ""
+          )}&oem=${encodeURIComponent(oem)}`
+        );
+        setOemView({ oem, parts: data.parts });
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setOemLoading(null);
+      }
+    },
+    [car]
+  );
+
   const doPartSearch = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -727,6 +759,7 @@ export function VinCatalog({
       const q = partQuery.trim();
       if (!q) {
         setSearchResults(null);
+        setOemView(null);
         return;
       }
       setSearching(true);
@@ -744,13 +777,17 @@ export function VinCatalog({
         setSearchResults(data.results);
         setParts(null);
         setSelectedId(null);
+        setOemView(null);
+        // Сразу показываем схему первого варианта — как у Армтек
+        // («фото + артикул» без лишнего клика).
+        if (data.results.length) void openOemResult(data.results[0].number);
       } catch (err) {
         setError((err as Error).message);
       } finally {
         setSearching(false);
       }
     },
-    [car, partQuery]
+    [car, partQuery, openOemResult]
   );
 
   const selectCar = useCallback(
@@ -761,6 +798,8 @@ export function VinCatalog({
       setSelectedId(null);
       setSelectedName("");
       setFilter("");
+      setSearchResults(null);
+      setOemView(null);
       // Режим «Все схемы» — данные другого авто не переиспользуем.
       setViewTab("groups");
       setCats(null);
@@ -1128,6 +1167,7 @@ export function VinCatalog({
     setParts(null);
     setSelectedId(null);
     setSearchResults(null);
+    setOemView(null);
   }
 
   return (
@@ -1711,12 +1751,45 @@ export function VinCatalog({
                     label={searching ? "Ищем деталь…" : "Загружаем детали узла…"}
                   />
                 ) : searchResults !== null ? (
-                  <SearchResultsView
-                    results={searchResults}
-                    query={partQuery}
-                    backVin={car.vin || car.frame || query}
-                    fromBrand={car.brand}
-                  />
+                  <div className="space-y-4">
+                    <SearchResultsView
+                      results={searchResults}
+                      query={partQuery}
+                      backVin={car.vin || car.frame || query}
+                      fromBrand={car.brand}
+                      activeOem={oemView?.oem ?? oemLoading}
+                      loadingOem={oemLoading}
+                      onSelect={(oem) => void openOemResult(oem)}
+                    />
+                    {oemLoading ? (
+                      <Spinner label="Ищем деталь на схемах…" />
+                    ) : oemView?.parts ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-neutral-300">
+                          <FolderTree className="h-4 w-4 text-orange-500" />
+                          <span className="font-semibold text-white">
+                            {oemView.parts.partGroups[0]?.name || oemView.oem}
+                          </span>
+                          <span className="font-mono text-xs text-neutral-500">
+                            {oemView.oem}
+                          </span>
+                        </div>
+                        <PartsView
+                          parts={oemView.parts}
+                          backVin={car.vin || car.frame || query}
+                          fromBrand={car.brand}
+                          catalogId={car.catalogId}
+                          carId={car.carId}
+                          highlightOem={oemView.oem}
+                        />
+                      </div>
+                    ) : oemView ? (
+                      <p className="rounded-xl border border-dashed border-neutral-800 py-6 text-center text-sm text-neutral-500">
+                        Для этого номера каталог не отдаёт схему узла — но цены
+                        доступны по кнопке выше.
+                      </p>
+                    ) : null}
+                  </div>
                 ) : parts ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm text-neutral-300">
@@ -1752,51 +1825,84 @@ export function VinCatalog({
   );
 }
 
-/** Результаты поиска детали по названию/номеру — плоский список с ценами. */
+/** Результаты поиска детали по названию/номеру. Клик по строке загружает
+ *  схемы узлов, где стоит эта деталь (как у Армтек: «фото + артикул»). */
 function SearchResultsView({
   results,
   query,
   backVin,
   fromBrand,
+  activeOem,
+  loadingOem,
+  onSelect,
 }: {
   results: Array<{ number: string; name: string }>;
   query: string;
   backVin?: string;
   fromBrand?: string;
+  activeOem?: string | null;
+  loadingOem?: string | null;
+  onSelect?: (oem: string) => void;
 }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-neutral-400">
         {results.length
-          ? `Найдено по запросу «${query}»: ${results.length}`
+          ? `Найдено по запросу «${query}»: ${results.length}${
+              results.length > 1 ? " — выберите вариант, покажем его на схеме" : ""
+            }`
           : `По запросу «${query}» ничего не найдено`}
       </p>
       {results.length > 0 && (
         <div className="divide-y divide-neutral-800 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
-          {results.map((r, i) => (
-            <div
-              key={`${r.number}-${i}`}
-              className="flex items-center gap-3 p-3 hover:bg-neutral-800/40"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-neutral-100">{r.name}</p>
-                <p className="font-mono text-xs text-neutral-400">{r.number}</p>
-              </div>
-              <Link
-                href={`/catalog?article=${encodeURIComponent(r.number)}${
-                  backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
-                }${
-                  fromBrand ? `&fromBrand=${encodeURIComponent(fromBrand)}` : ""
+          {results.map((r, i) => {
+            const isActive = activeOem === r.number;
+            return (
+              <div
+                key={`${r.number}-${i}`}
+                onClick={() => onSelect?.(r.number)}
+                className={`flex items-center gap-3 p-3 transition-colors ${
+                  onSelect ? "cursor-pointer" : ""
+                } ${
+                  isActive
+                    ? "bg-orange-500/10 ring-1 ring-inset ring-orange-500/50"
+                    : "hover:bg-neutral-800/40"
                 }`}
-                className="shrink-0"
               >
-                <Button size="sm" variant="outline" className="gap-1.5">
-                  <Tag className="h-3.5 w-3.5" />
-                  Цены
-                </Button>
-              </Link>
-            </div>
-          ))}
+                {loadingOem === r.number ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-orange-500" />
+                ) : (
+                  <Package
+                    className={`h-4 w-4 shrink-0 ${
+                      isActive ? "text-orange-500" : "text-neutral-600"
+                    }`}
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-neutral-100">
+                    {r.name}
+                  </p>
+                  <p className="font-mono text-xs text-neutral-400">
+                    {r.number}
+                  </p>
+                </div>
+                <Link
+                  href={`/catalog?article=${encodeURIComponent(r.number)}${
+                    backVin ? `&fromVin=${encodeURIComponent(backVin)}` : ""
+                  }${
+                    fromBrand ? `&fromBrand=${encodeURIComponent(fromBrand)}` : ""
+                  }`}
+                  className="shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    Цены
+                  </Button>
+                </Link>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1811,12 +1917,15 @@ function PartsView({
   fromBrand,
   catalogId,
   carId,
+  highlightOem,
 }: {
   parts: GoodvinParts;
   backVin?: string;
   fromBrand?: string;
   catalogId?: string;
   carId?: string;
+  /** OEM из поиска — подсветить эту деталь на схеме и в списке. */
+  highlightOem?: string;
 }) {
   const units = parts.partGroups;
   if (!units.length) {
@@ -1842,6 +1951,7 @@ function PartsView({
           single={single}
           catalogId={catalogId}
           carId={carId}
+          highlightOem={highlightOem}
         />
       ))}
     </div>
@@ -1849,6 +1959,9 @@ function PartsView({
 }
 
 /** Один узел: схема слева с кликабельными выносками, детали справа. */
+/** Нормализация артикула для сравнения: «5960 L0» и «5960L0» — одна деталь. */
+const normOem = (s: string) => s.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
 function UnitBlock({
   group,
   backVin,
@@ -1856,6 +1969,7 @@ function UnitBlock({
   single,
   catalogId,
   carId,
+  highlightOem,
 }: {
   group: GoodvinParts["partGroups"][number];
   backVin?: string;
@@ -1863,8 +1977,18 @@ function UnitBlock({
   single: boolean;
   catalogId?: string;
   carId?: string;
+  highlightOem?: string;
 }) {
-  const [active, setActive] = useState<string | null>(null);
+  const hlOem = highlightOem ? normOem(highlightOem) : null;
+  // Искомая деталь (из поиска по OEM) сразу активна — её позиция подсвечена
+  // на схеме, без лишнего клика.
+  const [active, setActive] = useState<string | null>(() => {
+    if (!hlOem) return null;
+    return (
+      group.parts.find((p) => p.number && normOem(p.number) === hlOem)
+        ?.positionNumber ?? null
+    );
+  });
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   // Полноэкранный просмотр схемы (клик по картинке / кнопка-лупа).
   const [lightbox, setLightbox] = useState(false);
@@ -2069,6 +2193,9 @@ function UnitBlock({
             const pos = part.positionNumber || "";
             const isActive = pos !== "" && active === pos;
             const variant = variantInfo.get(pi);
+            const isSearched = Boolean(
+              hlOem && part.number && normOem(part.number) === hlOem
+            );
             return (
               <div
                 key={`${part.id}-${pi}`}
@@ -2081,7 +2208,9 @@ function UnitBlock({
                 } ${
                   isActive
                     ? "bg-orange-500/10 ring-1 ring-inset ring-orange-500/50"
-                    : "hover:bg-neutral-800/40"
+                    : isSearched
+                      ? "bg-orange-500/5 hover:bg-neutral-800/40"
+                      : "hover:bg-neutral-800/40"
                 }`}
               >
               <div className="flex items-center gap-3">
@@ -2099,6 +2228,11 @@ function UnitBlock({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-neutral-100">
                     {part.name}
+                    {isSearched && (
+                      <span className="ml-2 inline-block whitespace-nowrap rounded bg-orange-500 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-white">
+                        искомая деталь
+                      </span>
+                    )}
                     {variant && (
                       <span
                         title="На этой позиции схемы несколько артикулов — выберите подходящий"

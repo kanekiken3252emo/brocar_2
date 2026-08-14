@@ -215,6 +215,15 @@ async function lookupCached(
  * реальным ярлыком поставщика («toyota», «psa», «peugeot/citroen»…).
  * Берём все записи этого артикула и ищем бренд из того же семейства.
  */
+/** Строка уже прошла НАСТОЯЩУЮ строгую проверку? «unverified-strict» — метка
+ *  промежуточной сломанной версии (строгий поиск был с серверным фильтром
+ *  бренда и всегда возвращал пусто, фото замораживалось) — такие строки
+ *  проверяем заново. */
+function isVerifiedStrict(source: string | null | undefined): boolean {
+  const s = source ?? "";
+  return s.endsWith("-strict") && s !== "unverified-strict";
+}
+
 /** Запись лежит под ИМЕНЕМ-семейством («opel/chevrolet/gm»)? Такие строки
  *  могли быть созданы нестрогим фолбэком (чужой товар с тем же номером) —
  *  при семейном поиске им не доверяем, перезатираются строгим добором. */
@@ -437,8 +446,7 @@ async function revalidateFamilyBatch(
         .from(productImages)
         .where(and(eq(productImages.brand, b), eq(productImages.article, a)))
         .limit(1);
-      const src = rows[0]?.source ?? "";
-      if (src.endsWith("-strict")) continue;
+      if (isVerifiedStrict(rows[0]?.source)) continue;
       await revalidateFamilyRow(it.brand, b, a, it.url);
     }
   } catch {
@@ -674,7 +682,7 @@ export async function getOrFetchProductImage(
       if (
         famCached.url &&
         famCached.rowBrand &&
-        !(famCached.rowSource ?? "").endsWith("-strict")
+        !isVerifiedStrict(famCached.rowSource)
       ) {
         void revalidateFamilyRow(
           brand,

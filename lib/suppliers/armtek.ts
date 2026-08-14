@@ -221,12 +221,14 @@ export class ArmtekAdapter implements SupplierAdapter {
       const rows = Array.isArray(response.data.RESP) ? response.data.RESP : [];
       const targetPin = normalizeKey(pin);
 
-      // 1. Точный матч PIN+BRAND
+      // 1. Точный матч PIN+BRAND. Бренды сравниваем НОРМАЛИЗОВАННО
+      // (normalizeKey): «GENERAL MOTORS» ≈ "generalmotors", «LAND ROVER» ≈
+      // "landrover" — пробелы/регистр/точки написания не ломают строгий матч.
       if (brand) {
-        const b = brand.toLowerCase().trim();
+        const b = normalizeKey(brand);
         const match = rows.find(
           (r) =>
-            (r.BRAND || "").toLowerCase().trim() === b &&
+            normalizeKey(r.BRAND) === b &&
             normalizeKey(r.PIN) === targetPin &&
             Boolean(r.ARTID)
         );
@@ -247,10 +249,10 @@ export class ArmtekAdapter implements SupplierAdapter {
       //    значит у поставщика это однозначно один товар, просто формат
       //    артикула отличается (например HYUNDAI XTEER 1011192 vs 1011192-0001).
       if (brand) {
-        const b = brand.toLowerCase().trim();
+        const b = normalizeKey(brand);
         const brandArtids = new Set(
           rows
-            .filter((r) => (r.BRAND || "").toLowerCase().trim() === b && r.ARTID)
+            .filter((r) => normalizeKey(r.BRAND) === b && r.ARTID)
             .map((r) => r.ARTID as string)
         );
         if (brandArtids.size === 1) {

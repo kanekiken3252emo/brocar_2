@@ -226,9 +226,16 @@ function isDisplayNameRow(rowBrand: string): boolean {
 async function lookupCachedByFamily(
   brand: string,
   article: string
-): Promise<{ found: true; url: string | null } | { found: false }> {
+): Promise<
+  | { found: true; url: string | null; rowBrand?: string; rowSource?: string }
+  | { found: false }
+> {
   const rows = await db
-    .select({ brand: productImages.brand, imageUrl: productImages.imageUrl })
+    .select({
+      brand: productImages.brand,
+      imageUrl: productImages.imageUrl,
+      source: productImages.source,
+    })
     .from(productImages)
     .where(eq(productImages.article, article))
     .limit(25);
@@ -238,9 +245,65 @@ async function lookupCachedByFamily(
     (r) => sameBrandFamily(r.brand, brand) && !isDisplayNameRow(r.brand)
   );
   const withUrl = fam.find((r) => r.imageUrl);
-  if (withUrl) return { found: true, url: withUrl.imageUrl };
+  if (withUrl)
+    return {
+      found: true,
+      url: withUrl.imageUrl,
+      rowBrand: withUrl.brand,
+      rowSource: withUrl.source ?? "",
+    };
   if (fam.length) return { found: true, url: fam[0].imageUrl ?? null };
+  // Негативный маркер под именем-семейством («пробовали строго — фото нет»):
+  // ему верим, иначе каждый показ карточки заново молотил бы поставщиков.
+  const displayNeg = rows.find(
+    (r) =>
+      isDisplayNameRow(r.brand) &&
+      sameBrandFamily(r.brand, brand) &&
+      !r.imageUrl
+  );
+  if (displayNeg) return { found: true, url: null };
   return { found: false };
+}
+
+/** Одноразовое фоновое САМОЛЕЧЕНИЕ записи семейства: строки могли быть
+ *  отравлены старым нестрогим фолбэком (чужой товар с тем же номером —
+ *  втулка ULO под «gm»). Перепроверяем СТРОГО и перезаписываем, если строгий
+ *  ответ отличается. Помечаем источник суффиксом "-strict", чтобы не
+ *  перепроверять одну строку повторно. */
+async function revalidateFamilyRow(
+  familyBrand: string,
+  rowBrand: string,
+  article: string,
+  currentUrl: string
+): Promise<void> {
+  if (missInFlight >= MISS_LIMIT) return;
+  missInFlight++;
+  try {
+    for (const key of brandFamilyKeys(familyBrand).slice(0, 5)) {
+      const hit = await firstImageHit([
+        { source: "armtek", run: () => tryArmtek(key, article, true) },
+        { source: "shate-m", run: () => tryShateM(key, article, true) },
+      ]);
+      if (hit.url) {
+        // Нашли строго: фиксируем (даже если URL совпал — суффикс -strict
+        // снимет строку с повторных проверок).
+        if (hit.url !== currentUrl) {
+          console.warn(
+            `product-images: строгая перепроверка заменила фото ${rowBrand}/${article}`
+          );
+        }
+        await persistCache(rowBrand, article, hit.url, `${hit.source}-strict`);
+        return;
+      }
+    }
+    // Строго не нашли — старый URL не трогаем (мог быть честным), но больше
+    // не перепроверяем.
+    await persistCache(rowBrand, article, currentUrl, "unverified-strict");
+  } catch {
+    // фоновая задача — молча
+  } finally {
+    missInFlight--;
+  }
 }
 
 /**
@@ -566,9 +629,24 @@ export async function getOrFetchProductImage(
     // Бренд-семейство («Toyota/Lexus», «Opel/Chevrolet/GM»): записи под самим
     // именем-семейством НЕ доверяем (могли быть созданы нестрогим фолбэком —
     // чужой товар с тем же номером), берём кэш реальных ярлыков семейства.
-    // Плохая запись перезатрётся строгим добором ниже (persistCache upsert).
     const famCached = await lookupCachedByFamily(brand, article);
-    if (famCached.found) return famCached.url;
+    if (famCached.found) {
+      // Старые строки могли быть отравлены нестрогим фолбэком ещё до
+      // строгого режима — один раз фоново перепроверяем (не блокируя ответ).
+      if (
+        famCached.url &&
+        famCached.rowBrand &&
+        !(famCached.rowSource ?? "").endsWith("-strict")
+      ) {
+        void revalidateFamilyRow(
+          brand,
+          famCached.rowBrand,
+          article,
+          famCached.url
+        );
+      }
+      return famCached.url;
+    }
   }
 
   if (missInFlight >= MISS_LIMIT) return null; // перегруз — не кэшируем, добор позже
@@ -577,6 +655,10 @@ export async function getOrFetchProductImage(
     let url: string | null = null;
     let source = "";
     let errored = false;
+    // Под каким брендом сохранять найденное фото: для семейств — реальный
+    // ярлык, под которым нашли (его и читает lookupCachedByFamily).
+    let persistBrand = brand;
+    let persistSource = () => source;
 
     if (famId === null) {
       // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
@@ -589,6 +671,7 @@ export async function getOrFetchProductImage(
       // Бренд-семейство: имя карточки поставщикам неизвестно, а нестрогий
       // фолбэк «любой бренд с тем же номером» тащит ЧУЖОЙ товар (втулка ULO
       // вместо катушки GM). Идём по РЕАЛЬНЫМ ярлыкам семейства СТРОГО.
+      persistSource = () => `${source}-strict`;
       for (const key of brandFamilyKeys(brand).slice(0, 5)) {
         const hit = await firstImageHit([
           { source: "armtek", run: () => tryArmtek(key, article, true) },
@@ -598,6 +681,7 @@ export async function getOrFetchProductImage(
         if (hit.url) {
           url = hit.url;
           source = hit.source;
+          persistBrand = key;
           break;
         }
       }
@@ -611,16 +695,20 @@ export async function getOrFetchProductImage(
       if (at.url) {
         url = at.url;
         source = "autotrade";
+        if (famId !== null) persistBrand = atBrand;
       }
       errored = errored || at.errored;
     }
+    // Семейство, фото честно нет → негативный маркер под ИМЕНЕМ-семейством
+    // (его читает lookupCachedByFamily как «пробовали — нет»).
+    if (famId !== null && !url) persistBrand = brand;
 
     // Кешируем, ТОЛЬКО если нашли картинку ИЛИ её честно нет (без сбоев API). Если
     // опрос упал с ошибкой (внешний источник лёг, как ShATE-M сейчас) — НЕ пишем
     // negative-cache: товар переподтянется при следующем заходе, когда источник
     // оживёт. Иначе временный сбой навсегда оставил бы товар без фото.
     if (url || !errored) {
-      await persistCache(brand, article, url, source);
+      await persistCache(persistBrand, article, url, persistSource());
     }
     return url;
   } finally {

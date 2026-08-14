@@ -143,12 +143,13 @@ export class ShateMAdapter implements SupplierAdapter {
       const list = Array.isArray(resp.data) ? resp.data : resp.data ? [resp.data] : [];
       const targetCode = normalizeKey(code);
 
-      // 1. Точный матч code+brand
+      // 1. Точный матч code+brand (бренды нормализованно: «GENERAL MOTORS» ≈
+      // "generalmotors" — пробелы/регистр не ломают строгий матч)
       if (brand) {
-        const b = brand.toLowerCase().trim();
+        const b = normalizeKey(brand);
         const match = list.find(
           (x) =>
-            (x.article?.tradeMarkName || "").toLowerCase().trim() === b &&
+            normalizeKey(x.article?.tradeMarkName) === b &&
             normalizeKey(x.article?.code) === targetCode
         );
         if (match) return match.article.id;
@@ -166,12 +167,12 @@ export class ShateMAdapter implements SupplierAdapter {
       // 3. Fallback: если по бренду пришёл ровно один уникальный articleId —
       //    значит у поставщика это однозначно один товар.
       if (brand) {
-        const b = brand.toLowerCase().trim();
+        const b = normalizeKey(brand);
         const brandIds = new Set(
           list
             .filter(
               (x) =>
-                (x.article?.tradeMarkName || "").toLowerCase().trim() === b &&
+                normalizeKey(x.article?.tradeMarkName) === b &&
                 typeof x.article?.id === "number"
             )
             .map((x) => x.article.id)

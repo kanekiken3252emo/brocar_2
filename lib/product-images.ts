@@ -394,7 +394,7 @@ export async function enrichGroupsWithImages<
       groups.map((g) => ({ brand: g.brand, article: g.article }))
     );
 
-    return groups.map((g) => {
+    const enriched = groups.map((g) => {
       const key = `${normalize(g.brand)}|${normalize(g.article)}`;
       const cached = cache.get(key);
       if (typeof cached === "string" && cached.length > 0) {
@@ -402,9 +402,42 @@ export async function enrichGroupsWithImages<
       }
       return g as T & { imageUrl?: string };
     });
+
+    // Фоновое самолечение и на БАТЧ-пути (сетка поиска/каталога): записи
+    // семейных брендов могли быть отравлены старым нестрогим фолбэком —
+    // одноразово перепроверяем строго (см. revalidateFamilyRow).
+    void revalidateFamilyBatch(
+      enriched
+        .filter((g) => g.imageUrl && brandFamilyId(g.brand) !== null)
+        .map((g) => ({ brand: g.brand, article: g.article, url: g.imageUrl! }))
+    );
+
+    return enriched;
   } catch (error) {
     console.error("enrichGroupsWithImages error:", error);
     return groups as Array<T & { imageUrl?: string }>;
+  }
+}
+
+/** Батч-обёртка самолечения: смотрим source строк, непроверенные лечим. */
+async function revalidateFamilyBatch(
+  items: Array<{ brand: string; article: string; url: string }>
+): Promise<void> {
+  try {
+    for (const it of items.slice(0, 10)) {
+      const b = normalize(it.brand);
+      const a = normalize(it.article);
+      const rows = await db
+        .select({ source: productImages.source })
+        .from(productImages)
+        .where(and(eq(productImages.brand, b), eq(productImages.article, a)))
+        .limit(1);
+      const src = rows[0]?.source ?? "";
+      if (src.endsWith("-strict")) continue;
+      await revalidateFamilyRow(it.brand, b, a, it.url);
+    }
+  } catch {
+    // фоновая задача — молча
   }
 }
 

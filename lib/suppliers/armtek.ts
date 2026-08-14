@@ -193,12 +193,16 @@ export class ArmtekAdapter implements SupplierAdapter {
     if (!pin) return null;
 
     try {
+      // В строгом режиме БРЕНД НЕ отправляем серверу: наши ключи семейств
+      // («generalmotors») их фильтру неизвестны и он режет выдачу в ноль.
+      // Берём полный список по PIN и матчим бренд сами (нормализованно).
+      const serverBrand = brand && !opts?.strictBrand ? brand : undefined;
       const body = new URLSearchParams({
         VKORG: this.vkorg,
         KUNNR_RG: this.kunnrRg,
         PIN: pin,
-        QUERY_TYPE: brand ? "2" : "1",
-        ...(brand ? { BRAND: brand } : {}),
+        QUERY_TYPE: serverBrand ? "2" : "1",
+        ...(serverBrand ? { BRAND: serverBrand } : {}),
       }).toString();
 
       const auth = Buffer.from(

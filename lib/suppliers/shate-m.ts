@@ -137,7 +137,12 @@ export class ShateMAdapter implements SupplierAdapter {
         { article: ShateArticle }[] | { article: ShateArticle }
       >(`/api/v1/articles/search/${encodeURIComponent(code)}`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: brand ? { TradeMarkNames: brand, include: "trademark" } : undefined,
+        // В строгом режиме серверный фильтр бренда не шлём (ключи семейств
+        // вроде «generalmotors» ему неизвестны) — матчим сами нормализованно.
+        params:
+          brand && !opts?.strictBrand
+            ? { TradeMarkNames: brand, include: "trademark" }
+            : undefined,
       });
 
       const list = Array.isArray(resp.data) ? resp.data : resp.data ? [resp.data] : [];

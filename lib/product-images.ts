@@ -296,9 +296,14 @@ async function revalidateFamilyRow(
         return;
       }
     }
-    // Строго не нашли — старый URL не трогаем (мог быть честным), но больше
-    // не перепроверяем.
-    await persistCache(rowBrand, article, currentUrl, "unverified-strict");
+    // Строго не нашли — старое фото УБИРАЕМ: честные фото семейных брендов
+    // строгая проверка находит заново, а ненайденное почти наверняка чужое
+    // (пришло старым нестрогим фолбэком — втулка вместо свечи). Заглушка
+    // «фото скоро» честнее чужой детали.
+    console.warn(
+      `product-images: строгая перепроверка убрала сомнительное фото ${rowBrand}/${article}`
+    );
+    await persistCache(rowBrand, article, null, "purged-strict");
   } catch {
     // фоновая задача — молча
   } finally {

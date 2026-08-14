@@ -9,6 +9,7 @@ import {
   sameBrandFamily,
   brandFamilyId,
   brandFamilyKeys,
+  familyDisplayName,
 } from "./brands/families.mjs";
 import { ArmtekAdapter } from "./suppliers/armtek";
 import { AutotradeAdapter } from "./suppliers/autotrade";
@@ -214,6 +215,14 @@ async function lookupCached(
  * реальным ярлыком поставщика («toyota», «psa», «peugeot/citroen»…).
  * Берём все записи этого артикула и ищем бренд из того же семейства.
  */
+/** Запись лежит под ИМЕНЕМ-семейством («opel/chevrolet/gm»)? Такие строки
+ *  могли быть созданы нестрогим фолбэком (чужой товар с тем же номером) —
+ *  при семейном поиске им не доверяем, перезатираются строгим добором. */
+function isDisplayNameRow(rowBrand: string): boolean {
+  const disp = familyDisplayName(rowBrand);
+  return disp !== null && normalize(disp) === normalize(rowBrand);
+}
+
 async function lookupCachedByFamily(
   brand: string,
   article: string
@@ -223,7 +232,11 @@ async function lookupCachedByFamily(
     .from(productImages)
     .where(eq(productImages.article, article))
     .limit(25);
-  const fam = rows.filter((r) => sameBrandFamily(r.brand, brand));
+  // Только реальные ярлыки поставщиков этого семейства (opel, gm, psa…);
+  // строки под именем-семейством пропускаем — см. isDisplayNameRow.
+  const fam = rows.filter(
+    (r) => sameBrandFamily(r.brand, brand) && !isDisplayNameRow(r.brand)
+  );
   const withUrl = fam.find((r) => r.imageUrl);
   if (withUrl) return { found: true, url: withUrl.imageUrl };
   if (fam.length) return { found: true, url: fam[0].imageUrl ?? null };
@@ -357,10 +370,13 @@ async function persistCache(
  */
 async function tryShateM(
   brand: string,
-  article: string
+  article: string,
+  strictBrand = false
 ): Promise<ImageResult> {
   try {
-    const articleId = await shateM.findArticleId(article, brand);
+    const articleId = await shateM.findArticleId(article, brand, {
+      strictBrand,
+    });
     if (!articleId) return { url: null, errored: false };
 
     const contents = await shateM.getArticleContents(articleId);
@@ -405,10 +421,11 @@ async function tryShateM(
  */
 async function tryArmtek(
   brand: string,
-  article: string
+  article: string,
+  strictBrand = false
 ): Promise<ImageResult> {
   try {
-    const artid = await armtek.getArtid(article, brand);
+    const artid = await armtek.getArtid(article, brand, { strictBrand });
     if (!artid) return { url: null, errored: false };
 
     for (const size of ["500x500", "230x230"]) {
@@ -541,12 +558,15 @@ export async function getOrFetchProductImage(
   const article = normalize(articleRaw);
   if (!brand || !article) return null;
 
-  const cached = await lookupCached(brand, article);
-  if (cached.found) return cached.url;
-
-  // Бренд-семейство («Toyota/Lexus», «Peugeot/Citroen/PSA») — фото могло быть
-  // закэшировано под реальным ярлыком поставщика. Ищем по семье артикула.
-  if (brandFamilyId(brand) !== null) {
+  const famId = brandFamilyId(brand);
+  if (famId === null) {
+    const cached = await lookupCached(brand, article);
+    if (cached.found) return cached.url;
+  } else {
+    // Бренд-семейство («Toyota/Lexus», «Opel/Chevrolet/GM»): записи под самим
+    // именем-семейством НЕ доверяем (могли быть созданы нестрогим фолбэком —
+    // чужой товар с тем же номером), берём кэш реальных ярлыков семейства.
+    // Плохая запись перезатрётся строгим добором ниже (persistCache upsert).
     const famCached = await lookupCachedByFamily(brand, article);
     if (famCached.found) return famCached.url;
   }
@@ -554,37 +574,40 @@ export async function getOrFetchProductImage(
   if (missInFlight >= MISS_LIMIT) return null; // перегруз — не кэшируем, добор позже
   missInFlight++;
   try {
-    // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
-    // быстрые. Возвращаем картинку, КАК ТОЛЬКО её нашёл первый из них. Все грузят
-    // файл по одному ключу (brand/article.*), поэтому URL одинаковый.
-    let { url, source, errored } = await firstImageHit([
-      { source: "armtek", run: () => tryArmtek(brand, article) },
-      { source: "shate-m", run: () => tryShateM(brand, article) },
-    ]);
+    let url: string | null = null;
+    let source = "";
+    let errored = false;
 
-    // Бренд-семейство: поставщики не знают ярлык «Toyota/Lexus» — повторяем
-    // тир 1 с ПЕРВЫМ реальным ключом семейства («toyota»), сравнение брендов
-    // у адаптеров регистронезависимое.
-    if (!url) {
-      const famKeys = brandFamilyKeys(brand);
-      const primary = famKeys[0];
-      if (primary && primary !== brand) {
-        const retry = await firstImageHit([
-          { source: "armtek", run: () => tryArmtek(primary, article) },
-          { source: "shate-m", run: () => tryShateM(primary, article) },
+    if (famId === null) {
+      // Тир 1: Armtek + ShATE-M параллельно — оба без лимитов на картинки, оба
+      // быстрые. Возвращаем картинку, КАК ТОЛЬКО её нашёл первый из них.
+      ({ url, source, errored } = await firstImageHit([
+        { source: "armtek", run: () => tryArmtek(brand, article) },
+        { source: "shate-m", run: () => tryShateM(brand, article) },
+      ]));
+    } else {
+      // Бренд-семейство: имя карточки поставщикам неизвестно, а нестрогий
+      // фолбэк «любой бренд с тем же номером» тащит ЧУЖОЙ товар (втулка ULO
+      // вместо катушки GM). Идём по РЕАЛЬНЫМ ярлыкам семейства СТРОГО.
+      for (const key of brandFamilyKeys(brand).slice(0, 5)) {
+        const hit = await firstImageHit([
+          { source: "armtek", run: () => tryArmtek(key, article, true) },
+          { source: "shate-m", run: () => tryShateM(key, article, true) },
         ]);
-        if (retry.url) {
-          url = retry.url;
-          source = retry.source;
+        errored = errored || hit.errored;
+        if (hit.url) {
+          url = hit.url;
+          source = hit.source;
+          break;
         }
-        errored = errored || retry.errored;
       }
     }
 
-    // Тир 2: Autotrade — резерв, только если первые два не нашли. Бережём его
+    // Тир 2: Autotrade — резерв, только если выше не нашли. Бережём его
     // лимит 1 req/sec (иначе массовый прогрев упрётся в него и заденет каталог).
     if (!url) {
-      const at = await tryAutotrade(brand, article);
+      const atBrand = famId === null ? brand : brandFamilyKeys(brand)[0];
+      const at = await tryAutotrade(atBrand, article);
       if (at.url) {
         url = at.url;
         source = "autotrade";

@@ -123,7 +123,11 @@ export class ShateMAdapter implements SupplierAdapter {
    *     но это уникально тот же товар.
    *  4. null — иначе. Лучше плейсхолдер чем чужая картинка (AFRR010 вместо AFR1).
    */
-  async findArticleId(code: string, brand?: string): Promise<number | null> {
+  async findArticleId(
+    code: string,
+    brand?: string,
+    opts?: { strictBrand?: boolean }
+  ): Promise<number | null> {
     if (!this.apiKey) return null;
     const token = await this.getToken();
     if (!token) return null;
@@ -150,11 +154,14 @@ export class ShateMAdapter implements SupplierAdapter {
         if (match) return match.article.id;
       }
 
-      // 2. Точный матч code без бренда
-      const exact = list.find(
-        (x) => normalizeKey(x.article?.code) === targetCode
-      );
-      if (exact?.article?.id) return exact.article.id;
+      // 2. Точный матч code без бренда. Опасен при коллизии артикулов у разных
+      // брендов — в строгом режиме (картинки брендов-семейств) пропускаем.
+      if (!opts?.strictBrand) {
+        const exact = list.find(
+          (x) => normalizeKey(x.article?.code) === targetCode
+        );
+        if (exact?.article?.id) return exact.article.id;
+      }
 
       // 3. Fallback: если по бренду пришёл ровно один уникальный articleId —
       //    значит у поставщика это однозначно один товар.

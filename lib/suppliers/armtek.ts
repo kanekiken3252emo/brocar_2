@@ -184,7 +184,11 @@ export class ArmtekAdapter implements SupplierAdapter {
    *     уникально тот же товар.
    *  4. null — иначе. Лучше плейсхолдер чем чужая картинка (AFRR010 вместо AFR1).
    */
-  async getArtid(pin: string, brand?: string): Promise<string | null> {
+  async getArtid(
+    pin: string,
+    brand?: string,
+    opts?: { strictBrand?: boolean }
+  ): Promise<string | null> {
     if (!this.login || !this.password || !this.kunnrRg) return null;
     if (!pin) return null;
 
@@ -229,11 +233,15 @@ export class ArmtekAdapter implements SupplierAdapter {
         if (match?.ARTID) return match.ARTID;
       }
 
-      // 2. Точный матч PIN без учёта бренда
-      const exact = rows.find(
-        (r) => normalizeKey(r.PIN) === targetPin && Boolean(r.ARTID)
-      );
-      if (exact?.ARTID) return exact.ARTID;
+      // 2. Точный матч PIN без учёта бренда. ОПАСЕН при коллизии артикулов
+      // (GM 1208021 катушка vs ULO 1208021 опора — один номер, разные товары):
+      // в строгом режиме (картинки для брендов-семейств) пропускаем.
+      if (!opts?.strictBrand) {
+        const exact = rows.find(
+          (r) => normalizeKey(r.PIN) === targetPin && Boolean(r.ARTID)
+        );
+        if (exact?.ARTID) return exact.ARTID;
+      }
 
       // 3. Fallback: если по бренду пришёл ровно один уникальный ARTID —
       //    значит у поставщика это однозначно один товар, просто формат

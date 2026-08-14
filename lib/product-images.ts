@@ -5,6 +5,11 @@ import { eq, and, or } from "drizzle-orm";
 import { db } from "./db";
 import { productImages } from "./db/schema";
 import { ShateMAdapter } from "./suppliers/shate-m";
+import {
+  sameBrandFamily,
+  brandFamilyId,
+  brandFamilyKeys,
+} from "./brands/families.mjs";
 import { ArmtekAdapter } from "./suppliers/armtek";
 import { AutotradeAdapter } from "./suppliers/autotrade";
 
@@ -201,6 +206,28 @@ async function lookupCached(
     .limit(1);
   if (rows.length === 0) return { found: false };
   return { found: true, url: rows[0].imageUrl ?? null };
+}
+
+/**
+ * Фолбэк для брендов-СЕМЕЙСТВ: карточка называется «Toyota/Lexus» или
+ * «Peugeot/Citroen/PSA» (объединение концерна), а фото в кэше лежит под
+ * реальным ярлыком поставщика («toyota», «psa», «peugeot/citroen»…).
+ * Берём все записи этого артикула и ищем бренд из того же семейства.
+ */
+async function lookupCachedByFamily(
+  brand: string,
+  article: string
+): Promise<{ found: true; url: string | null } | { found: false }> {
+  const rows = await db
+    .select({ brand: productImages.brand, imageUrl: productImages.imageUrl })
+    .from(productImages)
+    .where(eq(productImages.article, article))
+    .limit(25);
+  const fam = rows.filter((r) => sameBrandFamily(r.brand, brand));
+  const withUrl = fam.find((r) => r.imageUrl);
+  if (withUrl) return { found: true, url: withUrl.imageUrl };
+  if (fam.length) return { found: true, url: fam[0].imageUrl ?? null };
+  return { found: false };
 }
 
 /**
@@ -517,6 +544,13 @@ export async function getOrFetchProductImage(
   const cached = await lookupCached(brand, article);
   if (cached.found) return cached.url;
 
+  // Бренд-семейство («Toyota/Lexus», «Peugeot/Citroen/PSA») — фото могло быть
+  // закэшировано под реальным ярлыком поставщика. Ищем по семье артикула.
+  if (brandFamilyId(brand) !== null) {
+    const famCached = await lookupCachedByFamily(brand, article);
+    if (famCached.found) return famCached.url;
+  }
+
   if (missInFlight >= MISS_LIMIT) return null; // перегруз — не кэшируем, добор позже
   missInFlight++;
   try {
@@ -527,6 +561,25 @@ export async function getOrFetchProductImage(
       { source: "armtek", run: () => tryArmtek(brand, article) },
       { source: "shate-m", run: () => tryShateM(brand, article) },
     ]);
+
+    // Бренд-семейство: поставщики не знают ярлык «Toyota/Lexus» — повторяем
+    // тир 1 с ПЕРВЫМ реальным ключом семейства («toyota»), сравнение брендов
+    // у адаптеров регистронезависимое.
+    if (!url) {
+      const famKeys = brandFamilyKeys(brand);
+      const primary = famKeys[0];
+      if (primary && primary !== brand) {
+        const retry = await firstImageHit([
+          { source: "armtek", run: () => tryArmtek(primary, article) },
+          { source: "shate-m", run: () => tryShateM(primary, article) },
+        ]);
+        if (retry.url) {
+          url = retry.url;
+          source = retry.source;
+        }
+        errored = errored || retry.errored;
+      }
+    }
 
     // Тир 2: Autotrade — резерв, только если первые два не нашли. Бережём его
     // лимит 1 req/sec (иначе массовый прогрев упрётся в него и заденет каталог).

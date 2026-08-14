@@ -73,13 +73,18 @@ export async function POST(request: NextRequest) {
       allItems = [...items, ...analogItems];
     }
 
+    const deduped = dedupeGroups(
+      groupOffers(allItems, (base, ctx) => applyPricingSync(base, ctx))
+    );
+
+    // Картинки подсеваем ДО склейки семейств: в кэше они лежат под реальными
+    // ярлыками поставщиков (toyota, psa…), а не под именем карточки
+    // («Toyota/Lexus»). Merge ниже сохранит imageUrl составляющих.
+    const withImages = await enrichGroupsWithImages(deduped);
+
     // «Один артикул + один концерн = одна карточка»: PSA / PEUGEOT/CITROEN /
     // Citroen с тем же номером объединяются со всеми предложениями.
-    let groups = mergeFamilyGroups(
-      dedupeGroups(
-        groupOffers(allItems, (base, ctx) => applyPricingSync(base, ctx))
-      )
-    );
+    let groups = mergeFamilyGroups(withImages);
 
     // Точный артикул (оригинал и его двойники) — первым, заменители следом
     // по скорости поставки. Клиент сохраняет этот порядок («Сначала подходящие»).
@@ -100,13 +105,9 @@ export async function POST(request: NextRequest) {
       groups = [...exact, ...rest];
     }
 
-    // Подсеваем картинки из кэша product_images, чтобы клиент не делал
-    // N round-trip'ов к /api/product-image при рендере грида карточек.
-    const enriched = await enrichGroupsWithImages(groups);
-
     return NextResponse.json({
-      groups: enriched,
-      count: enriched.length,
+      groups,
+      count: groups.length,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

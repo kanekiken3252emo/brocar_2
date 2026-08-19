@@ -73,3 +73,43 @@ export async function laximoCached<T>(
   }
   return val;
 }
+
+/**
+ * Дневной ПРЕДОХРАНИТЕЛЬ на платные вызовы: атомарный счётчик в той же
+ * таблице. true — бюджет на сегодня ещё есть (и счётчик инкрементирован),
+ * false — лимит исчерпан, вызов надо пропустить. При ошибке БД разрешаем
+ * (лучше редкий лишний вызов, чем сломанный каталог).
+ *
+ * Появился после инцидента 17-18.08.2026: лимит DOC (10000/мес) сгорел
+ * наполовину за сутки — незакэшированные пустые кроссы + боты.
+ */
+export async function laximoDailyBudget(
+  name: string,
+  dailyLimit: number
+): Promise<boolean> {
+  try {
+    await client`
+      CREATE TABLE IF NOT EXISTS laximo_cache (
+        cache_key text PRIMARY KEY,
+        value text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )`;
+    const key = `budget:${name}:${new Date().toISOString().slice(0, 10)}`;
+    const rows = await client<{ value: string }[]>`
+      INSERT INTO laximo_cache (cache_key, value, created_at)
+      VALUES (${key}, '1', now())
+      ON CONFLICT (cache_key)
+      DO UPDATE SET value = (laximo_cache.value::int + 1)::text
+      RETURNING value`;
+    const used = parseInt(rows[0]?.value ?? "1", 10);
+    if (used > dailyLimit) {
+      if (used === dailyLimit + 1) {
+        console.warn(`laximo: дневной бюджет «${name}» исчерпан (${dailyLimit})`);
+      }
+      return false;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}

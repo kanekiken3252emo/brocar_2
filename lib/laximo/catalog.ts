@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { laximoQuery, asArray, laximoImage, LaximoError } from "./client";
-import { laximoCached } from "./cache";
+import { laximoCached, laximoDailyBudget } from "./cache";
 import type {
   GoodvinCarInfo,
   GoodvinGroup,
@@ -566,8 +566,11 @@ async function searchOemLocation(
 ): Promise<GoodvinParts | null> {
   const oem = opts.oem.replace(/[|=]/g, " ").trim();
   if (!oem) return null;
-  return laximoCached(
-    `oemloc:${catalogId}:${opts.carId}:${ssdKey(opts.criteria)}:${oem.toUpperCase()}`,
+  // ОБЁРТКА {parts}: laximoCached не кэширует null, а «номер не нашёлся» —
+  // частый ответ: без обёртки каждый повторный клик жёг бы платный
+  // GetOEMPartApplicability (лимит OEM всего 500/мес).
+  const wrapped = await laximoCached<{ parts: GoodvinParts | null }>(
+    `oemloc2:${catalogId}:${opts.carId}:${ssdKey(opts.criteria)}:${oem.toUpperCase()}`,
     async () => {
       let resp: Rec;
       try {
@@ -576,7 +579,7 @@ async function searchOemLocation(
           `GetOEMPartApplicability:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${opts.criteria ?? ""}|OEM=${oem}`
         );
       } catch (e) {
-        if (isNotPermitted(e)) return null;
+        if (isNotPermitted(e)) return { parts: null };
         throw e;
       }
       // Имя корневого элемента у операции не зафиксировано в доке — берём
@@ -587,7 +590,7 @@ async function searchOemLocation(
       );
       const cats = asArray(root?.Category) as Rec[];
       const rawUnits = cats.flatMap((c) => asArray(c.Unit)) as Rec[];
-      if (!rawUnits.length) return null;
+      if (!rawUnits.length) return { parts: null };
 
       const units = await Promise.all(
         rawUnits.map(async (u): Promise<Unit> => {
@@ -611,9 +614,10 @@ async function searchOemLocation(
           };
         })
       );
-      return finalizeParts(units);
+      return { parts: finalizeParts(units) };
     }
   );
+  return wrapped.parts;
 }
 
 // ── Выбор авто без VIN: марка → мастер параметров → список авто ────────────
@@ -717,9 +721,19 @@ export async function findCrosses(
 ): Promise<LaximoCross[]> {
   const clean = oem.trim();
   if (!clean) return [];
-  return laximoCached(
-    `crosses:${clean.toUpperCase()}`,
+  // ОБЁРТКА {crosses}: laximoCached не кэширует пустые массивы, а у большинства
+  // артикулов-аналогов кроссов НЕТ → каждый просмотр карточки жёг платный
+  // FindOEM заново (лимит DOC 10000/мес улетал за сутки). Объект кэшируется
+  // всегда — «пусто» тоже 1 запрос в сутки.
+  const wrapped = await laximoCached<{ crosses: LaximoCross[] }>(
+    `crosses2:${clean.toUpperCase()}`,
     async () => {
+      // Предохранитель: не больше 250 живых FindOEM в сутки (лимит DOC
+      // 10000/мес). Сверх бюджета отдаём «пока пусто» БЕЗ кэширования —
+      // завтра артикул попробуется снова.
+      if (!(await laximoDailyBudget("findoem", 250))) {
+        throw new LaximoError("Дневной бюджет каталога аналогов исчерпан");
+      }
       try {
         const resp = await laximoQuery(
           "am",
@@ -743,13 +757,14 @@ export async function findCrosses(
             out.push({ brand: mfr, number, name: String(rd.name ?? "").trim() });
           }
         }
-        return out;
+        return { crosses: out };
       } catch (e) {
-        if (isNotPermitted(e)) return [];
+        if (isNotPermitted(e)) return { crosses: [] };
         throw e;
       }
     }
   );
+  return wrapped.crosses;
 }
 
 /** По форме совпадает с объектом `goodvin` — роуты подключают вместо него. */

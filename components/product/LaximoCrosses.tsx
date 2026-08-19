@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Loader2, Layers, ChevronRight, Search } from "lucide-react";
@@ -106,8 +106,34 @@ export function LaximoCrosses({
   // список (в наличии — вверх, «под заказ» — вниз).
   const [, setResolvedTick] = useState(0);
 
+  // ЛЕНИВАЯ загрузка: FindOEM платный (лимит DOC/мес), кроссы запрашиваются
+  // только когда блок реально доскроллен. Поисковые боты до низа карточки не
+  // скроллят — их массовые обходы больше не жгут лимит (инцидент 17-18.08:
+  // половина месячного лимита DOC сгорела за сутки).
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState(false);
   useEffect(() => {
-    if (!article) return;
+    const el = boxRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!article || !inView) return;
     let alive = true;
     setLoading(true);
     setShowAll(false);
@@ -128,7 +154,7 @@ export function LaximoCrosses({
     return () => {
       alive = false;
     };
-  }, [article, brand]);
+  }, [article, brand, inView]);
 
   // Что уже показано выше с ценами — из каталожного списка убираем.
   const visible = useMemo(() => {
@@ -139,15 +165,21 @@ export function LaximoCrosses({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [crosses, excludeArticles.join("|"), article]);
 
-  if (loading) {
+  // Сентинел для IntersectionObserver рендерим ВСЕГДА (иначе ленивой загрузке
+  // не за что зацепиться). До подхода к блоку — пустой маркер.
+  if (!inView || loading) {
     return (
-      <div className="mt-12 flex items-center gap-2 text-sm text-neutral-500">
-        <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
-        Ищем аналоги по каталогу…
+      <div ref={boxRef} className="mt-12">
+        {inView && (
+          <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            Ищем аналоги по каталогу…
+          </div>
+        )}
       </div>
     );
   }
-  if (visible.length === 0) return null;
+  if (visible.length === 0) return <div ref={boxRef} />;
 
   const hasSupplierBlock = excludeArticles.length > 0;
 
@@ -201,7 +233,7 @@ export function LaximoCrosses({
   const ordered = [...shown].sort((a, b) => rank(a) - rank(b));
 
   return (
-    <div className="mt-12">
+    <div ref={boxRef} className="mt-12">
       <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold text-white">
         <Layers className="h-6 w-6 text-orange-500" />
         {hasSupplierBlock

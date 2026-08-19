@@ -537,13 +537,16 @@ function CatalogContent({
         }
       });
 
-  // Буст бренда машины из VIN-каталога: его товары — в начало (стабильно,
-  // внутри групп порядок сортировки сохраняется). Семейства концернов учтены:
-  // для машины Citroën «своими» считаются и PSA, и Peugeot/Citroen.
+  // Переход из VIN-каталога (известна машина): по алгоритму владельца —
+  // «одна картинка»: если в выдаче есть оригинал семейства этой машины
+  // (для Citroën — Citroen/Peugeot/PSA), показываем ТОЛЬКО его, двойники
+  // покупатель увидит внутри карточки. Если оригинала семейства нет —
+  // показываем всё как есть.
   const boosted = (() => {
     if (!fromBrand) return sorted;
-    const isOwn = (g: SupplierGroup) => sameBrandFamily(g.brand, fromBrand);
-    return [...sorted.filter(isOwn), ...sorted.filter((g) => !isOwn(g))];
+    const own = sorted.filter((g) => sameBrandFamily(g.brand, fromBrand));
+    if (own.length) return own;
+    return sorted;
   })();
 
   const totalCount = useServerPagination ? serverTotalCount : filtered.length;

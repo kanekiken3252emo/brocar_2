@@ -10,7 +10,7 @@ import {
   type SupplierItem,
 } from "@/lib/suppliers/adapter";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
-import { sameBrandFamily } from "@/lib/brands/families.mjs";
+import { brandFamilyId, sameBrandFamily } from "@/lib/brands/families.mjs";
 import bergAdapter from "@/lib/suppliers/berg";
 import rosskoAdapter from "@/lib/suppliers/rossko";
 import shateMAdapter, {
@@ -159,8 +159,10 @@ async function getHandler(
       // Оригиналы того же концерна (PSA для Citroën, GM для Opel…) под другим
       // номером — отдельный раздел «Оригинальные замены» (просьба владельца,
       // 19.08, как у Berg: «Аналоги искомого бренда»). Сторонние бренды — «Аналоги».
+      // Только для брендов-ОРИГИНАЛОВ из таблицы семейств: у карточки ZOMMER
+      // 1109AH «Zommer Z1109AH» — не оригинальная замена, а просто тот же бренд.
       const ownBrand = brand || mainGroup?.brand || "";
-      if (ownBrand) {
+      if (ownBrand && brandFamilyId(ownBrand) !== null) {
         originalReplacements = sortedAnalogs
           .filter((g) => sameBrandFamily(g.brand, ownBrand))
           .slice(0, 20);

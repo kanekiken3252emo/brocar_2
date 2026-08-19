@@ -728,10 +728,13 @@ export async function findCrosses(
   const wrapped = await laximoCached<{ crosses: LaximoCross[] }>(
     `crosses2:${clean.toUpperCase()}`,
     async () => {
-      // Предохранитель: не больше 250 живых FindOEM в сутки (лимит DOC
-      // 10000/мес). Сверх бюджета отдаём «пока пусто» БЕЗ кэширования —
-      // завтра артикул попробуется снова.
-      if (!(await laximoDailyBudget("findoem", 250))) {
+      // Предохранитель: живых FindOEM в сутки не больше дневного бюджета.
+      // Это лимит на НОВЫЕ уникальные артикулы (повторные просмотры идут из
+      // кэша бесплатно). Дефолт 150: остатка DOC (~4500 на 18.08) хватит до
+      // сброса 17.09. После обновления лимита поднять через env
+      // LAXIMO_FINDOEM_DAILY (10000/мес ≈ 300/день с запасом).
+      const daily = parseInt(process.env.LAXIMO_FINDOEM_DAILY || "150", 10);
+      if (!(await laximoDailyBudget("findoem", daily))) {
         throw new LaximoError("Дневной бюджет каталога аналогов исчерпан");
       }
       try {

@@ -31,6 +31,10 @@ interface ProductDetailResponse {
   group: SupplierGroup | null;
   characteristics: ShateCharacteristic[];
   originals: Array<{ code: string; brand: string }>;
+  /** Оригиналы того же концерна под другим номером (PSA/PEUGEOT/CITROEN
+   *  для 1109.AH → 9818914980, 1109.Z2). Отдельный раздел «Оригинальные замены». */
+  originalReplacements: SupplierGroup[];
+  /** Заменители сторонних брендов. */
   analogs: SupplierGroup[];
 }
 
@@ -108,6 +112,7 @@ async function getHandler(
 
     let characteristics: ShateCharacteristic[] = [];
     let originals: ProductDetailResponse["originals"] = [];
+    let originalReplacements: SupplierGroup[] = [];
     let analogs: SupplierGroup[] = [];
 
     // Группы живого поиска, не ставшие главной (другой артикул или бренд под тем
@@ -151,22 +156,28 @@ async function getHandler(
       const sortedAnalogs = mergeFamilyGroups(dedupeGroups(analogCandidates))
         .filter((g) => `${g.article}|${brandKey(g.brand)}` !== mainKey)
         .sort(compareGroupsByDelivery);
-      // Оригиналы того же концерна (PSA для Citroën, GM для Opel…) — первыми:
-      // покупатель прежде всего ищет оригинал, аналоги ниже.
+      // Оригиналы того же концерна (PSA для Citroën, GM для Opel…) под другим
+      // номером — отдельный раздел «Оригинальные замены» (просьба владельца,
+      // 19.08, как у Berg: «Аналоги искомого бренда»). Сторонние бренды — «Аналоги».
       const ownBrand = brand || mainGroup?.brand || "";
-      analogs = (
-        ownBrand
-          ? [
-              ...sortedAnalogs.filter((g) => sameBrandFamily(g.brand, ownBrand)),
-              ...sortedAnalogs.filter((g) => !sameBrandFamily(g.brand, ownBrand)),
-            ]
-          : sortedAnalogs
-      ).slice(0, 20);
+      if (ownBrand) {
+        originalReplacements = sortedAnalogs
+          .filter((g) => sameBrandFamily(g.brand, ownBrand))
+          .slice(0, 20);
+        analogs = sortedAnalogs
+          .filter((g) => !sameBrandFamily(g.brand, ownBrand))
+          .slice(0, 20);
+      } else {
+        analogs = sortedAnalogs.slice(0, 20);
+      }
 
       // Подмешиваем готовые URL картинок из кэша product_images, чтобы клиент
       // засеял in-memory cache и не делал N запросов к /api/product-image на
       // карточках аналогов (см. enrichGroupsWithImages / seedProductImageCache).
-      analogs = await enrichGroupsWithImages(analogs);
+      [originalReplacements, analogs] = await Promise.all([
+        enrichGroupsWithImages(originalReplacements),
+        enrichGroupsWithImages(analogs),
+      ]);
     }
 
     // Засеваем картинку и для ГЛАВНОГО товара (не только аналогов) — иначе клиент
@@ -182,6 +193,7 @@ async function getHandler(
       group: enrichedMain,
       characteristics,
       originals,
+      originalReplacements,
       analogs,
     };
 

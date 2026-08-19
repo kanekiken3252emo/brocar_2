@@ -132,6 +132,10 @@ export default function ProductClient({
   const [product, setProduct] = useState<BergResource | null>(seedProduct);
   const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
   const [originals, setOriginals] = useState<OriginalItem[]>([]);
+  // Оригиналы того же концерна под другим номером — отдельный раздел над аналогами.
+  const [originalReplacements, setOriginalReplacements] = useState<
+    SupplierGroup[]
+  >([]);
   const [analogs, setAnalogs] = useState<SupplierGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +201,7 @@ export default function ProductClient({
         group: SupplierGroup | null;
         characteristics: Characteristic[];
         originals: OriginalItem[];
+        originalReplacements?: SupplierGroup[];
         analogs: SupplierGroup[];
       } = await res.json();
 
@@ -209,12 +214,14 @@ export default function ProductClient({
       // Сервер уже подмешал готовые URL картинок в аналоги (enrichGroupsWithImages).
       // Засеваем in-memory cache до монтирования карточек — тогда ProductImage
       // в каждом аналоге найдёт URL мгновенно и не пойдёт в /api/product-image.
+      const replacementGroups = data.originalReplacements || [];
       const analogGroups = data.analogs || [];
-      for (const g of analogGroups) {
+      for (const g of [...replacementGroups, ...analogGroups]) {
         if (g.imageUrl !== undefined) {
           seedProductImageCache(g.brand, g.article, g.imageUrl);
         }
       }
+      setOriginalReplacements(replacementGroups);
       setAnalogs(analogGroups);
 
       if (!data.group) {
@@ -296,7 +303,13 @@ export default function ProductClient({
   // Товара нет совсем (и сервер не дал шелл, и живой опрос не нашёл) — страница
   // ошибки. Но если сервер прислал аналоги (кроссы точного товара) — не тупик:
   // рендерим обычную страницу («По запросу» + блок аналогов) вместо ошибки.
-  if (error && !product && !shell.name && analogs.length === 0) {
+  if (
+    error &&
+    !product &&
+    !shell.name &&
+    analogs.length === 0 &&
+    originalReplacements.length === 0
+  ) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
         <div className="bg-neutral-900 border border-red-500/30 rounded-2xl p-8 text-center max-w-md">
@@ -914,6 +927,27 @@ export default function ProductClient({
           </div>
         )}
 
+        {/* Оригинальные замены — тот же концерн (PSA/PEUGEOT/CITROEN…), другой номер */}
+        {originalReplacements.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Оригинальные замены
+            </h2>
+            <p className="text-sm text-neutral-400 mb-6">
+              Оригинальные детали того же производителя под другим номером —
+              заводские замены этого артикула.
+            </p>
+            <div className="space-y-4">
+              {originalReplacements.map((g) => (
+                <SupplierGroupListItem
+                  key={`${g.article}-${g.brand}`}
+                  group={g}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Аналоги в наличии у поставщиков — с ценами и корзиной сразу */}
         {analogs.length > 0 && (
           <div className="mt-12">
@@ -940,7 +974,9 @@ export default function ProductClient({
         <LaximoCrosses
           article={productId}
           brand={product?.brand?.name || brand}
-          excludeArticles={analogs.map((g) => g.article)}
+          excludeArticles={[...originalReplacements, ...analogs].map(
+            (g) => g.article
+          )}
         />
       </div>
     </div>

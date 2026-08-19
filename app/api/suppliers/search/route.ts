@@ -93,13 +93,16 @@ export async function POST(request: NextRequest) {
       const na = normalizeArticle(validatedData.article);
       // Внутри точного артикула ОРИГИНАЛ концерна (бренд из таблицы семейств)
       // идёт выше noname-двойников («КИТАЙ», «OEM», «PRC» с тем же номером).
+      // Решение владельца (19.08): точных совпадений в выдаче НЕ БОЛЬШЕ 3 —
+      // остальные двойники покупатель увидит внутри карточки в аналогах.
       const exact = groups
         .filter((g) => g.article === na)
         .sort(
           (a, b) =>
             (brandFamilyId(b.brand) !== null ? 1 : 0) -
             (brandFamilyId(a.brand) !== null ? 1 : 0)
-        );
+        )
+        .slice(0, 3);
       const rest = groups
         .filter((g) => g.article !== na)
         .sort(compareGroupsByDelivery);

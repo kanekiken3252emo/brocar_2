@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
 
     // Точный артикул (оригинал и его двойники) — первым, заменители следом
     // по скорости поставки. Клиент сохраняет этот порядок («Сначала подходящие»).
-    if (validatedData.withAnalogs && validatedData.article) {
+    // Порядок и без withAnalogs: оригинал концерна — первым, двойники следом.
+    if (validatedData.article) {
       const na = normalizeArticle(validatedData.article);
       // Внутри точного артикула ОРИГИНАЛ концерна (бренд из таблицы семейств)
       // идёт выше noname-двойников («КИТАЙ», «OEM», «PRC» с тем же номером).

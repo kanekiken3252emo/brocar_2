@@ -181,15 +181,22 @@ function CartItemRow({
           checked ? "" : "opacity-50"
         }`}
       >
-        {/* Image */}
-        <ProductImage
-        brand={item.product.brand}
-        article={item.product.article}
-        alt={item.product.name}
-        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl shrink-0"
-        innerPadding="p-2"
-        sizes="96px"
-      />
+        {/* Image — ссылка в карточку товара (просьба владельца: клик по фото
+            и названию ведёт в карточку, галочка и количество — нет). */}
+        <Link
+          href={`/product/${item.product.id}`}
+          className="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+          aria-label={`Открыть карточку: ${item.product.name}`}
+        >
+          <ProductImage
+            brand={item.product.brand}
+            article={item.product.article}
+            alt={item.product.name}
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl"
+            innerPadding="p-2"
+            sizes="96px"
+          />
+        </Link>
 
       {/* Product info */}
       <div className="flex-1 min-w-0">
@@ -216,9 +223,12 @@ function CartItemRow({
             </span>
           )}
         </div>
-        <p className="text-white font-medium leading-snug">
+        <Link
+          href={`/product/${item.product.id}`}
+          className="block text-white font-medium leading-snug hover:text-orange-500 transition-colors"
+        >
           {item.product.name}
-        </p>
+        </Link>
         <p className="text-orange-500 font-bold text-lg mt-1">
           {formatPrice(item.price)}
         </p>

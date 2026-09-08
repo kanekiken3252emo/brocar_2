@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { laximo as goodvin } from "@/lib/laximo/catalog";
 import { goodvinErrorResponse } from "@/lib/goodvinRoute";
+import { guestVehicleGuard } from "@/lib/laximo/guest-limit";
 import { CACHE_VIN_INFO } from "@/lib/http-cache";
 
 /**
@@ -24,11 +25,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Гость — дневной лимит живых определений авто; клиент — без ограничений.
+    const guard = await guestVehicleGuard(request);
     const cars = frame
-      ? await goodvin.carInfoByFrame(frame)
+      ? await goodvin.carInfoByFrame(frame, guard)
       : plate
-        ? await goodvin.carInfoByPlate(plate)
-        : await goodvin.carInfo(q!, catalogs);
+        ? await goodvin.carInfoByPlate(plate, guard)
+        : await goodvin.carInfo(q!, catalogs, guard);
     return NextResponse.json(
       { cars: Array.isArray(cars) ? cars : [] },
       { headers: { "Cache-Control": CACHE_VIN_INFO } }

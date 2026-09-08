@@ -21,6 +21,9 @@ export default function robots(): MetadataRoute.Robots {
       // Без завершающего слэша: "/profile" блокирует и /profile, и /profile/…
       // (со слэшем сам /profile оставался открыт). /payment открыт — это
       // информационная страница о способах оплаты, а не транзакционная.
+      // /catalog-vin?… — заходы с конкретным VIN/номером: каждый новый VIN
+      // это платный запрос к Laximo, роботам по ним ходить незачем (сам
+      // лендинг /catalog-vin остаётся открыт и индексируется).
       disallow: [
         "/api/",
         "/admin",
@@ -31,6 +34,7 @@ export default function robots(): MetadataRoute.Robots {
         "/cart",
         "/checkout",
         "/order",
+        "/catalog-vin?",
       ],
     },
     sitemap: `${baseUrl}/sitemap.xml`,

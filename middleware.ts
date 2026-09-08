@@ -1,11 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
+import { isBotUserAgent } from "@/lib/bot-ua";
 
 // Защищённые разделы (требуют входа; админ-права проверяются на самой странице).
 const protectedPaths = ["/dashboard", "/admin"];
 
 function isProtected(pathname: string): boolean {
   return protectedPaths.some((p) => pathname.startsWith(p));
+}
+
+// API каталога Laximo: каждый новый VIN/артикул — платный запрос. Роботам и
+// скриптам (по User-Agent) отвечаем 403 ДО того, как роут дойдёт до Laximo.
+// /ping — диагностика, её дёргают руками/мониторингом, не трогаем.
+function isPaidCatalogApi(pathname: string): boolean {
+  if (pathname === "/api/goodvin/ping") return false;
+  return (
+    pathname.startsWith("/api/goodvin/") || pathname.startsWith("/api/laximo/")
+  );
 }
 
 // Валидная форма слага лендинга каталога. ТОЛЬКО латиница/цифры/дефис — как в
@@ -43,6 +54,16 @@ function normalizeSlug(raw: string): string | null {
 
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
+
+  if (
+    isPaidCatalogApi(pathname) &&
+    isBotUserAgent(request.headers.get("user-agent"))
+  ) {
+    return NextResponse.json(
+      { error: "Каталог недоступен для автоматических запросов" },
+      { status: 403, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 
   // Старые query-URL лендингов каталога → чистые пути (301). Прочие параметры
   // (сортировка/страница/фильтры) сохраняем. /catalog?vin=/?article= не трогаем.
@@ -108,11 +129,14 @@ export const config = {
   // /catalog — 301 старых query-URL на чистые пути; /catalog/brand|category/* —
   // валидация слагов (гашение crawler trap) и канонизация регистра. Остальное —
   // защищённые разделы (проверка входа). API-роуты валидируют сессию сами.
+  // /api/goodvin|laximo — отсечение ботов по User-Agent (платные вызовы Laximo).
   matcher: [
     "/catalog",
     "/catalog/brand/:path*",
     "/catalog/category/:path*",
     "/dashboard/:path*",
     "/admin/:path*",
+    "/api/goodvin/:path*",
+    "/api/laximo/:path*",
   ],
 };

@@ -73,7 +73,7 @@ export default function CheckoutPage() {
         // профиль (требует входа) — заодно проверяем авторизацию
         const profRes = await fetch("/api/profile");
         if (profRes.status === 401) {
-          router.push("/auth/login");
+          router.push("/auth/login?redirect=/checkout");
           return;
         }
         const profData = await profRes.json();
@@ -159,7 +159,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({ cartItemIds: orderItems.map((it) => it.id) }),
       });
       if (orderRes.status === 401) {
-        router.push("/auth/login");
+        router.push("/auth/login?redirect=/checkout");
         return;
       }
       const orderData = await orderRes.json();

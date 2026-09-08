@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { laximo } from "@/lib/laximo/catalog";
 import { goodvinErrorResponse } from "@/lib/goodvinRoute";
+import { guestVehicleGuard } from "@/lib/laximo/guest-limit";
 import { CACHE_VIN_INFO } from "@/lib/http-cache";
 
 /**
@@ -20,7 +21,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const cars = await laximo.findByWizard(catalogId, ssd);
+    // Подбор по параметрам — тоже определение авто: гостю считаем в лимит.
+    const guard = await guestVehicleGuard(request);
+    const cars = await laximo.findByWizard(catalogId, ssd, guard);
     return NextResponse.json(
       { cars: Array.isArray(cars) ? cars : [] },
       { headers: { "Cache-Control": CACHE_VIN_INFO } }

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { laximoQuery, asArray, laximoImage, LaximoError } from "./client";
-import { laximoCached, laximoDailyBudget } from "./cache";
+import { laximoCached, laximoDailyBudget, type LiveCallGuard } from "./cache";
 import type {
   GoodvinCarInfo,
   GoodvinGroup,
@@ -98,8 +98,14 @@ function mapVehicleRow(r: Rec, vin: string): GoodvinCarInfo {
 }
 
 // ── Поиск авто по VIN ───────────────────────────────────────────────────────
-async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
+// guard (у всех четырёх «определений авто») — гостевой дневной лимит. Зовём
+// ВНУТРИ compute: попадание в кэш бесплатно и лимит не тратит.
+async function carInfo(
+  vin: string,
+  guard?: LiveCallGuard
+): Promise<GoodvinCarInfo[]> {
   return laximoCached(`vin:${normVin(vin)}`, async () => {
+    await guard?.();
     const resp = await laximoQuery(
       "oem",
       `FindVehicleByVIN:Locale=${LOCALE}|VIN=${vin}|Localized=true`
@@ -113,10 +119,14 @@ async function carInfo(vin: string): Promise<GoodvinCarInfo[]> {
 
 /** Поиск авто по ГОС НОМЕРУ (FindVehicleByPlateNumber). Форма ответа как у
  *  carInfo — каталог строится по catalog+vehicleid+ssd, VIN не нужен. */
-async function carInfoByPlate(plate: string): Promise<GoodvinCarInfo[]> {
+async function carInfoByPlate(
+  plate: string,
+  guard?: LiveCallGuard
+): Promise<GoodvinCarInfo[]> {
   const p = normalizePlate(plate);
   if (!p) return [];
   return laximoCached(`plate:${p}`, async () => {
+    await guard?.();
     const resp = await laximoQuery(
       "oem",
       `FindVehicleByPlateNumber:Locale=${LOCALE}|PlateNumber=${p}|CountryCode=ru|Localized=true`
@@ -132,11 +142,15 @@ async function carInfoByPlate(plate: string): Promise<GoodvinCarInfo[]> {
 /** Поиск авто по НОМЕРУ КУЗОВА (FindVehicleByFrame) — основной способ для
  *  японских авто без VIN (Toyota AGH30-0115914, Nissan QG10-015252…).
  *  Формат «серия-номер»: до дефиса Frame, после — FrameNo. */
-async function carInfoByFrame(frameFull: string): Promise<GoodvinCarInfo[]> {
+async function carInfoByFrame(
+  frameFull: string,
+  guard?: LiveCallGuard
+): Promise<GoodvinCarInfo[]> {
   const clean = frameFull.trim().toUpperCase().replace(/\s+/g, "");
   const m = clean.match(/^([A-Z0-9]+)-(\d+)$/);
   if (!m) return [];
   return laximoCached(`frame:${clean}`, async () => {
+    await guard?.();
     const resp = await laximoQuery(
       "oem",
       `FindVehicleByFrame:Locale=${LOCALE}|Frame=${m[1]}|FrameNo=${m[2]}|Localized=true`
@@ -692,10 +706,12 @@ async function getWizard(catalogId: string, ssd = ""): Promise<WizardStep[]> {
 /** Автомобили, подходящие под выбранные в мастере параметры. */
 async function findByWizard(
   catalogId: string,
-  ssd: string
+  ssd: string,
+  guard?: LiveCallGuard
 ): Promise<GoodvinCarInfo[]> {
   if (!ssd) return [];
   return laximoCached(`wizardcars:${catalogId}:${ssdKey(ssd)}`, async () => {
+    await guard?.();
     const resp = await laximoQuery(
       "oem",
       `FindVehicleByWizard2:Locale=${LOCALE}|Catalog=${catalogId}|ssd=${ssd}|Localized=true`
@@ -772,7 +788,8 @@ export async function findCrosses(
 
 /** По форме совпадает с объектом `goodvin` — роуты подключают вместо него. */
 export const laximo = {
-  carInfo: (q: string, _catalogs?: string) => carInfo(q),
+  carInfo: (q: string, _catalogs?: string, guard?: LiveCallGuard) =>
+    carInfo(q, guard),
   carInfoByPlate,
   carInfoByFrame,
   getTree,

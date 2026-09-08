@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import {
   Car,
   ChevronRight,
@@ -8,49 +9,77 @@ import {
   ShieldCheck,
   Phone,
   MessageSquare,
-  Lock,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { VinCatalog } from "@/components/goodvin/VinCatalog";
-import { getUser } from "@/lib/auth";
+import { isBotUserAgent } from "@/lib/bot-ua";
 
 /**
- * Каталогом по VIN пользуются только авторизованные клиенты (запрос владельца).
- * Страница остаётся видимой в поиске (SEO-текст ниже), но сам интерактивный
- * каталог гостю заменяется приглашением войти.
+ * Каталог по VIN открыт всем без входа (решение владельца, 26.08.2026; до
+ * этого с 12.08 был за логином). Регистрация нужна только при оформлении
+ * заказа. От расхода лимита Laximo защищают: фильтр ботов по User-Agent
+ * (здесь и в middleware для API), noindex/robots на заходы с VIN и гостевой
+ * дневной лимит новых машин (lib/laximo/guest-limit.ts).
  */
-function VinLoginGate() {
+
+/** Роботу вместо интерактивного каталога — статичный текст: ему нечего
+ *  «вводить», а любой его запрос к API всё равно получит 403. */
+function BotPlaceholder() {
   return (
     <div className="text-center py-10 px-4">
       <div className="w-14 h-14 bg-orange-500/15 rounded-2xl flex items-center justify-center mx-auto mb-4">
-        <Lock className="h-6 w-6 text-orange-500" />
+        <Car className="h-6 w-6 text-orange-500" />
       </div>
       <h2 className="text-xl font-bold text-white mb-2">
-        Каталог по VIN — для клиентов
+        Онлайн-каталог запчастей по VIN
       </h2>
-      <p className="text-neutral-400 max-w-md mx-auto mb-6">
-        Войдите или зарегистрируйтесь, чтобы подбирать оригинальные запчасти по
-        VIN, смотреть схемы узлов и OEM-номера.
+      <p className="text-neutral-400 max-w-md mx-auto">
+        Введите VIN, гос номер или номер кузова автомобиля либо выберите марку
+        и модель — каталог покажет схемы узлов с оригинальными номерами деталей.
       </p>
-      <div className="flex flex-wrap gap-3 justify-center">
-        <Link href="/auth/login?redirect=/catalog-vin">
-          <Button className="gap-2">Войти</Button>
-        </Link>
-        <Link href="/auth/register">
-          <Button variant="outline">Регистрация</Button>
-        </Link>
-      </div>
     </div>
   );
 }
 
-export const metadata: Metadata = {
-  // « | BroCar» допишет шаблон лейаута — бренд вручную не дублируем.
-  title: "Онлайн-каталог запчастей по VIN для 400+ марок",
-  description:
-    "Подбор оригинальных запчастей по VIN, марке и модели авто онлайн: 400+ марок, схемы узлов и OEM-номера. Найдите деталь и закажите в BroCar с доставкой!",
-};
+type SearchParams = Promise<{
+  vin?: string | string[];
+  plate?: string | string[];
+  frame?: string | string[];
+}>;
+
+function firstParam(v: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(v) ? v[0] : v;
+  return raw?.trim() || undefined;
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const withVehicle = !!(
+    firstParam(sp.vin) ||
+    firstParam(sp.plate) ||
+    firstParam(sp.frame)
+  );
+  return {
+    // « | BroCar» допишет шаблон лейаута — бренд вручную не дублируем.
+    title: "Онлайн-каталог запчастей по VIN для 400+ марок",
+    description:
+      "Подбор оригинальных запчастей по VIN, марке и модели авто онлайн: 400+ марок, схемы узлов и OEM-номера. Найдите деталь и закажите в BroCar с доставкой!",
+    // Заход с конкретным VIN/номером — не для индекса: тысячи таких URL из
+    // гаражей и переходов = тысячи платных запросов к Laximo от роботов.
+    // Каноникал — общий лендинг.
+    ...(withVehicle
+      ? {
+          robots: { index: false, follow: false },
+          alternates: { canonical: "/catalog-vin" },
+        }
+      : {}),
+  };
+}
 
 const FEATURES = [
   {
@@ -134,22 +163,15 @@ function CatalogExtras() {
 export default async function CatalogVinPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    vin?: string | string[];
-    plate?: string | string[];
-    frame?: string | string[];
-  }>;
+  searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const vinRaw = Array.isArray(sp.vin) ? sp.vin[0] : sp.vin;
-  const vin = vinRaw?.trim() || undefined;
-  const plateRaw = Array.isArray(sp.plate) ? sp.plate[0] : sp.plate;
-  const plate = plateRaw?.trim() || undefined;
-  const frameRaw = Array.isArray(sp.frame) ? sp.frame[0] : sp.frame;
-  const frame = frameRaw?.trim() || undefined;
+  const vin = firstParam(sp.vin);
+  const plate = firstParam(sp.plate);
+  const frame = firstParam(sp.frame);
 
-  // Пользоваться каталогом могут только авторизованные (гостю — приглашение войти).
-  const user = await getUser();
+  // Роботам — статичная заглушка вместо каталога (см. комментарий выше).
+  const bot = isBotUserAgent((await headers()).get("user-agent"));
 
   // Заход с VIN/номером (из верхней строки поиска или гаража) — сразу рабочий
   // каталог без лендинга: ни заголовка-приглашения, ни блоков-фич.
@@ -171,14 +193,14 @@ export default async function CatalogVinPage({
           </div>
           <Card className="border-neutral-800 bg-neutral-900">
             <CardContent className="p-4 md:p-6">
-              {user ? (
+              {bot ? (
+                <BotPlaceholder />
+              ) : (
                 <VinCatalog
                   initialVin={vin}
                   initialPlate={plate}
                   initialFrame={frame}
                 />
-              ) : (
-                <VinLoginGate />
               )}
             </CardContent>
           </Card>
@@ -234,7 +256,7 @@ export default async function CatalogVinPage({
       <div className="container mx-auto px-4 -mt-2 md:-mt-6 mb-10 md:mb-14">
         <Card className="border-neutral-800 bg-neutral-900">
           <CardContent className="p-4 md:p-6">
-            {user ? <VinCatalog /> : <VinLoginGate />}
+            {bot ? <BotPlaceholder /> : <VinCatalog />}
           </CardContent>
         </Card>
       </div>

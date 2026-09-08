@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { signUp } from "@/lib/auth/client-actions";
+import { readRedirectParam, withRedirect } from "@/lib/auth/redirect-param";
 import { UserPlus, Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
@@ -20,6 +21,10 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  // Пришли из оформления заказа / каталога — после регистрации вернём туда же
+  // (просьба владельца: регистрация «выпадает» перед оплатой и не сбивает путь).
+  const [redirect, setRedirect] = useState("");
+  useEffect(() => setRedirect(readRedirectParam()), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +68,14 @@ export default function RegisterPage() {
             "Вы успешно зарегистрированы! Удачных покупок!"
           );
         } catch {}
-        window.location.assign("/");
+        window.location.assign(readRedirectParam() || "/");
         return;
       }
 
       // Сессии нет — требуется подтверждение email. Показываем успех и ведём на вход.
       setSuccess(true);
       setTimeout(() => {
-        router.push("/auth/login");
+        router.push(withRedirect("/auth/login", readRedirectParam()));
       }, 2500);
     } catch (err) {
       setError("Произошла ошибка при регистрации");
@@ -269,7 +274,7 @@ export default function RegisterPage() {
 
               <p className="text-center text-sm text-neutral-400">
                 Уже есть аккаунт?{" "}
-                <Link href="/auth/login" className="text-orange-500 hover:text-orange-400 font-medium transition-colors">
+                <Link href={withRedirect("/auth/login", redirect)} className="text-orange-500 hover:text-orange-400 font-medium transition-colors">
                   Войти
                 </Link>
               </p>

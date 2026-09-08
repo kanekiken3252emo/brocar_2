@@ -32,6 +32,8 @@ export default function CarPickerWidget() {
   const [carsLoading, setCarsLoading] = useState(false);
   const [cars, setCars] = useState<GoodvinCarInfo[] | null>(null);
   const [error, setError] = useState("");
+  // Ошибка — гостевой дневной лимит (серый текст + ссылка «Войти», не красное).
+  const [guestLimit, setGuestLimit] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -86,6 +88,7 @@ export default function CarPickerWidget() {
     if (!brand || !ssd) return;
     setCarsLoading(true);
     setError("");
+    setGuestLimit(false);
     try {
       const r = await fetch(
         `/api/goodvin/wizard-cars?catalogId=${encodeURIComponent(
@@ -93,6 +96,16 @@ export default function CarPickerWidget() {
         )}&ssd=${encodeURIComponent(ssd)}`
       );
       const d = await r.json();
+      if (!r.ok) {
+        // 429 GUEST_LIMIT — гость исчерпал дневной лимит; текст с сервера
+        // уже зовёт войти. Прочие ошибки — общий текст ниже.
+        if (d?.code === "GUEST_LIMIT") {
+          setGuestLimit(true);
+          setError(String(d.error));
+          return;
+        }
+        throw new Error(String(d?.error || r.status));
+      }
       const list = (d?.cars ?? []) as GoodvinCarInfo[];
       if (!list.length) {
         setError("Под выбранные параметры автомобилей не нашлось — измените параметры.");
@@ -228,7 +241,24 @@ export default function CarPickerWidget() {
         )}
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {error && (
+        <p
+          className={`mt-3 text-sm ${guestLimit ? "text-neutral-300" : "text-red-400"}`}
+        >
+          {error}
+          {guestLimit && (
+            <>
+              {" "}
+              <Link
+                href="/auth/login?redirect=/"
+                className="text-orange-500 hover:text-orange-400 font-medium"
+              >
+                Войти
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       {/* Найденные машины — клик открывает каталог узлов */}
       {cars && (

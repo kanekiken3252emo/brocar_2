@@ -82,15 +82,24 @@ interface SavedNav {
   handoff?: boolean;
 }
 
+/** Ошибка API с кодом (сейчас один: GUEST_LIMIT — дневной лимит гостя). */
+type ApiError = Error & { code?: string };
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(
+    const err: ApiError = new Error(
       data?.error || data?.upstream?.message || "Ошибка запроса к каталогу"
     );
+    if (typeof data?.code === "string") err.code = data.code;
+    throw err;
   }
   return data as T;
+}
+
+function isGuestLimit(e: unknown): boolean {
+  return (e as ApiError | null)?.code === "GUEST_LIMIT";
 }
 
 /** Переводит технические ошибки Laximo в понятные покупателю сообщения. */
@@ -371,6 +380,31 @@ function ErrorBox({ message }: { message: string }) {
   );
 }
 
+/** Гость исчерпал дневной лимит новых машин — это не ошибка, а приглашение:
+ *  для клиентов ограничений нет. После входа возвращаем сюда же. */
+function GuestLimitBox({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 md:p-5">
+      <div className="flex items-start gap-3">
+        <Info className="h-5 w-5 shrink-0 text-orange-400 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm text-neutral-200">{message}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/auth/login?redirect=/catalog-vin">
+              <Button size="sm">Войти</Button>
+            </Link>
+            <Link href="/auth/register?redirect=/catalog-vin">
+              <Button size="sm" variant="outline">
+                Регистрация
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Совпадает ли узел или кто-то из потомков с фильтром по названию. */
 function nodeMatches(node: GoodvinGroupNode, q: string): boolean {
   if (!q) return true;
@@ -493,7 +527,14 @@ export function VinCatalog({
   const [loading, setLoading] = useState<null | "cars" | "tree" | "parts">(
     null
   );
-  const [error, setError] = useState("");
+  const [error, setErrorRaw] = useState("");
+  // Текущая ошибка — гостевой лимит (рисуем приглашение войти вместо красной
+  // плашки). Любой обычный setError сбрасывает флаг.
+  const [guestLimit, setGuestLimit] = useState(false);
+  const setError = useCallback((msg: string, guest = false) => {
+    setErrorRaw(msg);
+    setGuestLimit(guest);
+  }, []);
 
   const [cars, setCars] = useState<GoodvinCarInfo[]>([]);
   const [car, setCar] = useState<GoodvinCarInfo | null>(null);
@@ -858,11 +899,11 @@ export function VinCatalog({
       if (data.cars.length === 1) selectCar(data.cars[0]);
       else setCars(data.cars);
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message, isGuestLimit(e));
     } finally {
       setLoading(null);
     }
-  }, [wiz, selectCar]);
+  }, [wiz, selectCar, setError]);
 
   // Поиск авто по ГОС НОМЕРУ (Laximo FindVehicleByPlateNumber).
   const runPlateSearch = useCallback(
@@ -893,7 +934,8 @@ export function VinCatalog({
         if (data.cars.length === 1) selectCar(data.cars[0]);
         else setCars(data.cars);
       } catch (e) {
-        setError(friendlyVinError((e as Error).message));
+        if (isGuestLimit(e)) setError((e as Error).message, true);
+        else setError(friendlyVinError((e as Error).message));
       } finally {
         setLoading(null);
       }
@@ -930,7 +972,8 @@ export function VinCatalog({
         if (data.cars.length === 1) selectCar(data.cars[0]);
         else setCars(data.cars);
       } catch (e) {
-        setError(friendlyVinError((e as Error).message));
+        if (isGuestLimit(e)) setError((e as Error).message, true);
+        else setError(friendlyVinError((e as Error).message));
       } finally {
         setLoading(null);
       }
@@ -990,7 +1033,8 @@ export function VinCatalog({
         if (data.cars.length === 1) selectCar(data.cars[0]);
         else setCars(data.cars);
       } catch (e) {
-        setError(friendlyVinError((e as Error).message));
+        if (isGuestLimit(e)) setError((e as Error).message, true);
+        else setError(friendlyVinError((e as Error).message));
       } finally {
         setLoading(null);
       }
@@ -1209,7 +1253,12 @@ export function VinCatalog({
       </form>
       )}
 
-      {error && <ErrorBox message={error} />}
+      {error &&
+        (guestLimit ? (
+          <GuestLimitBox message={error} />
+        ) : (
+          <ErrorBox message={error} />
+        ))}
       {loading === "cars" && <Spinner label="Ищем автомобиль по номеру…" />}
 
       {/* Выбор авто (несколько совпадений) */}

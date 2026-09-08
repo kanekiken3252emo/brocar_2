@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { signIn } from "@/lib/auth/client-actions";
+import { readRedirectParam, withRedirect } from "@/lib/auth/redirect-param";
 import { LogIn, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
@@ -15,6 +16,10 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // Куда вернуть после входа (оформление заказа и т.п.) — прокидываем и в
+  // ссылку «Зарегистрироваться», чтобы путь к оплате не терялся.
+  const [redirect, setRedirect] = useState("");
+  useEffect(() => setRedirect(readRedirectParam()), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,11 +37,7 @@ export default function LoginPage() {
 
       // Полная навигация (не router.push): сервер увидит свежие куки сессии и
       // сразу отрисует личный кабинет. push+refresh иногда оставлял на логине.
-      const params = new URLSearchParams(window.location.search);
-      const raw = params.get("redirect") || "/dashboard";
-      const redirectTo =
-        raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
-      window.location.assign(redirectTo);
+      window.location.assign(readRedirectParam() || "/dashboard");
     } catch (err) {
       setError("Произошла ошибка при входе");
       console.error(err);
@@ -159,7 +160,7 @@ export default function LoginPage() {
               <p className="text-center text-sm text-neutral-400">
                 Нет аккаунта?{" "}
                 <Link
-                  href="/auth/register"
+                  href={withRedirect("/auth/register", redirect)}
                   className="text-orange-500 hover:text-orange-400 font-medium transition-colors"
                 >
                   Зарегистрироваться

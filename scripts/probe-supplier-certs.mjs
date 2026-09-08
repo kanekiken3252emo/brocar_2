@@ -10,14 +10,23 @@
  *
  * Ключи берёт из переменных окружения (те же, что у сайта).
  *
- * Локально:   node --env-file=.env.local scripts/probe-supplier-certs.mjs GDB1550 TRW
+ * Локально:   node --env-file=.env.local scripts/probe-supplier-certs.mjs W71275 MANN
  * На проде:   docker cp scripts/probe-supplier-certs.mjs brocar-app:/app/scripts/ &&
- *             docker exec brocar-app node /app/scripts/probe-supplier-certs.mjs GDB1550 TRW
+ *             docker exec brocar-app node /app/scripts/probe-supplier-certs.mjs W71275 MANN
+ * Один поставщик: … W71275 MANN forum   (подстрока имени: berg|rossko|shate|armtek|forum|autotrade|partkom)
  * (ShATE-M, Forum-Auto и PartKom пускают только с IP сервера — локально
- *  они дадут 403/таймаут, это нормально.)
+ *  они дадут 403/таймаут, это нормально. Бренд писать как у поставщика:
+ *  Forum-Auto и Autotrade знают «MANN», а не «MANN-FILTER».)
+ *
+ * Итог прогона 08.09.2026 с сервера: ссылки отдают Autotrade
+ * (site_url_certificate → запись реестра ЕАЭС) и Forum-Auto
+ * (certificate_documents, массив); Berg/Rossko/ShATE-M/Armtek/PartKom — нет.
  */
 const ARTICLE = process.argv[2] || "GDB1550";
 const BRAND = process.argv[3] || "TRW";
+// Третий аргумент — проверить только одного поставщика (подстрока имени):
+//   node scripts/probe-supplier-certs.mjs W71275 MANN forum
+const ONLY = (process.argv[4] || "").toLowerCase();
 const T = 15000;
 const env = process.env;
 
@@ -35,15 +44,40 @@ function keysOf(obj) {
   if (Array.isArray(obj)) return keysOf(obj[0]);
   return Object.keys(obj);
 }
+/** Обход JSON: значения всех ключей, похожих на сертификат (в т.ч. массивы/объекты). */
+function collectCertValues(node, out, depth = 0) {
+  if (!node || typeof node !== "object" || depth > 8) return;
+  if (Array.isArray(node)) {
+    for (const v of node) collectCertValues(v, out, depth + 1);
+    return;
+  }
+  for (const [k, v] of Object.entries(node)) {
+    if (CERT_SRC.test(`"${k}":`)) {
+      const list = out.get(k) || [];
+      if (list.length < 3) list.push(JSON.stringify(v).slice(0, 600));
+      out.set(k, list);
+    }
+    collectCertValues(v, out, depth + 1);
+  }
+}
+
 function report(label, text) {
   const f = certFields(text);
   console.log(`  поля про сертификаты (${label}):`, f.length ? f.join(", ") : "НЕТ");
-  // Примеры значений — чтобы видеть, куда ведёт ссылка (реестр ФСА? сайт поставщика?).
+  if (!f.length) return;
+  // Примеры значений — чтобы видеть, куда ведёт ссылка (реестр ФСА/ЕАЭС? сайт поставщика?).
+  const j = tryJson(text);
+  if (j) {
+    const out = new Map();
+    collectCertValues(j, out);
+    for (const [k, vals] of out) console.log(`    ${k} =`, vals.join("\n      | "));
+    return;
+  }
   for (const name of f) {
-    const re = new RegExp(`"${name}"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*"|[^,}\\]]+)`, "g");
+    const re = new RegExp(`<${name}>([\\s\\S]*?)</${name}>|"${name}"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*"|[^,}\\]]+)`, "g");
     const vals = new Set();
     let m;
-    while ((m = re.exec(text)) && vals.size < 3) vals.add(m[1].slice(0, 200));
+    while ((m = re.exec(text)) && vals.size < 3) vals.add((m[1] ?? m[2]).slice(0, 300));
     if (vals.size) console.log(`    ${name} =`, [...vals].join(" | "));
   }
 }
@@ -55,6 +89,7 @@ function tryJson(t) {
   }
 }
 async function run(name, fn) {
+  if (ONLY && !name.toLowerCase().includes(ONLY)) return;
   console.log(`\n### ${name}`);
   try {
     await fn();

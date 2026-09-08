@@ -160,6 +160,9 @@ function CartItemRow({
   checked: boolean;
   onToggleSelect: (id: number) => void;
 }) {
+  // Адрес карточки — как везде на сайте: /product/<артикул>?brand=<бренд>.
+  // Числовой id из базы страница товара НЕ понимает («Товар не найден»).
+  const productHref = `/product/${encodeURIComponent(item.product.article)}?brand=${encodeURIComponent(item.product.brand)}`;
   return (
     <div
       className={`flex gap-3 sm:gap-4 p-4 sm:p-5 bg-neutral-900 border rounded-2xl transition-colors ${
@@ -184,7 +187,7 @@ function CartItemRow({
         {/* Image — ссылка в карточку товара (просьба владельца: клик по фото
             и названию ведёт в карточку, галочка и количество — нет). */}
         <Link
-          href={`/product/${item.product.id}`}
+          href={productHref}
           className="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
           aria-label={`Открыть карточку: ${item.product.name}`}
         >
@@ -224,7 +227,7 @@ function CartItemRow({
           )}
         </div>
         <Link
-          href={`/product/${item.product.id}`}
+          href={productHref}
           className="block text-white font-medium leading-snug hover:text-orange-500 transition-colors"
         >
           {item.product.name}

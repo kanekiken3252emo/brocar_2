@@ -208,7 +208,7 @@ export function Footer() {
                 { name: "Фильтры масляные", href: "/catalog/category/oil-filters" },
                 { name: "Тормозные колодки", href: "/catalog/category/brake-pads" },
                 { name: "Амортизаторы", href: "/catalog/category/shock-absorbers" },
-                { name: "Подбор по VIN", href: "/catalog-vin" },
+                { name: "Оригинальные каталоги по VIN", href: "/catalog-vin" },
                 { name: "Запчасти по маркам", href: "/automarki" },
                 { name: "Все запчасти", href: "/catalog" },
               ].map((item) => (

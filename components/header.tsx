@@ -61,12 +61,12 @@ const CATALOG_ITEMS = [
     ],
   },
   {
-    title: "Кузов и аксессуары",
+    title: "Товары для кузова и аксессуары",
     items: [
       { name: "Щётки стеклоочистителя", href: "/catalog/category/wipers" },
       { name: "Колёсные диски", href: "/catalog/category/wheels" },
       { name: "Автохимия и аксессуары", href: "/catalog/category/accessories" },
-      { name: "Все категории", href: "/catalog" },
+      { name: "Все запчасти", href: "/catalog" },
     ],
   },
 ];
@@ -372,16 +372,36 @@ export function Header({ user }: HeaderProps) {
                 className="relative h-full"
                 onMouseEnter={() => setIsCatalogOpen(true)}
                 onMouseLeave={() => setIsCatalogOpen(false)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setIsCatalogOpen(false);
+                  }
+                }}
               >
-                <button className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap">
+                <button
+                  className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 h-full text-neutral-300 hover:text-orange-500 font-medium transition-colors whitespace-nowrap"
+                  aria-expanded={isCatalogOpen}
+                  aria-haspopup="true"
+                  onFocus={() => setIsCatalogOpen(true)}
+                >
                   <Menu className="h-5 w-5 shrink-0" />
                   КАТАЛОГИ
                   <ChevronDown className={`h-4 w-4 transition-transform ${isCatalogOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {isCatalogOpen && (
-                  <div className="absolute left-0 top-full pt-0">
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-b-2xl shadow-2xl p-6 min-w-[800px] animate-slide-down">
+                <div
+                  className={`absolute left-0 top-full pt-0 transition-opacity duration-150 ${
+                    isCatalogOpen
+                      ? "visible opacity-100 pointer-events-auto"
+                      : "invisible opacity-0 pointer-events-none"
+                  }`}
+                  aria-hidden={!isCatalogOpen}
+                >
+                  <div
+                    className={`bg-neutral-900 border border-neutral-800 rounded-b-2xl shadow-2xl p-6 min-w-[800px] ${
+                      isCatalogOpen ? "animate-slide-down" : ""
+                    }`}
+                  >
                       <div className="grid grid-cols-4 gap-8">
                         {CATALOG_ITEMS.map((section) => (
                           <div key={section.title}>
@@ -403,9 +423,8 @@ export function Header({ user }: HeaderProps) {
                           </div>
                         ))}
                       </div>
-                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
               <Link

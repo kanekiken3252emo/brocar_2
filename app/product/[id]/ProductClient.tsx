@@ -115,10 +115,12 @@ export default function ProductClient({
   article,
   brand,
   shell,
+  preserveShellName = false,
 }: {
   article: string;
   brand: string;
   shell: ProductShell;
+  preserveShellName?: boolean;
 }) {
   const productId = article;
 
@@ -330,7 +332,9 @@ export default function ProductClient({
   // после загрузки — из живого ответа поставщиков.
   const displayBrand =
     product?.brand?.name || shell.brand || "Неизвестный бренд";
-  const displayName = product?.name || shell.name || productId;
+  const displayName = preserveShellName
+    ? shell.name || product?.name || productId
+    : product?.name || shell.name || productId;
   const imageBrand = shell.brand || brand || product?.brand?.name || "";
 
   const totalStock =

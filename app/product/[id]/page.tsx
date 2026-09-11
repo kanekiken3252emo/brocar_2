@@ -26,7 +26,9 @@ const getShell = cache(
   async (rawArticle: string, brand: string): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
-      const group = await findDbProductGroup(article, brand);
+      const group = await findDbProductGroup(article, brand, {
+        aggregateFreshOffers: isProductInWave1(article, brand),
+      });
       if (!group) {
         return { article, brand: brand || null, name: null, imageUrl: null, group: null };
       }
@@ -156,6 +158,8 @@ export default async function ProductPage({
     : null;
   const inStock = offers.some((o) => o.stock > 0);
   const productPath = productUrl(canonicalArticle, canonicalBrandName);
+  const preserveShellName =
+    Boolean(shell.name) && isProductInWave1(canonicalArticle, canonicalBrandName);
 
   const crumbs = [
     { name: "Главная", href: "/" },
@@ -189,6 +193,7 @@ export default async function ProductPage({
         article={canonicalArticle}
         brand={canonicalBrandName}
         shell={shell}
+        preserveShellName={preserveShellName}
       />
     </>
   );

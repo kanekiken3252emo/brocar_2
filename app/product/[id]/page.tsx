@@ -11,6 +11,7 @@ import { canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import { isProductInWave1 } from "@/lib/seo/product-wave";
+import { findLiveProductGroup } from "@/lib/suppliers/live-product-group";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
@@ -26,9 +27,16 @@ const getShell = cache(
   async (rawArticle: string, brand: string): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
-      const group = await findDbProductGroup(article, brand, {
-        aggregateFreshOffers: isProductInWave1(article, brand),
-      });
+      const isPriorityProduct = isProductInWave1(article, brand);
+      const [localGroup, liveGroup] = await Promise.all([
+        findDbProductGroup(article, brand, {
+          aggregateFreshOffers: isPriorityProduct,
+        }),
+        isPriorityProduct
+          ? findLiveProductGroup(article, brand).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      const group = liveGroup ?? localGroup;
       if (!group) {
         return { article, brand: brand || null, name: null, imageUrl: null, group: null };
       }

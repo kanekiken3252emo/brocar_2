@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { RETURN_WINDOW_DAYS } from "@/lib/suppliers/returns";
+import { reachYandexMetrikaGoalBeforeNavigation } from "@/lib/analytics/yandex-metrika";
 import { ArrowLeft, Loader2, ShoppingBag, RotateCcw, Info } from "lucide-react";
 
 interface CartItem {
@@ -176,7 +177,14 @@ export default function CheckoutPage() {
         throw new Error(payData?.error || "Не удалось создать платёж");
       }
 
-      // 4. Редирект на форму оплаты ЮKassa
+      // 4. Заказ и платёжная сессия действительно созданы. Перед уходом на
+      // домен ЮKassa отправляем цель с серверной суммой, без персональных данных.
+      await reachYandexMetrikaGoalBeforeNavigation("order_created", {
+        order_price: Number(orderData.total),
+        currency: "RUB",
+      });
+
+      // 5. Редирект на форму оплаты ЮKassa
       window.location.href = payData.confirmationUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка оформления");

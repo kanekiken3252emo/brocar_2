@@ -3,6 +3,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getCookieConsent } from "@/components/cookie-banner";
+import {
+  reachYandexMetrikaGoal,
+  YM_COUNTER_ID,
+  type YmFn,
+} from "@/lib/analytics/yandex-metrika";
 
 /**
  * Яндекс.Метрика (счётчик 110334546) с уважением к cookie-согласию:
@@ -16,22 +21,9 @@ import { getCookieConsent } from "@/components/cookie-banner";
  *    отладки: NEXT_PUBLIC_YM_DEBUG=1 npm run dev.
  */
 
-const YM_ID = 110334546;
-
 const ENABLED =
   process.env.NODE_ENV === "production" ||
   process.env.NEXT_PUBLIC_YM_DEBUG === "1";
-
-type YmFn = ((id: number, method: string, ...args: unknown[]) => void) & {
-  a?: unknown[];
-  l?: number;
-};
-
-declare global {
-  interface Window {
-    ym?: YmFn;
-  }
-}
 
 /** Каноничный сниппет tag.js (адаптация официального кода Метрики). */
 function loadMetrika() {
@@ -50,9 +42,9 @@ function loadMetrika() {
   ) {
     const s = document.createElement("script");
     s.async = true;
-    s.src = `https://mc.yandex.ru/metrika/tag.js?id=${YM_ID}`;
+    s.src = `https://mc.yandex.ru/metrika/tag.js?id=${YM_COUNTER_ID}`;
     document.head.appendChild(s);
-    w.ym(YM_ID, "init", {
+    w.ym(YM_COUNTER_ID, "init", {
       ssr: true,
       webvisor: true,
       clickmap: true,
@@ -68,9 +60,20 @@ function MetrikaHits({ active }: { active: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const first = useRef(true);
+  const checkoutTracked = useRef(false);
 
   useEffect(() => {
     if (!active || !window.ym) return;
+
+    // Цель означает фактический вход в оформление, а не клик по кнопке,
+    // который мог закончиться ошибкой навигации. За один вход отправляем один раз.
+    if (pathname === "/checkout" && !checkoutTracked.current) {
+      reachYandexMetrikaGoal("checkout_started");
+      checkoutTracked.current = true;
+    } else if (pathname !== "/checkout") {
+      checkoutTracked.current = false;
+    }
+
     // Первый просмотр отправляет сам init — наш первый эффект-запуск пропускаем,
     // иначе будет дубль хита.
     if (first.current) {
@@ -78,7 +81,11 @@ function MetrikaHits({ active }: { active: boolean }) {
       return;
     }
     const qs = searchParams?.toString();
-    window.ym(YM_ID, "hit", pathname + (qs ? `?${qs}` : ""));
+    window.ym(
+      YM_COUNTER_ID,
+      "hit",
+      pathname + (qs ? `?${qs}` : "")
+    );
   }, [active, pathname, searchParams]);
 
   return null;
@@ -104,6 +111,53 @@ export default function YandexMetrika() {
     window.addEventListener("cookie-consent-changed", sync);
     return () => window.removeEventListener("cookie-consent-changed", sync);
   }, []);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const onCartAdded = () => reachYandexMetrikaGoal("cart_item_added");
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (!anchor) return;
+
+      const href = anchor.href;
+      if (href.startsWith("tel:")) {
+        reachYandexMetrikaGoal("phone_clicked");
+        return;
+      }
+
+      try {
+        const host = new URL(href).hostname.toLowerCase();
+        const messengerHosts = [
+          "t.me",
+          "telegram.me",
+          "wa.me",
+          "api.whatsapp.com",
+          "web.whatsapp.com",
+          "max.ru",
+        ];
+        if (
+          messengerHosts.some(
+            (messengerHost) =>
+              host === messengerHost || host.endsWith(`.${messengerHost}`)
+          )
+        ) {
+          reachYandexMetrikaGoal("messenger_clicked");
+        }
+      } catch {
+        // Некорректная ссылка не должна мешать обычному клику пользователя.
+      }
+    };
+
+    window.addEventListener("cart:added", onCartAdded);
+    document.addEventListener("click", onDocumentClick, true);
+    return () => {
+      window.removeEventListener("cart:added", onCartAdded);
+      document.removeEventListener("click", onDocumentClick, true);
+    };
+  }, [active]);
 
   if (!ENABLED) return null;
   return (

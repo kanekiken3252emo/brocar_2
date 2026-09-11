@@ -21,6 +21,7 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
+import { reachYandexMetrikaGoal } from "@/lib/analytics/yandex-metrika";
 
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i;
 
@@ -116,6 +117,7 @@ export default function VinSearchPage() {
         }),
       });
       if (!res.ok) throw new Error("request failed");
+      reachYandexMetrikaGoal("vin_request_submitted");
       setStatus("success");
     } catch {
       setStatus("error");

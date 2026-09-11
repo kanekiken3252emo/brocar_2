@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { reachYandexMetrikaGoal } from "@/lib/analytics/yandex-metrika";
 
 /**
  * Форма «Не нашли запчасть?» в конце главной. Поля: имя, телефон (оба
@@ -65,6 +66,7 @@ export default function ContactRequestForm() {
         }),
       });
       if (!res.ok) throw new Error("request failed");
+      reachYandexMetrikaGoal("part_request_submitted");
       setStatus("success");
     } catch {
       setStatus("error");

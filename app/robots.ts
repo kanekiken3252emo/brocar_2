@@ -37,6 +37,7 @@ export default function robots(): MetadataRoute.Robots {
         "/catalog-vin?",
       ],
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
+    // Единая точка входа: индекс содержит основной sitemap и товарную карту.
+    sitemap: `${baseUrl}/sitemap-index.xml`,
   };
 }

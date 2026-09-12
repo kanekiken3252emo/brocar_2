@@ -12,6 +12,11 @@ import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import { isProductInWave1 } from "@/lib/seo/product-wave";
 import { findLiveProductGroup } from "@/lib/suppliers/live-product-group";
+import {
+  buildProductSeoTitle,
+  getSafeProductName,
+  isUsableProductName,
+} from "@/lib/suppliers/mojibake";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
@@ -58,10 +63,6 @@ const getShell = cache(
   }
 );
 
-const priceFormatter = new Intl.NumberFormat("ru-RU", {
-  maximumFractionDigits: 0,
-});
-
 function getMinimumAvailablePrice(shell: ProductShell): number | null {
   const prices = (shell.group?.offers ?? [])
     .filter(
@@ -90,28 +91,32 @@ export async function generateMetadata({
   // Суффикс « | BroCar» добавляет шаблон title в layout — здесь бренд НЕ дописываем
   // (раньше дублировался: «… | Brocar | BroCar»).
   const brandPart = shell.brand ? `${shell.brand} ` : "";
-  const titleBase = shell.name
-    ? `${brandPart}${shell.article} — ${shell.name}`
+  const hasUsableName = isUsableProductName(
+    shell.name,
+    shell.article,
+    shell.brand || brand
+  );
+  const safeName = getSafeProductName(
+    shell.name,
+    shell.article,
+    shell.brand || brand
+  );
+  const titleBase = hasUsableName
+    ? `${brandPart}${shell.article} — ${safeName}`
     : `Запчасть ${shell.article}${brandPart ? ` (${shell.brand})` : ""}`;
   const minimumPrice = getMinimumAvailablePrice(shell);
   const isPriorityProduct =
-    Boolean(shell.name) && isProductInWave1(shell.article, shell.brand);
-  const title = isPriorityProduct
-    ? [
-        shell.brand,
-        shell.article,
+    hasUsableName && isProductInWave1(shell.article, shell.brand);
+  const useSeoTemplate = isPriorityProduct || !hasUsableName;
+  const title = useSeoTemplate
+    ? buildProductSeoTitle(
         shell.name,
-        "купить в Екатеринбурге",
-        minimumPrice !== null
-          ? `- цена от ${priceFormatter.format(minimumPrice)} ₽`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
+        shell.article,
+        shell.brand || brand,
+        minimumPrice
+      )
     : titleBase;
-  const description = shell.name
-    ? `Купить ${shell.name} (${brandPart}артикул ${shell.article}): цена, наличие, быстрая доставка по Екатеринбургу и всей России. Заказывайте в BroCar!`
-    : `Артикул ${shell.article}: цена, наличие и сроки доставки по всей России. Подбор аналогов и заказ в интернет-магазине автозапчастей BroCar.`;
+  const description = `Купить ${safeName}: цена, наличие и сроки доставки по Екатеринбургу и всей России. Подбор аналогов и заказ в интернет-магазине автозапчастей BroCar.`;
   const productPath = productUrl(shell.article, shell.brand);
   const canonical = `${SITE_URL}${productPath}`;
 
@@ -157,6 +162,17 @@ export default async function ProductPage({
     }
   }
 
+  const hasUsableShellName = isUsableProductName(
+    shell.name,
+    shell.article,
+    shell.brand || canonicalBrandName
+  );
+  const safeShellName = getSafeProductName(
+    shell.name,
+    shell.article,
+    shell.brand || canonicalBrandName
+  );
+
   // Product-разметку отдаём только когда товар известен серверу (есть в каталоге):
   // название/цена/наличие — из снимка шелла. Для «живых» артикулов (данные
   // приходят клиентским опросом) разметку не выдумываем.
@@ -167,22 +183,22 @@ export default async function ProductPage({
   const inStock = offers.some((o) => o.stock > 0);
   const productPath = productUrl(canonicalArticle, canonicalBrandName);
   const preserveShellName =
-    Boolean(shell.name) && isProductInWave1(canonicalArticle, canonicalBrandName);
+    hasUsableShellName && isProductInWave1(canonicalArticle, canonicalBrandName);
 
   const crumbs = [
     { name: "Главная", href: "/" },
     { name: "Каталог", href: "/catalog" },
-    { name: shell.name || shell.article, href: productPath },
+    { name: safeShellName, href: productPath },
   ];
 
   return (
     <>
-      {shell.name && (
+      {hasUsableShellName && (
         <JsonLd
           data={productSchema({
             article: shell.article,
             brand: shell.brand,
-            name: shell.name,
+            name: safeShellName,
             image: shell.imageUrl,
             url: `${SITE_URL}${productPath}`,
             price,

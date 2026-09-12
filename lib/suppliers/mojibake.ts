@@ -69,3 +69,87 @@ export function pickBetterName(a: string, b: string): string {
   const rb = repairSupplierName(b || "");
   return nameScore(rb) > nameScore(ra) ? rb : ra;
 }
+
+/** Нормализованное значение для сравнения названия с брендом и артикулом. */
+function identityKey(value: string): string {
+  return (value || "").toLocaleLowerCase("ru-RU").replace(/[^a-zа-яё0-9]/gi, "");
+}
+
+/**
+ * Можно ли безопасно использовать название поставщика в H1 и метатегах.
+ *
+ * Отбрасываем не только mojibake, но и технические заглушки: один артикул,
+ * один бренд, строки без слов и характерные обрезанные названия поставщиков
+ * вроде `ZYLINDERSKUPPLU` (длинное слово только из латинских заглавных).
+ */
+export function isUsableProductName(
+  name: string | null | undefined,
+  article = "",
+  brand = ""
+): boolean {
+  const value = repairSupplierName(name || "");
+  if (!value || value.length > 220) return false;
+  if (looksMojibake(value) || /[\u0000-\u001f\u007f�]/.test(value)) return false;
+
+  const letters = value.match(/[A-Za-zА-Яа-яЁёÀ-ÖØ-öø-ÿ]/g) || [];
+  if (letters.length < 3) return false;
+
+  const key = identityKey(value);
+  if (!key || key === identityKey(article) || key === identityKey(brand)) {
+    return false;
+  }
+
+  const latinLetters = value.match(/[A-Za-zÀ-ÖØ-öø-ÿ]/g) || [];
+  const hasLowerLatin = /[a-zà-öø-ÿ]/.test(value);
+  const hasCyrillic = /[А-Яа-яЁё]/.test(value);
+  const isSingleToken = !/\s/.test(value);
+  if (
+    isSingleToken &&
+    !hasCyrillic &&
+    !hasLowerLatin &&
+    latinLetters.length >= 14
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/** Единое безопасное название для H1, Description, JSON-LD и корзины. */
+export function getSafeProductName(
+  name: string | null | undefined,
+  article: string,
+  brand = ""
+): string {
+  const repaired = repairSupplierName(name || "");
+  if (isUsableProductName(repaired, article, brand)) return repaired;
+
+  return ["Запчасть", brand.trim(), article.trim()].filter(Boolean).join(" ");
+}
+
+/** SEO-шаблон товарной карточки без общего суффикса `| BroCar` из layout. */
+export function buildProductSeoTitle(
+  name: string | null | undefined,
+  article: string,
+  brand = "",
+  minimumPrice: number | null = null
+): string {
+  const usableName = isUsableProductName(name, article, brand);
+  const safeName = getSafeProductName(name, article, brand);
+  const parts = usableName ? [brand.trim(), article.trim(), safeName] : [safeName];
+
+  parts.push("купить в Екатеринбурге");
+  if (
+    minimumPrice !== null &&
+    Number.isFinite(minimumPrice) &&
+    minimumPrice > 0
+  ) {
+    parts.push(
+      `- цена от ${new Intl.NumberFormat("ru-RU", {
+        maximumFractionDigits: 0,
+      }).format(minimumPrice)} ₽`
+    );
+  }
+
+  return parts.filter(Boolean).join(" ");
+}

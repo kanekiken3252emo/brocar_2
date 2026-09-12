@@ -22,6 +22,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
+import {
+  buildProductSeoTitle,
+  getSafeProductName,
+  isUsableProductName,
+} from "@/lib/suppliers/mojibake";
 
 // Сортировка предложений по клику на заголовок колонки. null = дефолтный порядок
 // (как пришло от сервера: «в наличии → дешевле → быстрее»).
@@ -239,6 +244,26 @@ export default function ProductClient({
       const resource = groupToBergResource(data.group);
       setProduct(resource);
 
+      // Для живых карточек без надёжного серверного названия приводим title к
+      // тому же безопасному шаблону после получения актуальной цены. Серверный
+      // fallback остаётся в исходном HTML, а браузер не показывает мусорное имя.
+      if (
+        !isUsableProductName(
+          resource.name,
+          resource.article,
+          resource.brand?.name || brand
+        )
+      ) {
+        const liveMinimumPrice =
+          resource.offers?.find((offer) => offer.quantity > 0)?.price ?? null;
+        document.title = `${buildProductSeoTitle(
+          resource.name,
+          resource.article,
+          resource.brand?.name || brand,
+          liveMinimumPrice
+        )} | BroCar`;
+      }
+
       if (resource.offers && resource.offers.length > 0) {
         // Офферы уже отсортированы «в наличии → дешевле → быстрее».
         // Автоматический выбор из локального сида не сохраняем: он мог устареть и
@@ -270,7 +295,11 @@ export default function ProductClient({
       await addSupplierItemToCart({
         article: product.article,
         brand: product.brand?.name || "",
-        name: product.name,
+        name: getSafeProductName(
+          product.name,
+          product.article,
+          product.brand?.name || brand
+        ),
         ourPrice: offer.price,
         supplierPrice: offer.price,
         stock: offer.quantity,
@@ -341,9 +370,14 @@ export default function ProductClient({
   // после загрузки — из живого ответа поставщиков.
   const displayBrand =
     product?.brand?.name || shell.brand || "Неизвестный бренд";
-  const displayName = preserveShellName
+  const rawDisplayName = preserveShellName
     ? shell.name || product?.name || productId
     : product?.name || shell.name || productId;
+  const displayName = getSafeProductName(
+    rawDisplayName,
+    product?.article || shell.article || productId,
+    displayBrand
+  );
   const imageBrand = shell.brand || brand || product?.brand?.name || "";
 
   const availableOffers =

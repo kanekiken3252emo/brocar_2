@@ -9,14 +9,21 @@ on:
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
+    # Сборка должна проверять код, но не подключаться к боевой базе.
+    # Значение используется только для безопасной инициализации DB-модуля:
+    # статические страницы и API-роуты не выполняют запросы к нему во время build.
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/brocar_ci
+      NEXT_TELEMETRY_DISABLED: 1
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v7
         with:
-          node-version: '18'
+          # Совпадает с базовым образом production в Dockerfile.
+          node-version: '20'
           cache: 'npm'
       
       - name: Install dependencies

@@ -116,7 +116,9 @@ export async function generateMetadata({
         minimumPrice
       )
     : titleBase;
-  const description = `Купить ${safeName}: цена, наличие и сроки доставки по Екатеринбургу и всей России. Подбор аналогов и заказ в интернет-магазине автозапчастей BroCar.`;
+  const description = hasUsableName
+    ? `Купить ${safeName} (${brandPart}артикул ${shell.article}): цена, наличие, быстрая доставка по Екатеринбургу и всей России. Заказывайте в BroCar!`
+    : `Купить ${safeName}: цена, наличие и сроки доставки по Екатеринбургу и всей России. Подбор аналогов и заказ в интернет-магазине автозапчастей BroCar.`;
   const productPath = productUrl(shell.article, shell.brand);
   const canonical = `${SITE_URL}${productPath}`;
 

@@ -32,13 +32,16 @@ import {
 // (как пришло от сервера: «в наличии → дешевле → быстрее»).
 type SortField = "price" | "delivery" | "quantity" | "reliability";
 
-const SORT_OPTIONS: { key: SortField; label: string; defaultDir: "asc" | "desc" }[] =
-  [
-    { key: "price", label: "Цена", defaultDir: "asc" },
-    { key: "delivery", label: "Срок", defaultDir: "asc" },
-    { key: "quantity", label: "Кол-во", defaultDir: "desc" },
-    { key: "reliability", label: "Надёжность", defaultDir: "desc" },
-  ];
+const SORT_OPTIONS: {
+  key: SortField;
+  label: string;
+  defaultDir: "asc" | "desc";
+}[] = [
+  { key: "price", label: "Цена", defaultDir: "asc" },
+  { key: "delivery", label: "Срок", defaultDir: "asc" },
+  { key: "quantity", label: "Кол-во", defaultDir: "desc" },
+  { key: "reliability", label: "Надёжность", defaultDir: "desc" },
+];
 
 function sortOffers(
   offers: BergOffer[],
@@ -248,15 +251,11 @@ export default function ProductClient({
       const resource = groupToBergResource(data.group);
       setProduct(resource);
 
-      // Для живых карточек без надёжного серверного названия приводим title к
-      // тому же безопасному шаблону после получения актуальной цены. Серверный
-      // fallback остаётся в исходном HTML, а браузер не показывает мусорное имя.
+      // Если сервер не смог определить товар и карточка появилась только после
+      // живого ответа, один раз формируем title из этого ответа. Когда серверный
+      // товар есть, title/H1/бренд не меняем — обновляются только коммерческие данные.
       if (
-        !isUsableProductName(
-          shell.name,
-          shell.article,
-          shell.brand || brand
-        ) &&
+        !preserveShellName &&
         isUsableProductName(
           resource.name,
           resource.article,
@@ -334,7 +333,8 @@ export default function ProductClient({
   };
 
   // Кол-во для добавления — своё у каждого оффера (по его позиции в product.offers).
-  const offerIndex = (offer: BergOffer) => product?.offers?.indexOf(offer) ?? -1;
+  const offerIndex = (offer: BergOffer) =>
+    product?.offers?.indexOf(offer) ?? -1;
   const offerQty = (offer: BergOffer) => qtyByOffer[offerIndex(offer)] ?? 1;
   const changeQty = (offer: BergOffer, delta: number) => {
     const idx = offerIndex(offer);
@@ -375,10 +375,11 @@ export default function ProductClient({
     );
   }
 
-  // Отображаемые поля: пока живой опрос идёт — берём из серверного шелла,
-  // после загрузки — из живого ответа поставщиков.
-  const displayBrand =
-    product?.brand?.name || shell.brand || "Неизвестный бренд";
+  // Идентичность товара из серверного шелла не меняем после гидрации. Живой
+  // ответ становится источником названия/бренда только когда сервер товара не знал.
+  const displayBrand = preserveShellName
+    ? shell.brand || brand || product?.brand?.name || "Неизвестный бренд"
+    : product?.brand?.name || shell.brand || brand || "Неизвестный бренд";
   const rawDisplayName = preserveShellName
     ? shell.name || product?.name || productId
     : product?.name || shell.name || productId;
@@ -549,7 +550,8 @@ export default function ProductClient({
                             но доставка дольше на{" "}
                             {cheapestOffer.average_period -
                               selectedOffer.average_period}{" "}
-                            дн. ({formatDeliveryDays(cheapestOffer.average_period)})
+                            дн. (
+                            {formatDeliveryDays(cheapestOffer.average_period)})
                           </span>
                         )}
                       </button>
@@ -572,7 +574,8 @@ export default function ProductClient({
                         className="mt-2 inline-flex items-center gap-1.5 text-sm text-neutral-300 hover:text-white transition-colors"
                       >
                         <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
-                        вернуть как было — {prevOffer.price.toLocaleString("ru-RU")} ₽,{" "}
+                        вернуть как было —{" "}
+                        {prevOffer.price.toLocaleString("ru-RU")} ₽,{" "}
                         {formatDeliveryDays(prevOffer.average_period)}
                       </button>
                     )}
@@ -769,8 +772,7 @@ export default function ProductClient({
                           onClick={(e) => addOfferToCart(offer, e)}
                           className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center justify-center gap-1.5"
                         >
-                          <ShoppingCart className="h-4 w-4" />
-                          В корзину
+                          <ShoppingCart className="h-4 w-4" />В корзину
                         </button>
                       </div>
                     </div>
@@ -910,8 +912,7 @@ export default function ProductClient({
                                 onClick={(e) => addOfferToCart(offer, e)}
                                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center gap-1.5 shrink-0"
                               >
-                                <ShoppingCart className="h-4 w-4" />
-                                В корзину
+                                <ShoppingCart className="h-4 w-4" />В корзину
                               </button>
                             </div>
                           </td>
@@ -1015,8 +1016,8 @@ export default function ProductClient({
               Аналоги в продаже
             </h2>
             <p className="text-sm text-neutral-400 mb-6">
-              Эти заменители есть у наших поставщиков — цена и срок поставки
-              уже известны, можно сразу в корзину.
+              Эти заменители есть у наших поставщиков — цена и срок поставки уже
+              известны, можно сразу в корзину.
             </p>
             <div className="space-y-4">
               {analogs.map((g) => (

@@ -35,14 +35,31 @@ const getShell = cache(
     try {
       const isPriorityProduct = isProductInWave1(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
-      const [localGroup, liveGroup] = await Promise.all([
+      const [localGroup, priorityLiveGroup] = await Promise.all([
         findDbProductGroup(article, brand, {
           aggregateFreshOffers: isPriorityProduct,
+          aggregateNames: true,
         }).catch(() => null),
         isPriorityProduct
           ? findLiveProductGroup(article, brand).catch(() => null)
           : Promise.resolve(null),
       ]);
+      // Для остальных карточек сначала выбираем лучшее имя из быстрых локальных
+      // дублей article+brand. Живых поставщиков на сервере спрашиваем только если
+      // локального пригодного имени вообще нет: так первый HTML получает нормальный
+      // H1, но обычные страницы не платят шестисекундным опросом на каждый заход.
+      const needsLiveName =
+        !seoSnapshot &&
+        !isUsableProductName(
+          localGroup?.name,
+          localGroup?.article || article,
+          localGroup?.brand || brand
+        );
+      const liveGroup =
+        priorityLiveGroup ??
+        (needsLiveName
+          ? await findLiveProductGroup(article, brand).catch(() => null)
+          : null);
       const sourceGroup = liveGroup ?? localGroup;
       const group = seoSnapshot
         ? {
@@ -104,15 +121,13 @@ function getMinimumAvailablePrice(shell: ProductShell): number | null {
   const prices = (shell.group?.offers ?? [])
     .filter(
       (offer) =>
-        offer.stock > 0 &&
-        Number.isFinite(offer.ourPrice) &&
-        offer.ourPrice > 0
+        offer.stock > 0 && Number.isFinite(offer.ourPrice) && offer.ourPrice > 0
     )
     .map((offer) => offer.ourPrice);
 
   return prices.length > 0
     ? Math.min(...prices)
-    : shell.seoMinimumPrice ?? null;
+    : (shell.seoMinimumPrice ?? null);
 }
 
 export async function generateMetadata({
@@ -218,10 +233,10 @@ export default async function ProductPage({
     : null;
   const inStock = offers.some((o) => o.stock > 0);
   const productPath = productUrl(canonicalArticle, canonicalBrandName);
-  const preserveShellName =
-    hasUsableShellName &&
-    (isProductInWave1(canonicalArticle, canonicalBrandName) ||
-      Boolean(shell.seoResolved));
+  // Если сервер уже определил товар, его идентичность (бренд + название) остаётся
+  // единой для H1, title, хлебных крошек и JSON-LD. Клиентский опрос обновляет
+  // только коммерческие данные: цену, наличие, срок и список предложений.
+  const preserveShellName = Boolean(shell.group);
 
   const crumbs = [
     { name: "Главная", href: "/" },

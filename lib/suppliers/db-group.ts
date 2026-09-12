@@ -16,6 +16,8 @@ import { pickBetterName } from "@/lib/suppliers/mojibake";
 type FindDbProductGroupOptions = {
   /** Объединить свежие строки одного товара для приоритетной SEO-карточки. */
   aggregateFreshOffers?: boolean;
+  /** Выбрать лучшее название среди локальных дублей article+brand. */
+  aggregateNames?: boolean;
 };
 
 /**
@@ -41,17 +43,24 @@ export async function findDbProductGroup(
   // функциональным индексом idx_products_norm_article → теперь Index Scan ~5мс.
   const norm = normalizeArticle(article);
   const articleCondition = dsql`upper(regexp_replace(${products.article}, '[^0-9A-Za-zА-Яа-я]', '', 'g')) = ${norm}`;
+  const aggregateNames = Boolean(options.aggregateNames && brand);
+  const aggregateRows = options.aggregateFreshOffers || aggregateNames;
   const rows = options.aggregateFreshOffers
     ? await db.select().from(products).where(articleCondition)
-    : await db
-        .select()
-        .from(products)
-        .where(
-          brand
-            ? and(articleCondition, ilike(products.brand, brand))
-            : articleCondition
-        )
-        .limit(1);
+    : aggregateNames
+      ? await db
+          .select()
+          .from(products)
+          .where(and(articleCondition, ilike(products.brand, brand)))
+      : await db
+          .select()
+          .from(products)
+          .where(
+            brand
+              ? and(articleCondition, ilike(products.brand, brand))
+              : articleCondition
+          )
+          .limit(1);
 
   // Живой API объединяет одинаковый артикул внутри концерна (VAG, PSA и т. п.).
   // Для SEO-шелла делаем то же самое на свежем локальном каталоге, чтобы H1,
@@ -129,7 +138,7 @@ export async function findDbProductGroup(
   const deliveries = offers
     .map((o) => o.deliveryDays)
     .filter((d): d is number => d != null);
-  const bestName = options.aggregateFreshOffers
+  const bestName = aggregateRows
     ? matchingRows.reduce(
         (best, row) => pickBetterName(best, row.name || ""),
         ""
@@ -137,10 +146,8 @@ export async function findDbProductGroup(
     : p.name;
 
   return {
-    article: options.aggregateFreshOffers ? norm : p.article,
-    brand: options.aggregateFreshOffers
-      ? canonicalBrand(brand || p.brand)
-      : p.brand ?? "",
+    article: aggregateRows ? norm : p.article,
+    brand: aggregateRows ? canonicalBrand(brand || p.brand) : (p.brand ?? ""),
     name: bestName || p.name,
     minPrice: Math.min(...prices),
     maxPrice: Math.max(...prices),

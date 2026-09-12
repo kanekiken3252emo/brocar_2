@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { getVegaName } from "@/lib/vega-names";
 import {
+  compareOffers,
   isValidPrice,
   normalizeArticle,
   type SupplierGroup,
@@ -123,7 +124,7 @@ export async function findDbProductGroup(
 
   if (offers.length === 0) return null;
 
-  offers.sort((a, b) => a.ourPrice - b.ourPrice);
+  offers.sort(compareOffers);
   const prices = offers.map((o) => o.ourPrice);
   const deliveries = offers
     .map((o) => o.deliveryDays)

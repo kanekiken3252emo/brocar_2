@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProductImage from "@/components/Items/ProductImage";
@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import type { BergResource, BergOffer } from "@/types/berg-api";
 
 // Сортировка предложений по клику на заголовок колонки. null = дефолтный порядок
-// (как пришло от сервера: «в наличии → быстрее → дешевле»).
+// (как пришло от сервера: «в наличии → дешевле → быстрее»).
 type SortField = "price" | "delivery" | "quantity" | "reliability";
 
 const SORT_OPTIONS: { key: SortField; label: string; defaultDir: "asc" | "desc" }[] =
@@ -144,6 +144,10 @@ export default function ProductClient({
   const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(
     seedProduct?.offers?.[0] ?? null
   );
+  // Автоматический выбор из серверного снимка нельзя переносить на живые данные:
+  // снимок может указывать на склад, который уже стал дороже и медленнее. При этом
+  // осознанный выбор покупателя во время обновления нужно сохранить.
+  const manualOfferSelection = useRef(false);
   const [offersCollapsed, setOffersCollapsed] = useState(false);
   const [showAllOffers, setShowAllOffers] = useState(false);
   // Пользовательская сортировка предложений (клик по заголовку / пилюле).
@@ -173,6 +177,7 @@ export default function ProductClient({
   // При переходе на другой товар — сбросить на новый сид, пока грузятся живые
   // данные (иначе на экране осталась бы цена предыдущего товара).
   useEffect(() => {
+    manualOfferSelection.current = false;
     setProduct(seedProduct);
     setSelectedOffer(seedProduct?.offers?.[0] ?? null);
     setPrevOffer(null);
@@ -235,13 +240,13 @@ export default function ProductClient({
       setProduct(resource);
 
       if (resource.offers && resource.offers.length > 0) {
-        // Офферы уже отсортированы «в наличии → быстрее → дешевле».
-        // Если пользователь уже выбрал оффер на сид-данных — сохраняем выбор по
-        // складу/поставщику (ключ без цены, чтобы пережить смену цены сид→живые);
-        // иначе берём лучший (первый).
+        // Офферы уже отсортированы «в наличии → дешевле → быстрее».
+        // Автоматический выбор из локального сида не сохраняем: он мог устареть и
+        // вести на более дорогой и медленный склад. Сохраняем только осознанный
+        // выбор покупателя, сделанный до завершения живого опроса.
         const liveOffers = resource.offers;
         setSelectedOffer((prev) => {
-          if (prev) {
+          if (manualOfferSelection.current && prev) {
             const k = offerKey(prev);
             const match = liveOffers.find((o) => offerKey(o) === k);
             if (match) return match;
@@ -284,7 +289,10 @@ export default function ProductClient({
 
   // Верхняя кнопка карточки — добавляет ВЫБРАННЫЙ оффер (1 шт.).
   const handleAddToCart = (e: React.MouseEvent) => {
-    if (selectedOffer) addToCart(selectedOffer, e.currentTarget as HTMLElement);
+    if (selectedOffer) {
+      manualOfferSelection.current = true;
+      addToCart(selectedOffer, e.currentTarget as HTMLElement);
+    }
   };
 
   // Кол-во для добавления — своё у каждого оффера (по его позиции в product.offers).
@@ -298,6 +306,7 @@ export default function ProductClient({
   // Кнопка «В корзину» в строке предложения — кладёт ИМЕННО этот оффер в
   // выбранном количестве (и синхронизирует выбор вверху), чтобы не листать наверх.
   const addOfferToCart = (offer: BergOffer, e: React.MouseEvent) => {
+    manualOfferSelection.current = true;
     setSelectedOffer(offer);
     addToCart(offer, e.currentTarget as HTMLElement, offerQty(offer));
   };
@@ -337,10 +346,14 @@ export default function ProductClient({
     : product?.name || shell.name || productId;
   const imageBrand = shell.brand || brand || product?.brand?.name || "";
 
-  const totalStock =
-    product?.offers?.reduce((sum, offer) => sum + offer.quantity, 0) || 0;
-  const minPrice = product?.offers?.length
-    ? Math.min(...product.offers.map((o) => o.price))
+  const availableOffers =
+    product?.offers?.filter((offer) => offer.quantity > 0) ?? [];
+  const totalStock = availableOffers.reduce(
+    (sum, offer) => sum + offer.quantity,
+    0
+  );
+  const minPrice = availableOffers.length
+    ? Math.min(...availableOffers.map((o) => o.price))
     : null;
 
   // Заголовочная цена = цена ВЫБРАННОГО оффера (та, что уйдёт в корзину), чтобы
@@ -348,13 +361,11 @@ export default function ProductClient({
   // оффер не выбран, и для подсказки «есть дешевле» ниже.
   const displayPrice = selectedOffer?.price ?? minPrice;
 
-  // Самый дешёвый оффер: список отсортирован «в наличии → быстрее → дешевле»,
-  // поэтому дешёвый может оказаться вне топ-3 — всегда показываем его рядом с
-  // тремя лучшими, и на него ведёт подсказка «есть дешевле — от X ₽».
-  const cheapestOffer = product?.offers?.length
-    ? product.offers.reduce(
+  // Самый дешёвый оффер для подсказки и защиты от нестандартного порядка данных.
+  const cheapestOffer = availableOffers.length
+    ? availableOffers.reduce(
         (m, o) => (o.price < m.price ? o : m),
-        product.offers[0]
+        availableOffers[0]
       )
     : null;
   // Сортированный список (или дефолтный порядок сервера, если sortKey=null).
@@ -477,6 +488,7 @@ export default function ProductClient({
                       <button
                         type="button"
                         onClick={() => {
+                          manualOfferSelection.current = true;
                           setPrevOffer(selectedOffer);
                           setSelectedOffer(cheapestOffer);
                         }}
@@ -510,6 +522,7 @@ export default function ProductClient({
                       <button
                         type="button"
                         onClick={() => {
+                          manualOfferSelection.current = true;
                           setSelectedOffer(prevOffer);
                           setPrevOffer(null);
                         }}

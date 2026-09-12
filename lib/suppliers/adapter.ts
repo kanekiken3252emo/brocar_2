@@ -101,10 +101,11 @@ export function isValidPrice(n: number): boolean {
 }
 
 /**
- * Сортировка предложений внутри товара: «в наличии → быстрее → дешевле».
+ * Сортировка предложений внутри товара: «в наличии → дешевле → быстрее».
  *   1) сначала то, что в наличии (остаток > 0);
- *   2) затем по сроку доставки (быстрее — выше; «уточн.»/null — в конец);
- *   3) при равном сроке — по возрастанию цены.
+ *   2) затем по возрастанию цены;
+ *   3) при равной цене — по сроку доставки
+ *      (быстрее — выше; «уточн.»/null — в конец).
  * Используется и в карточке товара, и в карточках поиска, чтобы порядок
  * был единым.
  */
@@ -113,18 +114,17 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
   const bInStock = b.stock > 0 ? 1 : 0;
   if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
 
+  if (a.ourPrice !== b.ourPrice) return a.ourPrice - b.ourPrice; // дешевле — выше
+
   const aDays = a.deliveryDays ?? Infinity;
   const bDays = b.deliveryDays ?? Infinity;
-  if (aDays !== bDays) return aDays - bDays; // быстрее — выше
-
-  return a.ourPrice - b.ourPrice; // потом дешевле
+  return aDays - bDays; // при равной цене быстрее — выше
 }
 
 /**
- * Сортировка ТОВАРОВ (групп) по той же логике, что и предложения:
- * «в наличии → быстрее → дешевле». Самые быстрые позиции (сегодня/завтра)
- * оказываются наверху. Используется для списка аналогов в карточке товара,
- * чтобы приоритет был у быстрых покупок (срок → цена).
+ * Сортировка ТОВАРОВ (групп) для блока аналогов:
+ * «в наличии → быстрее → дешевле». В отличие от предложений одного товара,
+ * здесь сначала показываем самые быстро доставляемые аналоги.
  */
 export function compareGroupsByDelivery(
   a: SupplierGroup,
@@ -287,7 +287,8 @@ export function mergeAndDeduplicate(items: SupplierItem[]): SupplierItem[] {
 
 /**
  * Группирует предложения по article+brand в SupplierGroup[].
- * Предложения внутри группы сортируются «в наличии → дешевле» (compareOffers).
+ * Предложения внутри группы сортируются «в наличии → дешевле → быстрее»
+ * (compareOffers).
  */
 export function groupOffers(
   items: SupplierItem[],

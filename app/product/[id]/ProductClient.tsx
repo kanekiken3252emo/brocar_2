@@ -244,7 +244,25 @@ export default function ProductClient({
       setAnalogs(analogGroups);
 
       if (!data.group) {
-        setError("Товар не найден");
+        setSelectedOffer(null);
+        setPrevOffer(null);
+        if (shell.group) {
+          // Сервер открыл известную карточку, а повторный клиентский опрос уже не
+          // подтвердил предложения. Сохраняем стабильные H1/бренд/крошки, но
+          // убираем устаревшие цену, остаток и возможность положить товар в корзину.
+          setProduct((current) =>
+            current
+              ? {
+                  ...current,
+                  offers: [],
+                }
+              : null
+          );
+          setError(null);
+        } else {
+          setProduct(null);
+          setError("Товар не найден");
+        }
         return;
       }
 

@@ -73,6 +73,10 @@ export interface ProductShell {
   imageUrl: string | null;
   /** Офферы из локального каталога — сеют цену/наличие в первый HTML (null, если товара нет локально). */
   group: SupplierGroup | null;
+  /** Имя зафиксировано проверенным SEO-снимком и не должно прыгать после hydration. */
+  seoResolved?: boolean;
+  /** Цена снимка используется только в серверном Title, не в карточке и корзине. */
+  seoMinimumPrice?: number | null;
 }
 
 /**
@@ -249,6 +253,11 @@ export default function ProductClient({
       // fallback остаётся в исходном HTML, а браузер не показывает мусорное имя.
       if (
         !isUsableProductName(
+          shell.name,
+          shell.article,
+          shell.brand || brand
+        ) &&
+        isUsableProductName(
           resource.name,
           resource.article,
           resource.brand?.name || brand

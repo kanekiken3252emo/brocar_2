@@ -12,6 +12,7 @@ import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import { isProductInWave1 } from "@/lib/seo/product-wave";
 import { findLiveProductGroup } from "@/lib/suppliers/live-product-group";
+import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
 import {
   buildProductSeoTitle,
   getSafeProductName,
@@ -33,22 +34,48 @@ const getShell = cache(
     const article = decodeURIComponent(rawArticle);
     try {
       const isPriorityProduct = isProductInWave1(article, brand);
+      const seoSnapshot = getProductSeoSnapshot(article, brand);
       const [localGroup, liveGroup] = await Promise.all([
         findDbProductGroup(article, brand, {
           aggregateFreshOffers: isPriorityProduct,
-        }),
+        }).catch(() => null),
         isPriorityProduct
           ? findLiveProductGroup(article, brand).catch(() => null)
           : Promise.resolve(null),
       ]);
-      const group = liveGroup ?? localGroup;
+      const sourceGroup = liveGroup ?? localGroup;
+      const group = seoSnapshot
+        ? {
+            ...(sourceGroup ?? {
+              article: seoSnapshot.article,
+              brand: seoSnapshot.brand,
+              name: seoSnapshot.name,
+              minPrice: seoSnapshot.minPrice ?? 0,
+              maxPrice: seoSnapshot.minPrice ?? 0,
+              totalStock: 0,
+              minDeliveryDays: null,
+              offers: [],
+            }),
+            article: normalizeArticle(seoSnapshot.article),
+            brand: canonicalBrand(seoSnapshot.brand),
+            name: seoSnapshot.name,
+          }
+        : sourceGroup;
       if (!group) {
-        return { article, brand: brand || null, name: null, imageUrl: null, group: null };
+        return {
+          article,
+          brand: brand || null,
+          name: null,
+          imageUrl: null,
+          group: null,
+          seoResolved: false,
+          seoMinimumPrice: null,
+        };
       }
 
       const [enriched] = await enrichGroupsWithImages([
         { brand: group.brand, article: group.article },
-      ]);
+      ]).catch(() => []);
 
       return {
         article: group.article,
@@ -56,9 +83,19 @@ const getShell = cache(
         name: group.name ?? null,
         imageUrl: enriched?.imageUrl ?? null,
         group,
+        seoResolved: Boolean(seoSnapshot),
+        seoMinimumPrice: seoSnapshot?.minPrice ?? null,
       };
     } catch {
-      return { article, brand: brand || null, name: null, imageUrl: null, group: null };
+      return {
+        article,
+        brand: brand || null,
+        name: null,
+        imageUrl: null,
+        group: null,
+        seoResolved: false,
+        seoMinimumPrice: null,
+      };
     }
   }
 );
@@ -73,7 +110,9 @@ function getMinimumAvailablePrice(shell: ProductShell): number | null {
     )
     .map((offer) => offer.ourPrice);
 
-  return prices.length > 0 ? Math.min(...prices) : null;
+  return prices.length > 0
+    ? Math.min(...prices)
+    : shell.seoMinimumPrice ?? null;
 }
 
 export async function generateMetadata({
@@ -101,25 +140,20 @@ export async function generateMetadata({
     shell.article,
     shell.brand || brand
   );
-  const titleBase = hasUsableName
-    ? `${brandPart}${shell.article} — ${safeName}`
-    : `Запчасть ${shell.article}${brandPart ? ` (${shell.brand})` : ""}`;
   const minimumPrice = getMinimumAvailablePrice(shell);
-  const isPriorityProduct =
-    hasUsableName && isProductInWave1(shell.article, shell.brand);
-  const useSeoTemplate = isPriorityProduct || !hasUsableName;
-  const title = useSeoTemplate
-    ? buildProductSeoTitle(
-        shell.name,
-        shell.article,
-        shell.brand || brand,
-        minimumPrice
-      )
-    : titleBase;
+  const title = buildProductSeoTitle(
+    shell.name,
+    shell.article,
+    shell.brand || brand,
+    minimumPrice
+  );
   const description = hasUsableName
     ? `Купить ${safeName} (${brandPart}артикул ${shell.article}): цена, наличие, быстрая доставка по Екатеринбургу и всей России. Заказывайте в BroCar!`
     : `Купить ${safeName}: цена, наличие и сроки доставки по Екатеринбургу и всей России. Подбор аналогов и заказ в интернет-магазине автозапчастей BroCar.`;
-  const productPath = productUrl(shell.article, shell.brand);
+  // Существующий брендовый URL не переименовываем из-за объединённого ярлыка
+  // поставщика (`Toyota` → `Toyota/Lexus`). Для URL важна стабильность; бренд
+  // из снимка подставляем только когда исходная ссылка была совсем без бренда.
+  const productPath = productUrl(shell.article, brand || shell.brand);
   const canonical = `${SITE_URL}${productPath}`;
 
   return {
@@ -153,7 +187,7 @@ export default async function ProductPage({
 
   if (shell.group) {
     canonicalArticle = normalizeArticle(shell.article);
-    canonicalBrandName = canonicalBrand(shell.brand);
+    canonicalBrandName = canonicalBrand(brand || shell.brand);
     const canonicalPath = productUrl(canonicalArticle, canonicalBrandName);
 
     if (
@@ -185,7 +219,9 @@ export default async function ProductPage({
   const inStock = offers.some((o) => o.stock > 0);
   const productPath = productUrl(canonicalArticle, canonicalBrandName);
   const preserveShellName =
-    hasUsableShellName && isProductInWave1(canonicalArticle, canonicalBrandName);
+    hasUsableShellName &&
+    (isProductInWave1(canonicalArticle, canonicalBrandName) ||
+      Boolean(shell.seoResolved));
 
   const crumbs = [
     { name: "Главная", href: "/" },

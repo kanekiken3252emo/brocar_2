@@ -23,10 +23,31 @@
 const HAS_LAT = /[A-Za-z]/;
 const HAS_CYR = /[А-Яа-яЁё]/;
 
+// Точечные расшифровки подтверждённых обрезанных названий поставщиков.
+// Общим правилом такие строки восстановить нельзя: поставщик отдаёт только
+// усечённое иностранное слово без категории товара.
+const EXACT_NAME_REPAIRS: Record<string, string> = {
+  HEIZUNGSHEBELBOCK: "Кронштейн рычага отопителя",
+  "SPRING,COIL-REAR": "Рессора задняя в сборе",
+  ZYLINDERSKUPPLU: "Цилиндр сцепления рабочий",
+};
+
 /** Точечный ремонт восстановимых артефактов битой кодировки. */
 export function repairSupplierName(name: string): string {
   if (!name) return name;
-  return name
+  const trimmed = name.trim();
+  const repairedExact = EXACT_NAME_REPAIRS[trimmed.toUpperCase()] ?? trimmed;
+  return repairedExact
+    // Длинный хвост `подходит для ...` — это применяемость, а не название.
+    .replace(/\s+подходит для\s+[\s\S]*$/i, " ")
+    // В выгрузках знак `\` отделяет основное наименование от длинного списка
+    // применяемости. В H1 оставляем только название товара; применяемость живёт
+    // в характеристиках и не должна раздувать заголовок.
+    .replace(/\\[\s\S]*$/, " ")
+    // `!` у поставщиков используется как технический разделитель, а не как
+    // часть названия: `фильтр масляный !\...` → `фильтр масляный`.
+    .replace(/!+/g, " ")
+    .replace(/\bмаслянный\b/gi, "масляный")
     // латиница + «Г»(U+0413, +возможный пробел) + латиница → утраченный умляут ü
     // (Kopfst‹Г› tze → Kopfstütze). Кириллицу не затрагивает.
     .replace(/([A-Za-z]) ?Г ?(?=[A-Za-z])/g, "$1ü")
@@ -90,6 +111,11 @@ export function isUsableProductName(
   const value = repairSupplierName(name || "");
   if (!value || value.length > 220) return false;
   if (looksMojibake(value) || /[\u0000-\u001f\u007f�]/.test(value)) return false;
+
+  // Знак вопроса вместо потерянной буквы внутри слова (`Santa F?`) означает,
+  // что строка повреждена. Восклицательный знак сам по себе не бракуем:
+  // поставщики иногда законно используют его в пометках вроде `ОРИГИНАЛ!`.
+  if (/[A-Za-zА-Яа-яЁё]\?(?:\s|$)/.test(value)) return false;
 
   const letters = value.match(/[A-Za-zА-Яа-яЁёÀ-ÖØ-öø-ÿ]/g) || [];
   if (letters.length < 3) return false;

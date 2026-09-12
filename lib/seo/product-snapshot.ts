@@ -66,6 +66,10 @@ export function getProductSeoSnapshot(
   }
 
   const articleItems = byArticle.get(normalizedArticle) ?? [];
+  const explicitlyUnbrandedItems = articleItems.filter(
+    (item) => !brandKey(canonicalBrand(item.requestedBrand))
+  );
+  if (explicitlyUnbrandedItems.length === 1) return explicitlyUnbrandedItems[0];
   if (articleItems.length === 1) return articleItems[0];
   if (articleItems.length > 1) {
     const first = articleItems[0];

@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, ci/github-actions-build-20260912]
   pull_request:
     branches: [main, develop]
 

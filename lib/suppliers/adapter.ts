@@ -101,11 +101,11 @@ export function isValidPrice(n: number): boolean {
 }
 
 /**
- * Сортировка предложений внутри товара: «в наличии → дешевле → быстрее».
+ * Сортировка предложений внутри товара: «в наличии → быстрее → дешевле».
  *   1) сначала то, что в наличии (остаток > 0);
- *   2) затем по возрастанию цены;
- *   3) при равной цене — по сроку доставки
- *      (быстрее — выше; «уточн.»/null — в конец).
+ *   2) затем по сроку доставки
+ *      (быстрее — выше; «уточн.»/null — в конец);
+ *   3) при равном сроке — по возрастанию цены.
  * Используется и в карточке товара, и в карточках поиска, чтобы порядок
  * был единым.
  */
@@ -114,11 +114,11 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
   const bInStock = b.stock > 0 ? 1 : 0;
   if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
 
-  if (a.ourPrice !== b.ourPrice) return a.ourPrice - b.ourPrice; // дешевле — выше
-
   const aDays = a.deliveryDays ?? Infinity;
   const bDays = b.deliveryDays ?? Infinity;
-  return aDays - bDays; // при равной цене быстрее — выше
+  if (aDays !== bDays) return aDays - bDays; // быстрее — выше
+
+  return a.ourPrice - b.ourPrice; // при равном сроке дешевле — выше
 }
 
 /**
@@ -287,7 +287,7 @@ export function mergeAndDeduplicate(items: SupplierItem[]): SupplierItem[] {
 
 /**
  * Группирует предложения по article+brand в SupplierGroup[].
- * Предложения внутри группы сортируются «в наличии → дешевле → быстрее»
+ * Предложения внутри группы сортируются «в наличии → быстрее → дешевле»
  * (compareOffers).
  */
 export function groupOffers(

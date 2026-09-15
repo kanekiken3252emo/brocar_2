@@ -29,7 +29,7 @@ import {
 } from "@/lib/suppliers/mojibake";
 
 // Сортировка предложений по клику на заголовок колонки. null = дефолтный порядок
-// (как пришло от сервера: «в наличии → дешевле → быстрее»).
+// (как пришло от сервера: «в наличии → быстрее → дешевле»).
 type SortField = "price" | "delivery" | "quantity" | "reliability";
 
 const SORT_OPTIONS: {
@@ -280,8 +280,19 @@ export default function ProductClient({
           resource.brand?.name || brand
         )
       ) {
-        const liveMinimumPrice =
-          resource.offers?.find((offer) => offer.quantity > 0)?.price ?? null;
+        // Первый оффер теперь самый быстрый, а не обязательно самый дешёвый.
+        // Для SEO-title по-прежнему считаем фактический минимум среди наличия.
+        const availablePrices = (resource.offers ?? [])
+          .filter(
+            (offer) =>
+              offer.quantity > 0 &&
+              Number.isFinite(offer.price) &&
+              offer.price > 0
+          )
+          .map((offer) => offer.price);
+        const liveMinimumPrice = availablePrices.length
+          ? Math.min(...availablePrices)
+          : null;
         document.title = `${buildProductSeoTitle(
           resource.name,
           resource.article,
@@ -291,7 +302,7 @@ export default function ProductClient({
       }
 
       if (resource.offers && resource.offers.length > 0) {
-        // Офферы уже отсортированы «в наличии → дешевле → быстрее».
+        // Офферы уже отсортированы «в наличии → быстрее → дешевле».
         // Автоматический выбор из локального сида не сохраняем: он мог устареть и
         // вести на более дорогой и медленный склад. Сохраняем только осознанный
         // выбор покупателя, сделанный до завершения живого опроса.

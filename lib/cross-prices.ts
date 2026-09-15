@@ -98,7 +98,10 @@ export async function getCrossPrice(
   // Ищем по артикулу без бренда: написание брендов у Laximo и поставщиков
   // расходится (MANN vs MANN-FILTER) — сузили бы выдачу до нуля. Бренд
   // сверяем сами по вхождению.
-  const items = await searchAllSuppliers(adapters, { article });
+  const items = await searchAllSuppliers(adapters, {
+    article,
+    preferredBrand: brand,
+  });
   const groups = groupOffers(items, (base, ctx) => applyPricingSync(base, ctx));
 
   const sameArticle = groups.filter((g) => normalizeArticle(g.article) === na);

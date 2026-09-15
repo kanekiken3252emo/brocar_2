@@ -71,7 +71,7 @@ async function getHandler(
         adapters,
         // withCrosses: Rossko/Berg отдают и заменители — блок «Аналоги в
         // продаже» наполняется реальными кроссами, а не 1-2 позициями.
-        { article: decoded, withCrosses: true },
+        { article: decoded, preferredBrand: brand, withCrosses: true },
         9000
       ).catch(() => [] as SupplierItem[]),
       (shateMAdapter as ShateMAdapter).findArticleId(decoded, brand).catch(() => null),

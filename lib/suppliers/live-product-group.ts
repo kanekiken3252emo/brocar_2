@@ -37,7 +37,7 @@ export async function findLiveProductGroup(
       autotradeAdapter,
       partKomAdapter,
     ],
-    { article, withCrosses: false },
+    { article, preferredBrand: brand, withCrosses: false },
     // Внутренний сетевой таймаут адаптеров — 8000мс. Внешний лимит должен быть
     // больше, иначе корректные ответы поставщиков пропадают из SEO-шелла целиком.
     9000

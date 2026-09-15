@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { SupplierAdapter, SearchParams, SupplierItem } from "./adapter";
+import { sameBrandFamily } from "../brands/families.mjs";
 
 /**
  * Berg.ru API adapter
@@ -35,23 +36,59 @@ export class BergAdapter implements SupplierAdapter {
       // Documentation: https://api.berg.ru
       // Berg.ru requires specific URL format without encoding
       
-      // Build URL manually without encoding brackets
+      // Build URL manually without encoding brackets.
       // analogs=1 — Berg добавляет в ответ заменители других брендов (кроссы).
-      let url = `${this.baseUrl}/v1.0/ordering/get_stock.json?key=${this.apiKey}&analogs=${params.withCrosses ? 1 : 0}`;
+      const requestStock = async (brandName?: string) => {
+        let url = `${this.baseUrl}/v1.0/ordering/get_stock.json?key=${this.apiKey}&analogs=${params.withCrosses ? 1 : 0}`;
+        url += `&items[0][resource_article]=${encodeURIComponent(params.article!)}`;
+        if (brandName) {
+          url += `&items[0][brand_name]=${encodeURIComponent(brandName)}`;
+        }
 
-      if (params.article) {
-        url += `&items[0][resource_article]=${encodeURIComponent(params.article)}`;
+        // Не пишем полный URL: в нём находится секретный API-ключ.
+        console.log("Berg.ru API request:", {
+          article: params.article,
+          brand: brandName || null,
+          analogs: params.withCrosses ? 1 : 0,
+        });
+        return axios.get(url, { timeout: 8000 });
+      };
+
+      const preferredBrand = params.brand || params.preferredBrand || "";
+      let response;
+      try {
+        response = await requestStock(preferredBrand || undefined);
+      } catch (firstError) {
+        // Составной ярлык сайта («Toyota/Lexus») Berg не принимает и отвечает
+        // 300 со списком точных брендов для артикула. Выбираем из этого списка
+        // бренд того же семейства («TOYOTA») и повторяем запрос один раз.
+        if (
+          axios.isAxiosError(firstError) &&
+          firstError.response?.status === 300 &&
+          preferredBrand
+        ) {
+          const resources = firstError.response?.data?.resources;
+          const exactBrand = Array.isArray(resources)
+            ? resources
+                .map((resource: { brand?: { name?: unknown } }) =>
+                  typeof resource?.brand?.name === "string"
+                    ? resource.brand.name
+                    : ""
+                )
+                .find((candidate: string) =>
+                  sameBrandFamily(candidate, preferredBrand)
+                )
+            : "";
+
+          if (exactBrand) {
+            response = await requestStock(exactBrand);
+          } else {
+            throw firstError;
+          }
+        } else {
+          throw firstError;
+        }
       }
-      
-      if (params.brand) {
-        url += `&items[0][brand_name]=${encodeURIComponent(params.brand)}`;
-      }
-
-      console.log('Berg.ru API request URL:', url);
-
-      const response = await axios.get(url, {
-        timeout: 8000,
-      });
 
       // Berg.ru returns { resources: [...], warnings: [...] }
       const resources = response.data.resources || [];
@@ -131,7 +168,6 @@ export class BergAdapter implements SupplierAdapter {
             status: error.response?.status,
             message: error.message,
             data: error.response?.data,
-            url: error.config?.url,
             params: error.config?.params,
           });
           // Log full error details

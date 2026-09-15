@@ -184,6 +184,13 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical },
+    // A supplier-only article must remain usable for a live lookup, so it
+    // cannot be turned into a hard 404 here. Until the server can confirm the
+    // product, keep the page out of the index and allow crawlers to follow its
+    // links. Confirmed catalog and SEO-snapshot products remain indexable.
+    robots: shell.group
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     openGraph: {
       title,
       description,

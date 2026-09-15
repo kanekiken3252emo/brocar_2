@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     // Get brands from BERG API
     const url = `${BERG_API_URL}/v1.0/references/brands.json?key=${BERG_API_KEY}`;
 
-    console.log("BERG Brands Request:", url);
+    // Do not log the URL: the BERG key is passed in its query string.
+    console.log("BERG brands request started");
 
     const response = await axios.get(url, {
       timeout: 30000,

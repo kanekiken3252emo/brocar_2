@@ -60,8 +60,14 @@ export async function POST(request: NextRequest) {
       params.address_id = body.address_id;
     }
 
-    console.log("BERG API Request:", url);
-    console.log("BERG API Params:", params);
+    // Never log the request URL: the BERG key is passed in its query string.
+    // Keep diagnostics limited to non-sensitive aggregate information.
+    console.log("BERG stock request:", {
+      itemsCount: body.items.length,
+      analogs: params.analogs,
+      warehouseTypesCount: body.warehouse_types?.length || 0,
+      hasAddress: Boolean(body.address_id),
+    });
 
     // Make request to BERG API
     const response = await axios.get<BergStockResponse>(url, {

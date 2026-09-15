@@ -11,7 +11,6 @@ import { canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import { isProductInWave1 } from "@/lib/seo/product-wave";
-import { findLiveProductGroup } from "@/lib/suppliers/live-product-group";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
 import {
   buildProductSeoTitle,
@@ -29,38 +28,40 @@ import {
  */
 
 // Один lookup на запрос, общий для generateMetadata и самой страницы.
+const SEO_SHELL_DB_TIMEOUT_MS = 500;
+
 const getShell = cache(
-  async (rawArticle: string, brand: string): Promise<ProductShell> => {
+  async (
+    rawArticle: string,
+    brand: string,
+    snapshotOnly = false
+  ): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
       const isPriorityProduct = isProductInWave1(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
-      const [localGroup, priorityLiveGroup] = await Promise.all([
-        findDbProductGroup(article, brand, {
-          aggregateFreshOffers: isPriorityProduct,
-          aggregateNames: true,
-        }).catch(() => null),
-        isPriorityProduct
-          ? findLiveProductGroup(article, brand).catch(() => null)
-          : Promise.resolve(null),
-      ]);
-      // Для остальных карточек сначала выбираем лучшее имя из быстрых локальных
-      // дублей article+brand. Живых поставщиков на сервере спрашиваем только если
-      // локального пригодного имени вообще нет: так первый HTML получает нормальный
-      // H1, но обычные страницы не ждут живого опроса на каждый заход.
-      const needsLiveName =
-        !seoSnapshot &&
-        !isUsableProductName(
-          localGroup?.name,
-          localGroup?.article || article,
-          localGroup?.brand || brand
-        );
-      const liveGroup =
-        priorityLiveGroup ??
-        (needsLiveName
-          ? await findLiveProductGroup(article, brand).catch(() => null)
-          : null);
-      const sourceGroup = liveGroup ?? localGroup;
+      const localGroupPromise = snapshotOnly && seoSnapshot
+        ? Promise.resolve(null)
+        : findDbProductGroup(article, brand, {
+            aggregateFreshOffers: isPriorityProduct,
+            aggregateNames: true,
+          }).catch(() => null);
+      // Для индексируемой карточки имя и минимальная цена уже есть в локальном
+      // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
+      // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
+      const localGroup = seoSnapshot && !snapshotOnly
+        ? await Promise.race([
+            localGroupPromise,
+            new Promise<null>((resolve) =>
+              setTimeout(() => resolve(null), SEO_SHELL_DB_TIMEOUT_MS)
+            ),
+          ])
+        : await localGroupPromise;
+      // Серверный HTML использует только локальные данные. Свежие предложения,
+      // название и фото для отсутствующей в БД карточки штатно загрузит
+      // ProductClient через кешируемый /api/product/[article]. Здесь нельзя
+      // запускать повторный живой опрос всех поставщиков.
+      const sourceGroup = localGroup;
       const group = seoSnapshot
         ? {
             ...(sourceGroup ?? {
@@ -90,9 +91,15 @@ const getShell = cache(
         };
       }
 
-      const [enriched] = await enrichGroupsWithImages([
-        { brand: group.brand, article: group.article },
-      ]).catch(() => []);
+      // Если карточка существует только в SEO-снимке, не задерживаем первый HTML
+      // отдельным запросом к удалённой БД картинок. ProductClient догрузит фото
+      // вместе со свежими данными. Для обычной локальной карточки сохраняем
+      // серверное LCP-фото из кеша.
+      const [enriched] = sourceGroup
+        ? await enrichGroupsWithImages([
+            { brand: group.brand, article: group.article },
+          ]).catch(() => [])
+        : [];
 
       return {
         article: group.article,
@@ -140,7 +147,9 @@ export async function generateMetadata({
   const { id } = await params;
   const sp = await searchParams;
   const brand = typeof sp.brand === "string" ? sp.brand : "";
-  const shell = await getShell(id, brand);
+  // Для метатегов индексируемых карточек достаточно стабильного SEO-снимка.
+  // Не повторяем здесь запрос удалённой БД, который страница выполнит отдельно.
+  const shell = await getShell(id, brand, true);
 
   // Суффикс « | BroCar» добавляет шаблон title в layout — здесь бренд НЕ дописываем
   // (раньше дублировался: «… | Brocar | BroCar»).

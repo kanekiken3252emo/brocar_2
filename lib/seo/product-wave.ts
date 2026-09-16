@@ -1,5 +1,6 @@
 import "server-only";
-import manifest from "@/data/seo-product-wave-1.json";
+import wave1Manifest from "@/data/seo-product-wave-1.json";
+import wave2Manifest from "@/data/seo-product-wave-2.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 
@@ -10,17 +11,26 @@ export type ProductWaveItem = {
   lastModified: string;
 };
 
-export const PRODUCT_WAVE_1 = manifest.products as ProductWaveItem[];
+export const PRODUCT_WAVE_1 = wave1Manifest.products as ProductWaveItem[];
+export const PRODUCT_WAVE_2 = wave2Manifest.products as ProductWaveItem[];
+export const PRODUCT_SEO_WAVES = [...PRODUCT_WAVE_1, ...PRODUCT_WAVE_2];
 
 const waveKeys = new Set(
-  PRODUCT_WAVE_1.map(
+  PRODUCT_SEO_WAVES.map(
     (item) =>
       `${normalizeArticle(item.article)}|${brandKey(canonicalBrand(item.brand))}`
   )
 );
 
-/** Проверяет, входит ли товар в приоритетную SEO-волну. */
-export function isProductInWave1(article: string, brand?: string | null): boolean {
+if (waveKeys.size !== PRODUCT_SEO_WAVES.length) {
+  throw new Error("Published product SEO waves contain duplicate identities");
+}
+
+/** Проверяет, входит ли товар в одну из опубликованных SEO-волн. */
+export function isProductInSeoWave(
+  article: string,
+  brand?: string | null
+): boolean {
   if (!brand) return false;
   return waveKeys.has(
     `${normalizeArticle(article)}|${brandKey(canonicalBrand(brand))}`

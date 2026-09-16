@@ -1,7 +1,4 @@
-import {
-  getIndexableProductCount,
-  getProductSitemapCount,
-} from "@/lib/seo/product-sitemaps";
+import { getProductSitemapCount } from "@/lib/seo/product-sitemaps";
 
 export const revalidate = 86_400;
 
@@ -14,8 +11,7 @@ function baseUrl(): string {
 
 export async function GET() {
   const host = baseUrl();
-  const productCount = await getIndexableProductCount();
-  const sitemapCount = getProductSitemapCount(productCount);
+  const sitemapCount = getProductSitemapCount();
   const lastModified = new Date().toISOString();
 
   const locations = [

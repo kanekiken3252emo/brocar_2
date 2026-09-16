@@ -10,7 +10,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
-import { isProductInWave1 } from "@/lib/seo/product-wave";
+import { isProductInSeoWave } from "@/lib/seo/product-wave";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
 import {
   buildProductSeoTitle,
@@ -38,7 +38,7 @@ const getShell = cache(
   ): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
-      const isPriorityProduct = isProductInWave1(article, brand);
+      const isPriorityProduct = isProductInSeoWave(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
       const localGroupPromise = snapshotOnly && seoSnapshot
         ? Promise.resolve(null)

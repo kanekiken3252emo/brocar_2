@@ -1,5 +1,6 @@
 import "server-only";
 import snapshot from "@/data/seo-indexed-product-snapshot.json";
+import wave2Manifest from "@/data/seo-product-wave-2.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { sameBrandFamily } from "@/lib/brands/families.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
@@ -18,7 +19,31 @@ export type ProductSeoSnapshotItem = {
   evidenceUrl?: string;
 };
 
-const items = (snapshot.products as ProductSeoSnapshotItem[])
+type Wave2SeoItem = {
+  article: string;
+  brand: string;
+  seoBrand?: string;
+  seoName?: string;
+  seoMinPrice?: number | null;
+};
+
+const wave2Items = (wave2Manifest.products as Wave2SeoItem[])
+  .filter((item) => item.seoName)
+  .map(
+    (item): ProductSeoSnapshotItem => ({
+      article: item.article,
+      requestedBrand: item.brand,
+      brand: item.seoBrand || item.brand,
+      name: item.seoName || "",
+      minPrice: item.seoMinPrice ?? null,
+      sourceUrl: `/product/${encodeURIComponent(item.article)}?brand=${encodeURIComponent(item.brand)}`,
+    })
+  );
+
+const items = [
+  ...(snapshot.products as ProductSeoSnapshotItem[]),
+  ...wave2Items,
+]
   .map((item) => ({ ...item, name: repairSupplierName(item.name) }))
   .filter((item) => isUsableProductName(item.name, item.article, item.brand));
 

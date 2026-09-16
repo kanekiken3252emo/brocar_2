@@ -38,6 +38,9 @@ export function repairSupplierName(name: string): string {
   const trimmed = name.trim();
   const repairedExact = EXACT_NAME_REPAIRS[trimmed.toUpperCase()] ?? trimmed;
   return repairedExact
+    // Подтверждённый артефакт склейки русской и английской частей названия:
+    // `СТОПОРНОЕ КОЛЬЦОRING` → `СТОПОРНОЕ КОЛЬЦО RING`.
+    .replace(/КОЛЬЦОRING/gi, "КОЛЬЦО RING")
     // Длинный хвост `подходит для ...` — это применяемость, а не название.
     .replace(/\s+подходит для\s+[\s\S]*$/i, " ")
     // В выгрузках знак `\` отделяет основное наименование от длинного списка

@@ -9,6 +9,9 @@ export type ProductWaveItem = {
   brand: string;
   brandKey: string;
   lastModified: string;
+  seoBrand?: string;
+  seoName?: string;
+  seoMinPrice?: number | null;
 };
 
 export const PRODUCT_WAVE_1 = wave1Manifest.products as ProductWaveItem[];

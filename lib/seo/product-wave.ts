@@ -13,6 +13,7 @@ export type ProductWaveItem = {
 
 export const PRODUCT_WAVE_1 = wave1Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_2 = wave2Manifest.products as ProductWaveItem[];
+export const PRODUCT_SEO_WAVE_BATCHES = [PRODUCT_WAVE_1, PRODUCT_WAVE_2];
 export const PRODUCT_SEO_WAVES = [...PRODUCT_WAVE_1, ...PRODUCT_WAVE_2];
 
 const waveKeys = new Set(

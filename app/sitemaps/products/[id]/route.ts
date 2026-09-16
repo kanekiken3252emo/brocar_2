@@ -1,8 +1,5 @@
 import { productUrl } from "@/lib/product-url";
-import {
-  getIndexableProducts,
-  PRODUCT_SITEMAP_PAGE_SIZE,
-} from "@/lib/seo/product-sitemaps";
+import { getIndexableProductWave } from "@/lib/seo/product-sitemaps";
 
 export const revalidate = 86_400;
 
@@ -33,14 +30,11 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const products = await getIndexableProducts();
-  const offset = id * PRODUCT_SITEMAP_PAGE_SIZE;
-
-  if (offset >= products.length) {
+  const rows = await getIndexableProductWave(id);
+  if (!rows) {
     return new Response("Not found", { status: 404 });
   }
 
-  const rows = products.slice(offset, offset + PRODUCT_SITEMAP_PAGE_SIZE);
   const host = baseUrl();
   const urls = rows
     .map(

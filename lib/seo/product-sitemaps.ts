@@ -30,8 +30,14 @@ export async function getIndexableProducts(): Promise<IndexableProductRow[]> {
 export async function getIndexableProductWave(
   waveId: number
 ): Promise<IndexableProductRow[] | null> {
-  const products = PROEP���S���U�WАU�T���]�RYN�]\����X����[�^X�T������X��H��[B��^ܝ\�[���[��[ۈ�][�^X�T��X���[�
+  const products = PRODUCT_SEO_WAVE_BATCHES[waveId];
+  return products ? toIndexableRows(products) : null;
+}
 
-N���Z\�O�[X�\���]\����P���S���U�T˛[��B��^ܝ�[��[ۈ�]��X��][X\��[�
+export async function getIndexableProductCount(): Promise<number> {
+  return PRODUCT_SEO_WAVES.length;
+}
 
-N��[X�\��]\����P���S���U�WАU�T˛[��B
+export function getProductSitemapCount(): number {
+  return PRODUCT_SEO_WAVE_BATCHES.length;
+}

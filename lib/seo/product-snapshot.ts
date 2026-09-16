@@ -1,6 +1,7 @@
 import "server-only";
 import snapshot from "@/data/seo-indexed-product-snapshot.json";
 import wave2Manifest from "@/data/seo-product-wave-2.json";
+import wave3Manifest from "@/data/seo-product-wave-3.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { sameBrandFamily } from "@/lib/brands/families.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
@@ -19,7 +20,7 @@ export type ProductSeoSnapshotItem = {
   evidenceUrl?: string;
 };
 
-type Wave2SeoItem = {
+type WaveSeoItem = {
   article: string;
   brand: string;
   seoBrand?: string;
@@ -27,22 +28,26 @@ type Wave2SeoItem = {
   seoMinPrice?: number | null;
 };
 
-const wave2Items = (wave2Manifest.products as Wave2SeoItem[])
-  .filter((item) => item.seoName)
-  .map(
-    (item): ProductSeoSnapshotItem => ({
+function waveSnapshotItems(products: WaveSeoItem[]): ProductSeoSnapshotItem[] {
+  return products
+    .filter((item) => item.seoName)
+    .map((item) => ({
       article: item.article,
       requestedBrand: item.brand,
       brand: item.seoBrand || item.brand,
       name: item.seoName || "",
       minPrice: item.seoMinPrice ?? null,
       sourceUrl: `/product/${encodeURIComponent(item.article)}?brand=${encodeURIComponent(item.brand)}`,
-    })
-  );
+    }));
+}
+
+const wave2Items = waveSnapshotItems(wave2Manifest.products as WaveSeoItem[]);
+const wave3Items = waveSnapshotItems(wave3Manifest.products as WaveSeoItem[]);
 
 const items = [
   ...(snapshot.products as ProductSeoSnapshotItem[]),
   ...wave2Items,
+  ...wave3Items,
 ]
   .map((item) => ({ ...item, name: repairSupplierName(item.name) }))
   .filter((item) => isUsableProductName(item.name, item.article, item.brand));
@@ -79,8 +84,8 @@ export function getProductSeoSnapshot(
     const exactItem = exact.get(`${normalizedArticle}|${normalizedBrand}`);
     if (exactItem) return exactItem;
 
-    const familyItems = (byArticle.get(normalizedArticle) ?? []).filter((item) =>
-      sameBrandFamily(brand, item.requestedBrand || item.brand)
+    const familyItems = (byArticle.get(normalizedArticle) ?? []).filter(
+      (item) => sameBrandFamily(brand, item.requestedBrand || item.brand)
     );
     if (familyItems.length === 1) return familyItems[0];
     if (familyItems.length > 1) {

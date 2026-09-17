@@ -426,24 +426,17 @@ export default function ProductClient({
     0
   );
   // Несколько физических складов одного поставщика намеренно показываются под
-  // общим публичным именем VEGA N. Раньше покупатель видел остаток только одной
-  // строки (например, VEGA 6 - 23 шт.) и принимал его за общий остаток
-  // поставщика. Суммарное наличие показываем отдельно, не объединяя офферы:
-  // цена, срок и доступное к заказу количество у каждого склада свои.
-  const stockByPublicWarehouse = availableOffers.reduce(
-    (summary, offer) => {
-      const warehouseName = offer.warehouse?.name || "Склад";
-      const current = summary.get(warehouseName) ?? { quantity: 0, offers: 0 };
-      current.quantity += offer.quantity;
-      current.offers += 1;
-      summary.set(warehouseName, current);
-      return summary;
-    },
-    new Map<string, { quantity: number; offers: number }>()
-  );
-  const multiWarehouseStock = Array.from(stockByPublicWarehouse.entries())
-    .filter(([, summary]) => summary.offers > 1)
-    .map(([warehouseName, summary]) => ({ warehouseName, ...summary }));
+  // общим публичным именем VEGA N. Офферы не объединяем: срок и доступное к
+  // заказу количество у каждого физического склада свои. Общий остаток выводим
+  // только компактной подписью в первой видимой строке этого поставщика.
+  const stockByPublicWarehouse = availableOffers.reduce((summary, offer) => {
+    const warehouseName = offer.warehouse?.name || "Склад";
+    const current = summary.get(warehouseName) ?? { quantity: 0, offers: 0 };
+    current.quantity += offer.quantity;
+    current.offers += 1;
+    summary.set(warehouseName, current);
+    return summary;
+  }, new Map<string, { quantity: number; offers: number }>());
   const minPrice = availableOffers.length
     ? Math.min(...availableOffers.map((o) => o.price))
     : null;
@@ -471,6 +464,13 @@ export default function ProductClient({
       visibleOffers = [...visibleOffers, cheapestOffer];
     }
   }
+  const firstVisibleWarehouseOffer = new Map<string, number>();
+  visibleOffers.forEach((offer, index) => {
+    const warehouseName = offer.warehouse?.name || "Склад";
+    if (!firstVisibleWarehouseOffer.has(warehouseName)) {
+      firstVisibleWarehouseOffer.set(warehouseName, index);
+    }
+  });
 
   // Клик по заголовку/пилюле: тот же столбец → переключить направление,
   // другой → выбрать его с дефолтным направлением.
@@ -730,39 +730,6 @@ export default function ProductClient({
             </button>
             {!offersCollapsed && (
               <>
-                {multiWarehouseStock.length > 0 && (
-                  <div className="px-4 md:px-6 py-3 border-b border-neutral-800 bg-neutral-800/20">
-                    <div className="text-xs text-neutral-500 mb-2">
-                      Общее наличие у поставщиков
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {multiWarehouseStock.map(
-                        ({ warehouseName, quantity, offers }) => (
-                          <div
-                            key={warehouseName}
-                            className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-300"
-                          >
-                            <span className="font-medium text-white">
-                              {warehouseName}
-                            </span>
-                            {" - "}
-                            <span className="font-semibold text-green-400">
-                              {quantity} шт.
-                            </span>
-                            <span className="text-neutral-500">
-                              {" "}на {offers} складах
-                            </span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                    <div className="text-xs text-neutral-500 mt-2">
-                      В строках ниже указаны цена, срок и остаток конкретного
-                      склада.
-                    </div>
-                  </div>
-                )}
-
                 {/* Mobile: панель сортировки (пилюли) */}
                 {product.offers.length > 1 && (
                   <div className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-neutral-800 overflow-x-auto">
@@ -811,7 +778,23 @@ export default function ProductClient({
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
-                        <span>{offer.quantity} шт.</span>
+                        <span>
+                          {offer.quantity} шт.
+                          {(() => {
+                            const warehouseName =
+                              offer.warehouse?.name || "Склад";
+                            const summary =
+                              stockByPublicWarehouse.get(warehouseName);
+                            return summary &&
+                              summary.offers > 1 &&
+                              firstVisibleWarehouseOffer.get(warehouseName) ===
+                                index ? (
+                              <span className="ml-1 text-green-400">
+                                ({summary.quantity} шт. всего)
+                              </span>
+                            ) : null;
+                          })()}
+                        </span>
                         <span>{formatDeliveryDays(offer.average_period)}</span>
                         <span className="inline-flex items-center gap-1">
                           <span
@@ -930,10 +913,27 @@ export default function ProductClient({
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm text-neutral-300">
-                            {offer.quantity} шт.
-                            {offer.available_more && (
-                              <span className="text-green-400 ml-1">+</span>
-                            )}
+                            <div>
+                              {offer.quantity} шт.
+                              {offer.available_more && (
+                                <span className="text-green-400 ml-1">+</span>
+                              )}
+                            </div>
+                            {(() => {
+                              const warehouseName =
+                                offer.warehouse?.name || "Склад";
+                              const summary =
+                                stockByPublicWarehouse.get(warehouseName);
+                              return summary &&
+                                summary.offers > 1 &&
+                                firstVisibleWarehouseOffer.get(
+                                  warehouseName
+                                ) === index ? (
+                                <div className="mt-0.5 text-xs text-green-400">
+                                  {summary.quantity} шт. всего
+                                </div>
+                              ) : null;
+                            })()}
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-white">
                             {offer.price.toLocaleString("ru-RU")} ₽

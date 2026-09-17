@@ -12,6 +12,7 @@ import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import { isProductInSeoWave } from "@/lib/seo/product-wave";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
+import { findLiveProductGroup } from "@/lib/suppliers/live-product-group";
 import {
   buildProductSeoTitle,
   getSafeProductName,
@@ -31,25 +32,19 @@ import {
 const SEO_SHELL_DB_TIMEOUT_MS = 500;
 
 const getShell = cache(
-  async (
-    rawArticle: string,
-    brand: string,
-    snapshotOnly = false
-  ): Promise<ProductShell> => {
+  async (rawArticle: string, brand: string): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
       const isPriorityProduct = isProductInSeoWave(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
-      const localGroupPromise = snapshotOnly && seoSnapshot
-        ? Promise.resolve(null)
-        : findDbProductGroup(article, brand, {
-            aggregateFreshOffers: isPriorityProduct,
-            aggregateNames: true,
-          }).catch(() => null);
+      const localGroupPromise = findDbProductGroup(article, brand, {
+        aggregateFreshOffers: isPriorityProduct,
+        aggregateNames: true,
+      }).catch(() => null);
       // Для индексируемой карточки имя и минимальная цена уже есть в локальном
       // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
-      const localGroup = seoSnapshot && !snapshotOnly
+      const localGroup = seoSnapshot
         ? await Promise.race([
             localGroupPromise,
             new Promise<null>((resolve) =>
@@ -57,11 +52,23 @@ const getShell = cache(
             ),
           ])
         : await localGroupPromise;
-      // Серверный HTML использует только локальные данные. Свежие предложения,
-      // название и фото для отсутствующей в БД карточки штатно загрузит
-      // ProductClient через кешируемый /api/product/[article]. Здесь нельзя
-      // запускать повторный живой опрос всех поставщиков.
-      const sourceGroup = localGroup;
+      // Карточки, которых нет ни в SEO-снимке, ни в локальном каталоге, раньше
+      // получали в исходном HTML заглушки «Запчасть ...». Для явного брендового
+      // URL один раз получаем реальную группу поставщиков на сервере. Один и тот
+      // же cache-вызов используют generateMetadata и страница, поэтому Title,
+      // Description и H1 строятся из одной идентичности без двойного SSR-опроса.
+      const needsLiveGroup =
+        Boolean(brand.trim()) &&
+        !seoSnapshot &&
+        !isUsableProductName(
+          localGroup?.name,
+          localGroup?.article || article,
+          localGroup?.brand || brand
+        );
+      const liveGroup = needsLiveGroup
+        ? await findLiveProductGroup(article, brand).catch(() => null)
+        : null;
+      const sourceGroup = liveGroup ?? localGroup;
       const group = seoSnapshot
         ? {
             ...(sourceGroup ?? {
@@ -107,7 +114,7 @@ const getShell = cache(
         name: group.name ?? null,
         imageUrl: enriched?.imageUrl ?? null,
         group,
-        seoResolved: Boolean(seoSnapshot),
+        seoResolved: Boolean(seoSnapshot || liveGroup),
         seoMinimumPrice: seoSnapshot?.minPrice ?? null,
       };
     } catch {
@@ -147,9 +154,9 @@ export async function generateMetadata({
   const { id } = await params;
   const sp = await searchParams;
   const brand = typeof sp.brand === "string" ? sp.brand : "";
-  // Для метатегов индексируемых карточек достаточно стабильного SEO-снимка.
-  // Не повторяем здесь запрос удалённой БД, который страница выполнит отдельно.
-  const shell = await getShell(id, brand, true);
+  // getShell мемоизирован и используется также самой страницей: метатеги и H1
+  // получают одну и ту же серверную идентичность товара.
+  const shell = await getShell(id, brand);
 
   // Суффикс « | BroCar» добавляет шаблон title в layout — здесь бренд НЕ дописываем
   // (раньше дублировался: «… | Brocar | BroCar»).
@@ -188,9 +195,10 @@ export async function generateMetadata({
     // some real products are confirmed only by the live supplier lookup. An
     // unconfirmed brandless URL is still usable, but must not create an
     // indexable page for an arbitrary article.
-    robots: shell.group || brand.trim()
-      ? { index: true, follow: true }
-      : { index: false, follow: true },
+    robots:
+      shell.group || brand.trim()
+        ? { index: true, follow: true }
+        : { index: false, follow: true },
     openGraph: {
       title,
       description,

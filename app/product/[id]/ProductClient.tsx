@@ -68,6 +68,8 @@ import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { seedProductImageCache } from "@/lib/hooks/useProductImage";
 import { LaximoCrosses } from "@/components/product/LaximoCrosses";
 
+const AUTOTRADE_PUBLIC_WAREHOUSE = "VEGA 6";
+
 /** Статичный «шелл» карточки, отрендеренный на сервере (RSC) — попадает в первый HTML. */
 export interface ProductShell {
   article: string;
@@ -425,18 +427,16 @@ export default function ProductClient({
     (sum, offer) => sum + offer.quantity,
     0
   );
-  // Несколько физических складов одного поставщика намеренно показываются под
-  // общим публичным именем VEGA N. Офферы не объединяем: срок и доступное к
-  // заказу количество у каждого физического склада свои. Общий остаток выводим
-  // только компактной подписью в первой видимой строке этого поставщика.
-  const stockByPublicWarehouse = availableOffers.reduce((summary, offer) => {
-    const warehouseName = offer.warehouse?.name || "Склад";
-    const current = summary.get(warehouseName) ?? { quantity: 0, offers: 0 };
-    current.quantity += offer.quantity;
-    current.offers += 1;
-    summary.set(warehouseName, current);
-    return summary;
-  }, new Map<string, { quantity: number; offers: number }>());
+  // VEGA 6 объединяет несколько физических складов Autotrade. В строке
+  // сохраняем остаток конкретного склада и срок доставки, а рядом показываем
+  // только общий остаток VEGA 6, о котором сообщил клиент.
+  const autotradeOffers = availableOffers.filter(
+    (offer) => offer.warehouse?.name === AUTOTRADE_PUBLIC_WAREHOUSE
+  );
+  const autotradeTotalStock = autotradeOffers.reduce(
+    (sum, offer) => sum + offer.quantity,
+    0
+  );
   const minPrice = availableOffers.length
     ? Math.min(...availableOffers.map((o) => o.price))
     : null;
@@ -464,13 +464,9 @@ export default function ProductClient({
       visibleOffers = [...visibleOffers, cheapestOffer];
     }
   }
-  const firstVisibleWarehouseOffer = new Map<string, number>();
-  visibleOffers.forEach((offer, index) => {
-    const warehouseName = offer.warehouse?.name || "Склад";
-    if (!firstVisibleWarehouseOffer.has(warehouseName)) {
-      firstVisibleWarehouseOffer.set(warehouseName, index);
-    }
-  });
+  const firstVisibleAutotradeOfferIndex = visibleOffers.findIndex(
+    (offer) => offer.warehouse?.name === AUTOTRADE_PUBLIC_WAREHOUSE
+  );
 
   // Клик по заголовку/пилюле: тот же столбец → переключить направление,
   // другой → выбрать его с дефолтным направлением.
@@ -780,20 +776,12 @@ export default function ProductClient({
                       <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
                         <span>
                           {offer.quantity} шт.
-                          {(() => {
-                            const warehouseName =
-                              offer.warehouse?.name || "Склад";
-                            const summary =
-                              stockByPublicWarehouse.get(warehouseName);
-                            return summary &&
-                              summary.offers > 1 &&
-                              firstVisibleWarehouseOffer.get(warehouseName) ===
-                                index ? (
+                          {autotradeOffers.length > 1 &&
+                            firstVisibleAutotradeOfferIndex === index && (
                               <span className="ml-1 text-green-400">
-                                ({summary.quantity} шт. всего)
+                                ({autotradeTotalStock} шт. всего)
                               </span>
-                            ) : null;
-                          })()}
+                            )}
                         </span>
                         <span>{formatDeliveryDays(offer.average_period)}</span>
                         <span className="inline-flex items-center gap-1">
@@ -919,21 +907,12 @@ export default function ProductClient({
                                 <span className="text-green-400 ml-1">+</span>
                               )}
                             </div>
-                            {(() => {
-                              const warehouseName =
-                                offer.warehouse?.name || "Склад";
-                              const summary =
-                                stockByPublicWarehouse.get(warehouseName);
-                              return summary &&
-                                summary.offers > 1 &&
-                                firstVisibleWarehouseOffer.get(
-                                  warehouseName
-                                ) === index ? (
+                            {autotradeOffers.length > 1 &&
+                              firstVisibleAutotradeOfferIndex === index && (
                                 <div className="mt-0.5 text-xs text-green-400">
-                                  {summary.quantity} шт. всего
+                                  {autotradeTotalStock} шт. всего
                                 </div>
-                              ) : null;
-                            })()}
+                              )}
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-white">
                             {offer.price.toLocaleString("ru-RU")} ₽

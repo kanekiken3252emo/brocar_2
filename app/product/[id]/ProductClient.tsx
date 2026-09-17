@@ -425,6 +425,25 @@ export default function ProductClient({
     (sum, offer) => sum + offer.quantity,
     0
   );
+  // Несколько физических складов одного поставщика намеренно показываются под
+  // общим публичным именем VEGA N. Раньше покупатель видел остаток только одной
+  // строки (например, VEGA 6 - 23 шт.) и принимал его за общий остаток
+  // поставщика. Суммарное наличие показываем отдельно, не объединяя офферы:
+  // цена, срок и доступное к заказу количество у каждого склада свои.
+  const stockByPublicWarehouse = availableOffers.reduce(
+    (summary, offer) => {
+      const warehouseName = offer.warehouse?.name || "Склад";
+      const current = summary.get(warehouseName) ?? { quantity: 0, offers: 0 };
+      current.quantity += offer.quantity;
+      current.offers += 1;
+      summary.set(warehouseName, current);
+      return summary;
+    },
+    new Map<string, { quantity: number; offers: number }>()
+  );
+  const multiWarehouseStock = Array.from(stockByPublicWarehouse.entries())
+    .filter(([, summary]) => summary.offers > 1)
+    .map(([warehouseName, summary]) => ({ warehouseName, ...summary }));
   const minPrice = availableOffers.length
     ? Math.min(...availableOffers.map((o) => o.price))
     : null;
@@ -711,6 +730,39 @@ export default function ProductClient({
             </button>
             {!offersCollapsed && (
               <>
+                {multiWarehouseStock.length > 0 && (
+                  <div className="px-4 md:px-6 py-3 border-b border-neutral-800 bg-neutral-800/20">
+                    <div className="text-xs text-neutral-500 mb-2">
+                      Общее наличие у поставщиков
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {multiWarehouseStock.map(
+                        ({ warehouseName, quantity, offers }) => (
+                          <div
+                            key={warehouseName}
+                            className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-300"
+                          >
+                            <span className="font-medium text-white">
+                              {warehouseName}
+                            </span>
+                            {" - "}
+                            <span className="font-semibold text-green-400">
+                              {quantity} шт.
+                            </span>
+                            <span className="text-neutral-500">
+                              {" "}на {offers} складах
+                            </span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                    <div className="text-xs text-neutral-500 mt-2">
+                      В строках ниже указаны цена, срок и остаток конкретного
+                      склада.
+                    </div>
+                  </div>
+                )}
+
                 {/* Mobile: панель сортировки (пилюли) */}
                 {product.offers.length > 1 && (
                   <div className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-neutral-800 overflow-x-auto">

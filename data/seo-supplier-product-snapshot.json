@@ -1,0 +1,21 @@
+{
+  "source": "Verified supplier-only BroCar product identities",
+  "products": [
+    {
+      "article": "4806860030",
+      "requestedBrand": "Toyota/Lexus",
+      "brand": "Toyota/Lexus",
+      "name": "Рычаг подвески Toyota Land Cruiser (J200) 07-21 / Lexus LX 07-23 (Справа)",
+      "minPrice": 40429,
+      "sourceUrl": "https://brocarparts.ru/product/4806860030?brand=Toyota%2FLexus"
+    },
+    {
+      "article": "4242334040",
+      "requestedBrand": "Toyota/Lexus",
+      "brand": "Toyota/Lexus",
+      "name": "кольцо подшипника приводного вала Toyota Land Cruiser 200 07>",
+      "minPrice": 1867,
+      "sourceUrl": "https://brocarparts.ru/product/4242334040?brand=Toyota%2FLexus"
+    }
+  ]
+}

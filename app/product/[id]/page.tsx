@@ -12,7 +12,6 @@ import { normalizeArticle } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import { isProductInSeoWave } from "@/lib/seo/product-wave";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
-import { findLiveProductGroup } from "@/lib/suppliers/live-product-group";
 import {
   buildProductSeoTitle,
   getSafeProductName,
@@ -52,23 +51,11 @@ const getShell = cache(
             ),
           ])
         : await localGroupPromise;
-      // Карточки, которых нет ни в SEO-снимке, ни в локальном каталоге, раньше
-      // получали в исходном HTML заглушки «Запчасть ...». Для явного брендового
-      // URL один раз получаем реальную группу поставщиков на сервере. Один и тот
-      // же cache-вызов используют generateMetadata и страница, поэтому Title,
-      // Description и H1 строятся из одной идентичности без двойного SSR-опроса.
-      const needsLiveGroup =
-        Boolean(brand.trim()) &&
-        !seoSnapshot &&
-        !isUsableProductName(
-          localGroup?.name,
-          localGroup?.article || article,
-          localGroup?.brand || brand
-        );
-      const liveGroup = needsLiveGroup
-        ? await findLiveProductGroup(article, brand).catch(() => null)
-        : null;
-      const sourceGroup = liveGroup ?? localGroup;
+      // Серверный HTML использует только локальные данные. Живой опрос семи
+      // поставщиков выполняет клиентский /api/product/[article]; запускать его
+      // ещё раз из generateMetadata/RSC нельзя, иначе открытие карточки ждёт
+      // внешний API и создаёт повторную очередь запросов Autotrade.
+      const sourceGroup = localGroup;
       const group = seoSnapshot
         ? {
             ...(sourceGroup ?? {
@@ -114,7 +101,7 @@ const getShell = cache(
         name: group.name ?? null,
         imageUrl: enriched?.imageUrl ?? null,
         group,
-        seoResolved: Boolean(seoSnapshot || liveGroup),
+        seoResolved: Boolean(seoSnapshot),
         seoMinimumPrice: seoSnapshot?.minPrice ?? null,
       };
     } catch {

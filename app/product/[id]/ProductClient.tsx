@@ -68,8 +68,6 @@ import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { seedProductImageCache } from "@/lib/hooks/useProductImage";
 import { LaximoCrosses } from "@/components/product/LaximoCrosses";
 
-const AUTOTRADE_PUBLIC_WAREHOUSE = "VEGA 6";
-
 /** Статичный «шелл» карточки, отрендеренный на сервере (RSC) — попадает в первый HTML. */
 export interface ProductShell {
   article: string;
@@ -427,16 +425,6 @@ export default function ProductClient({
     (sum, offer) => sum + offer.quantity,
     0
   );
-  // VEGA 6 объединяет несколько физических складов Autotrade. В строке
-  // сохраняем остаток конкретного склада и срок доставки, а рядом показываем
-  // только общий остаток VEGA 6, о котором сообщил клиент.
-  const autotradeOffers = availableOffers.filter(
-    (offer) => offer.warehouse?.name === AUTOTRADE_PUBLIC_WAREHOUSE
-  );
-  const autotradeTotalStock = autotradeOffers.reduce(
-    (sum, offer) => sum + offer.quantity,
-    0
-  );
   const minPrice = availableOffers.length
     ? Math.min(...availableOffers.map((o) => o.price))
     : null;
@@ -464,10 +452,6 @@ export default function ProductClient({
       visibleOffers = [...visibleOffers, cheapestOffer];
     }
   }
-  const firstVisibleAutotradeOfferIndex = visibleOffers.findIndex(
-    (offer) => offer.warehouse?.name === AUTOTRADE_PUBLIC_WAREHOUSE
-  );
-
   // Клик по заголовку/пилюле: тот же столбец → переключить направление,
   // другой → выбрать его с дефолтным направлением.
   function toggleSort(key: SortField, defaultDir: "asc" | "desc") {
@@ -774,15 +758,7 @@ export default function ProductClient({
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
-                        <span>
-                          {offer.quantity} шт.
-                          {autotradeOffers.length > 1 &&
-                            firstVisibleAutotradeOfferIndex === index && (
-                              <span className="ml-1 text-green-400">
-                                ({autotradeTotalStock} шт. всего)
-                              </span>
-                            )}
-                        </span>
+                        <span>{offer.quantity} шт.</span>
                         <span>{formatDeliveryDays(offer.average_period)}</span>
                         <span className="inline-flex items-center gap-1">
                           <span
@@ -901,18 +877,10 @@ export default function ProductClient({
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm text-neutral-300">
-                            <div>
-                              {offer.quantity} шт.
-                              {offer.available_more && (
-                                <span className="text-green-400 ml-1">+</span>
-                              )}
-                            </div>
-                            {autotradeOffers.length > 1 &&
-                              firstVisibleAutotradeOfferIndex === index && (
-                                <div className="mt-0.5 text-xs text-green-400">
-                                  {autotradeTotalStock} шт. всего
-                                </div>
-                              )}
+                            {offer.quantity} шт.
+                            {offer.available_more && (
+                              <span className="text-green-400 ml-1">+</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-white">
                             {offer.price.toLocaleString("ru-RU")} ₽

@@ -7,6 +7,7 @@ import {
   dedupeGroups,
   isValidPrice,
   MAX_PLAUSIBLE_PRICE,
+  toPublicSupplierGroup,
 } from "@/lib/suppliers/adapter";
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { enrichGroupsWithImages } from "@/lib/product-images";
@@ -209,7 +210,7 @@ async function getHandler(
         slug: carBrand,
         title: meta?.title ?? carBrand,
         category: category ?? null,
-        groups: enriched,
+        groups: enriched.map(toPublicSupplierGroup),
         count,
         limit,
         offset,

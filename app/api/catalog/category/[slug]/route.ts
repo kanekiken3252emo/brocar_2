@@ -7,6 +7,7 @@ import {
   dedupeGroups,
   isValidPrice,
   MAX_PLAUSIBLE_PRICE,
+  toPublicSupplierGroup,
 } from "@/lib/suppliers/adapter";
 import { getCategoryMeta } from "@/lib/catalog/classifier";
 import {
@@ -297,7 +298,7 @@ async function getHandler(
         slug,
         title: meta?.title ?? slug,
         description: meta?.description ?? null,
-        groups: enriched,
+        groups: enriched.map(toPublicSupplierGroup),
         count,
         limit,
         offset,

@@ -6,6 +6,7 @@ import {
   mergeFamilyGroups,
   compareGroupsByDelivery,
   normalizeArticle,
+  toPublicSupplierGroup,
   type SupplierGroup,
   type SupplierItem,
 } from "@/lib/suppliers/adapter";
@@ -74,7 +75,9 @@ async function getHandler(
         { article: decoded, preferredBrand: brand, withCrosses: true },
         9000
       ).catch(() => [] as SupplierItem[]),
-      (shateMAdapter as ShateMAdapter).findArticleId(decoded, brand).catch(() => null),
+      (shateMAdapter as ShateMAdapter)
+        .findArticleId(decoded, brand)
+        .catch(() => null),
     ]);
 
     const pricing = (base: number, ctx: { brand?: string }) =>
@@ -100,8 +103,8 @@ async function getHandler(
     // главной НЕ подменяем (чужой бренд с тем же артикулом уйдёт в аналоги).
     let mainGroup: SupplierGroup | null =
       (wantedBrandKey
-        ? sameArticle.find((g) => brandKey(g.brand) === wantedBrandKey) ??
-          sameArticle.find((g) => sameBrandFamily(g.brand, brand))
+        ? (sameArticle.find((g) => brandKey(g.brand) === wantedBrandKey) ??
+          sameArticle.find((g) => sameBrandFamily(g.brand, brand)))
         : sameArticle[0]) ?? null;
 
     // Поставщики ничего не дали — пробуем каталог из БД (ручные/тестовые товары).
@@ -191,11 +194,11 @@ async function getHandler(
     }
 
     const response: ProductDetailResponse = {
-      group: enrichedMain,
+      group: enrichedMain ? toPublicSupplierGroup(enrichedMain) : null,
       characteristics,
       originals,
-      originalReplacements,
-      analogs,
+      originalReplacements: originalReplacements.map(toPublicSupplierGroup),
+      analogs: analogs.map(toPublicSupplierGroup),
     };
 
     return NextResponse.json(response, {

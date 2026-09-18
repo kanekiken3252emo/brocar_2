@@ -189,8 +189,17 @@ export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
     };
     const existing = buckets.get(key);
     if (!existing) {
-      buckets.set(key, { ...offer, fulfillment: [part] });
+      buckets.set(key, { ...offer, fulfillment: undefined });
       continue;
+    }
+    if (!existing.fulfillment) {
+      existing.fulfillment = [
+        {
+          supplier: existing.supplier,
+          stock: existing.stock,
+          sourceOfferId: existing.sourceOfferId,
+        },
+      ];
     }
     existing.stock += offer.stock;
     existing.price = Math.min(existing.price, offer.price);
@@ -199,6 +208,23 @@ export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
   }
 
   return Array.from(buckets.values()).sort(compareOffers);
+}
+
+/** Убирает внутренние ID поставщиков перед сериализацией в браузер. */
+export function toPublicSupplierGroup(group: SupplierGroup): SupplierGroup {
+  return {
+    ...group,
+    offers: group.offers.map((offer) => {
+      const publicOffer = { ...offer };
+      delete publicOffer.sourceOfferId;
+      publicOffer.fulfillment = offer.fulfillment?.map((part) => {
+        const publicPart = { ...part };
+        delete publicPart.sourceOfferId;
+        return publicPart;
+      });
+      return publicOffer;
+    }),
+  };
 }
 
 function recomputeGroup(group: SupplierGroup): SupplierGroup {

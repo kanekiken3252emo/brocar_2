@@ -92,13 +92,8 @@ export interface ProductShell {
  */
 function offerKey(o: BergOffer): string {
   return (
-    o.sourceOfferId ||
-    o.fulfillment
-      ?.map((part) => part.sourceOfferId || part.supplier)
-      .join("|") ||
-    o.warehouse?.name ||
-    o.supplier ||
-    ""
+    o.fulfillment?.map((part) => part.supplier).join("|") ||
+    `${o.supplierCode || o.warehouse?.name || o.supplier || ""}|${o.price}|${o.average_period}`
   );
 }
 
@@ -126,7 +121,6 @@ function groupToBergResource(g: SupplierGroup): BergResource {
     warehouse: { id: 0, name: getVegaName(o.supplierCode), type: 1 },
     supplier: o.supplier,
     supplierCode: o.supplierCode,
-    sourceOfferId: o.sourceOfferId,
     fulfillment: o.fulfillment,
   }));
   return {

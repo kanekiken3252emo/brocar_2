@@ -7,6 +7,7 @@ import {
   dedupeGroups,
   isValidPrice,
   normalizeArticle as normArticleKey,
+  toPublicSupplierGroup,
 } from "@/lib/suppliers/adapter";
 import { lookupCachedBatch } from "@/lib/product-images";
 import { CACHE_LISTING } from "@/lib/http-cache";
@@ -330,7 +331,7 @@ async function getHandler(request: NextRequest) {
     return NextResponse.json(
       {
         q,
-        groups: enriched,
+        groups: enriched.map(toPublicSupplierGroup),
         count: enriched.length,
         mode,
         limit,

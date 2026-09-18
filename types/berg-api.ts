@@ -58,11 +58,9 @@ export interface BergOffer {
   // для всех поставщиков). Нужно для письма магазину; покупателю не показывается.
   supplier?: string;
   supplierCode?: string;
-  sourceOfferId?: string;
   fulfillment?: Array<{
     supplier: string;
     stock: number;
-    sourceOfferId?: string;
   }>;
 }
 

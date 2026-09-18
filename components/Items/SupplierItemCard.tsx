@@ -58,6 +58,8 @@ export default function SupplierItemCard({
         stock: bestOffer.stock,
         deliveryDays: bestOffer.deliveryDays,
         supplier: buildSupplierAllocation(bestOffer, 1),
+        supplierCode: bestOffer.supplierCode,
+        fulfillment: bestOffer.fulfillment,
       });
     } catch (err: any) {
       window.dispatchEvent(

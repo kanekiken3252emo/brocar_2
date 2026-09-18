@@ -3,11 +3,12 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { carts, cartItems, products } from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, like } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { generateSessionId } from "@/lib/utils";
 import { validatePromo, discountAmount } from "@/lib/promo";
 import { isReturnableSupplier } from "@/lib/suppliers/returns";
+import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 
 const addToCartSchema = z.object({
   action: z.enum(["add", "remove", "update"]),
@@ -30,6 +31,20 @@ const addFromSupplierSchema = z.object({
   qty: z.number().int().min(1).optional().default(1),
   deliveryDays: z.number().int().nullable().optional(),
   supplier: z.string().nullable().optional(),
+  supplierCode: z
+    .string()
+    .regex(/^[a-z0-9-]+$/i)
+    .max(64)
+    .optional(),
+  fulfillment: z
+    .array(
+      z.object({
+        supplier: z.string().min(1),
+        stock: z.number().int().min(1),
+      })
+    )
+    .max(100)
+    .optional(),
 });
 
 async function upsertProductByArticle(input: {
@@ -84,6 +99,16 @@ async function mergeCartItems(fromCartId: number, toCartId: number) {
     where: eq(cartItems.cartId, fromCartId),
   });
   for (const it of fromItems) {
+    // Маршрутные строки уже содержат распределение конкретного количества по
+    // складам. При слиянии гостевой и пользовательской корзин не складываем их
+    // вслепую: переносим отдельными строками и сохраняем оба верных маршрута.
+    if (it.supplier?.includes(" [offer:")) {
+      await db
+        .update(cartItems)
+        .set({ cartId: toCartId })
+        .where(eq(cartItems.id, it.id));
+      continue;
+    }
     const priceCondition =
       it.price == null
         ? isNull(cartItems.price)
@@ -347,6 +372,31 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
+      const supplier = data.supplier ?? null;
+      const routeSuffix = data.supplierCode
+        ? ` [offer:${data.supplierCode.toLowerCase()}]`
+        : "";
+      const routeParts = data.fulfillment?.length
+        ? data.fulfillment
+        : supplier
+          ? [{ supplier, stock: data.stock }]
+          : undefined;
+      if (
+        routeParts &&
+        routeParts.reduce((sum, part) => sum + part.stock, 0) !== data.stock
+      ) {
+        return NextResponse.json(
+          { error: "Некорректная разбивка остатка по складам" },
+          { status: 400 }
+        );
+      }
+      const supplierSnapshot = (qty: number) =>
+        supplier
+          ? `${buildSupplierAllocation(
+              { supplier, stock: data.stock, fulfillment: routeParts },
+              qty
+            )}${routeSuffix}`
+          : null;
       const cart = await getOrCreateCart(user?.id || null, sessionId!);
 
       const productId = await upsertProductByArticle({
@@ -363,7 +413,6 @@ export async function POST(request: NextRequest) {
       // ОТДЕЛЬНОЙ строкой — иначе 400 + 100 затирались бы в 2×100.
       const priceSnapshot = data.ourPrice.toFixed(2);
       const deliveryDays = data.deliveryDays ?? null;
-      const supplier = data.supplier ?? null;
 
       const existingItem = await db.query.cartItems.findFirst({
         where: and(
@@ -373,9 +422,11 @@ export async function POST(request: NextRequest) {
           deliveryDays == null
             ? isNull(cartItems.deliveryDays)
             : eq(cartItems.deliveryDays, deliveryDays),
-          supplier == null
-            ? isNull(cartItems.supplier)
-            : eq(cartItems.supplier, supplier)
+          routeSuffix
+            ? like(cartItems.supplier, `%${routeSuffix}`)
+            : supplier == null
+              ? isNull(cartItems.supplier)
+              : eq(cartItems.supplier, supplier)
         ),
       });
 
@@ -393,6 +444,7 @@ export async function POST(request: NextRequest) {
           .update(cartItems)
           .set({
             qty: existingItem.qty + data.qty,
+            supplier: supplierSnapshot(existingItem.qty + data.qty),
           })
           .where(eq(cartItems.id, existingItem.id));
       } else {
@@ -402,7 +454,7 @@ export async function POST(request: NextRequest) {
           qty: data.qty,
           price: priceSnapshot,
           deliveryDays,
-          supplier,
+          supplier: supplierSnapshot(data.qty),
         });
       }
 

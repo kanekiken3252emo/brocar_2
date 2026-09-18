@@ -47,6 +47,8 @@ export async function addOfferToCart(
       stock: offer.stock,
       deliveryDays: offer.deliveryDays,
       supplier: buildSupplierAllocation(offer, 1),
+      supplierCode: offer.supplierCode,
+      fulfillment: offer.fulfillment,
     });
   } catch (err: any) {
     window.dispatchEvent(

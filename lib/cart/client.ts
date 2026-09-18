@@ -10,6 +10,8 @@ export interface AddSupplierItemParams {
   deliveryDays?: number | null;
   /** Реальный поставщик/склад (для письма магазину). Покупателю не показывается. */
   supplier?: string | null;
+  supplierCode?: string;
+  fulfillment?: Array<{ supplier: string; stock: number }>;
 }
 
 export async function addSupplierItemToCart(
@@ -29,6 +31,8 @@ export async function addSupplierItemToCart(
       qty: params.qty ?? 1,
       deliveryDays: params.deliveryDays ?? null,
       supplier: params.supplier ?? null,
+      supplierCode: params.supplierCode,
+      fulfillment: params.fulfillment,
     }),
   });
 

@@ -359,6 +359,8 @@ export default function ProductClient({
           },
           qty
         ),
+        supplierCode: offer.supplierCode,
+        fulfillment: offer.fulfillment,
       });
     } catch (err: any) {
       window.dispatchEvent(

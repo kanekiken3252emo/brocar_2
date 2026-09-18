@@ -145,7 +145,11 @@ export class ShateMAdapter implements SupplierAdapter {
             : undefined,
       });
 
-      const list = Array.isArray(resp.data) ? resp.data : resp.data ? [resp.data] : [];
+      const list = Array.isArray(resp.data)
+        ? resp.data
+        : resp.data
+          ? [resp.data]
+          : [];
       const targetCode = normalizeKey(code);
 
       // 1. Точный матч code+brand (бренды нормализованно: «GENERAL MOTORS» ≈
@@ -216,7 +220,10 @@ export class ShateMAdapter implements SupplierAdapter {
       return resp.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        console.error("ShATE-M getArticleDetails error:", error.response?.status);
+        console.error(
+          "ShATE-M getArticleDetails error:",
+          error.response?.status
+        );
       }
       return null;
     }
@@ -242,7 +249,10 @@ export class ShateMAdapter implements SupplierAdapter {
       return Array.isArray(resp.data?.contents) ? resp.data.contents : [];
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        console.error("ShATE-M getArticleContents error:", error.response?.status);
+        console.error(
+          "ShATE-M getArticleContents error:",
+          error.response?.status
+        );
       }
       // Пробрасываем: вызывающий (product-images.tryShateM) отличит «сбой API»
       // от «картинки нет» и не отравит negative-cache при таймауте ShATE-M.
@@ -397,8 +407,8 @@ export class ShateMAdapter implements SupplierAdapter {
       const allArticles: ShateArticleSearchItem[] = Array.isArray(data)
         ? data
         : data
-        ? [data]
-        : [];
+          ? [data]
+          : [];
 
       // ShATE-M ищет по подстроке: запрос `KE100 LFW/X` + TradeMarkNames=`XYG`
       // у них может вернуть товар `KE100` бренда MASUMA (clipsa), потому что
@@ -406,11 +416,7 @@ export class ShateMAdapter implements SupplierAdapter {
       // фильтруем по бренду на нашей стороне (если бренд передан).
       const articles = params.brand
         ? allArticles.filter((a) => {
-            const tm = (
-              a.article?.tradeMarkName ||
-              a.tradeMark?.name ||
-              ""
-            )
+            const tm = (a.article?.tradeMarkName || a.tradeMark?.name || "")
               .toLowerCase()
               .trim();
             return tm === params.brand!.toLowerCase().trim();
@@ -549,6 +555,7 @@ export class ShateMAdapter implements SupplierAdapter {
           supplier: `ShATE-M (${offer.locationCode || "склад"})`,
           supplierCode: "shate-m",
           deliveryDays,
+          sourceOfferId: `${p.article?.id ?? p.article?.code ?? "article"}|${offer.id ?? offer.locationCode ?? "offer"}`,
           raw: {
             articleId: p.article?.id,
             priceId: offer.id,

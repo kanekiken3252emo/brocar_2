@@ -75,20 +75,19 @@ export class ForumAutoAdapter implements SupplierAdapter {
     }
 
     try {
-      const response = await axios.get<ForumAutoGoodsItem[] | ForumAutoErrorResponse>(
-        `${this.baseUrl}/v2/listGoods`,
-        {
-          // 8 с — общий барьер searchAllSuppliers (adapter.ts).
-          timeout: 8000,
-          params: {
-            login: this.login,
-            pass: this.password,
-            art: params.article,
-            cross: this.cross,
-            ...(params.brand ? { br: params.brand } : {}),
-          },
-        }
-      );
+      const response = await axios.get<
+        ForumAutoGoodsItem[] | ForumAutoErrorResponse
+      >(`${this.baseUrl}/v2/listGoods`, {
+        // 8 с — общий барьер searchAllSuppliers (adapter.ts).
+        timeout: 8000,
+        params: {
+          login: this.login,
+          pass: this.password,
+          art: params.article,
+          cross: this.cross,
+          ...(params.brand ? { br: params.brand } : {}),
+        },
+      });
 
       const data = response.data;
 
@@ -115,8 +114,8 @@ export class ForumAutoAdapter implements SupplierAdapter {
           dDeliv > 0
             ? dDeliv
             : hDeliv > 0
-            ? Math.max(1, Math.ceil(hDeliv / 24))
-            : null;
+              ? Math.max(1, Math.ceil(hDeliv / 24))
+              : null;
 
         items.push({
           article: String(row.art || params.article),
@@ -127,6 +126,7 @@ export class ForumAutoAdapter implements SupplierAdapter {
           supplier: `Forum-Auto (${row.whse || "склад"})`,
           supplierCode: "forum-auto",
           deliveryDays,
+          sourceOfferId: `${row.gid ?? row.art ?? params.article}|${row.whse ?? "warehouse"}`,
           raw: {
             gid: row.gid,
             whse: row.whse,

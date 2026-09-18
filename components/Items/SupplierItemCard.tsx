@@ -5,6 +5,7 @@ import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { isValidPrice } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import ProductImage from "@/components/Items/ProductImage";
 import { formatDeliveryDays } from "@/lib/utils";
@@ -54,9 +55,9 @@ export default function SupplierItemCard({
         name: group.name,
         ourPrice: bestOffer.ourPrice,
         supplierPrice: bestOffer.price,
-        stock: group.totalStock,
+        stock: bestOffer.stock,
         deliveryDays: bestOffer.deliveryDays,
-        supplier: bestOffer.supplier,
+        supplier: buildSupplierAllocation(bestOffer, 1),
       });
     } catch (err: any) {
       window.dispatchEvent(

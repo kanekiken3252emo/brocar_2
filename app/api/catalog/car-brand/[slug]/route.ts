@@ -3,7 +3,11 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { eq, desc, asc, and, sql as dsql, inArray } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups, isValidPrice, MAX_PLAUSIBLE_PRICE } from "@/lib/suppliers/adapter";
+import {
+  dedupeGroups,
+  isValidPrice,
+  MAX_PLAUSIBLE_PRICE,
+} from "@/lib/suppliers/adapter";
 import { CAR_BRAND_META } from "@/lib/catalog/classifier";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { getVegaName } from "@/lib/vega-names";
@@ -171,6 +175,7 @@ async function getHandler(
           ourPrice: Number(s.ourPrice),
           stock: s.quantity,
           deliveryDays: s.deliveryDays ?? null,
+          sourceOfferId: `db-stock:${s.supplierCode}|${s.warehouseName}|${s.supplierPrice}|${s.deliveryDays ?? "null"}`,
         }))
         // Битый офер (NaN/мусор) при валидном товаре иначе обнулил бы minPrice
         // в null через Math.min(…, NaN) = NaN. См. роут категории.
@@ -199,17 +204,20 @@ async function getHandler(
     // N round-trip'ов к /api/product-image на рендере грида.
     const enriched = await enrichGroupsWithImages(dedupeGroups(groups));
 
-    return NextResponse.json({
-      slug: carBrand,
-      title: meta?.title ?? carBrand,
-      category: category ?? null,
-      groups: enriched,
-      count,
-      limit,
-      offset,
-      page: Math.floor(offset / limit) + 1,
-      availableBrands,
-    }, { headers: { "Cache-Control": CACHE_LISTING } });
+    return NextResponse.json(
+      {
+        slug: carBrand,
+        title: meta?.title ?? carBrand,
+        category: category ?? null,
+        groups: enriched,
+        count,
+        limit,
+        offset,
+        page: Math.floor(offset / limit) + 1,
+        availableBrands,
+      },
+      { headers: { "Cache-Control": CACHE_LISTING } }
+    );
   } catch (error) {
     console.error("Catalog car-brand route error:", error);
     return NextResponse.json(

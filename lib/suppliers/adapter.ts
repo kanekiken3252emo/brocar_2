@@ -18,7 +18,16 @@ export interface SupplierItem {
   supplier: string;
   supplierCode?: string;
   deliveryDays?: number | null;
+  /** Стабильный ID конкретного оффера/склада в системе поставщика. */
+  sourceOfferId?: string;
   raw?: unknown;
+}
+
+export interface SupplierFulfillmentPart {
+  /** Реальный поставщик и физический склад - только для внутреннего заказа. */
+  supplier: string;
+  stock: number;
+  sourceOfferId?: string;
 }
 
 /**
@@ -32,6 +41,9 @@ export interface SupplierOffer {
   ourPrice: number;
   stock: number;
   deliveryDays: number | null;
+  sourceOfferId?: string;
+  /** Разбивка объединённого публичного оффера по физическим складам. */
+  fulfillment?: SupplierFulfillmentPart[];
 }
 
 /**
@@ -124,6 +136,84 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
   return a.ourPrice - b.ourPrice; // при равном сроке дешевле — выше
 }
 
+function atomicOffers(offer: SupplierOffer): SupplierOffer[] {
+  if (!offer.fulfillment?.length) return [offer];
+  return offer.fulfillment.map((part) => ({
+    ...offer,
+    supplier: part.supplier,
+    stock: part.stock,
+    sourceOfferId: part.sourceOfferId,
+    fulfillment: undefined,
+  }));
+}
+
+/**
+ * Убирает один и тот же физический оффер, повторно пришедший через поиск/
+ * семейство брендов, а затем объединяет разные склады только когда покупателю
+ * показываются одинаковые поставщик, розничная цена и срок.
+ */
+export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
+  const exact = new Map<string, SupplierOffer>();
+
+  for (const offer of offers.flatMap(atomicOffers)) {
+    const supplierCode = offer.supplierCode || "unknown";
+    const exactKey = offer.sourceOfferId
+      ? `${supplierCode}|id:${offer.sourceOfferId}`
+      : `${supplierCode}|fallback:${offer.supplier}|${offer.price}|${offer.ourPrice}|${offer.deliveryDays ?? "null"}|${offer.stock}`;
+    const previous = exact.get(exactKey);
+    if (!previous) {
+      exact.set(exactKey, offer);
+      continue;
+    }
+
+    // Повтор одной записи не увеличивает остаток. Берём самый свежий/полный
+    // вариант: максимальный остаток, при равенстве - меньшую цену и срок.
+    const better =
+      offer.stock > previous.stock ||
+      (offer.stock === previous.stock && compareOffers(offer, previous) < 0)
+        ? offer
+        : previous;
+    exact.set(exactKey, {
+      ...better,
+      stock: Math.max(offer.stock, previous.stock),
+    });
+  }
+
+  const buckets = new Map<string, SupplierOffer>();
+  for (const offer of exact.values()) {
+    const key = `${offer.supplierCode}|${offer.ourPrice}|${offer.deliveryDays ?? "null"}`;
+    const part: SupplierFulfillmentPart = {
+      supplier: offer.supplier,
+      stock: offer.stock,
+      sourceOfferId: offer.sourceOfferId,
+    };
+    const existing = buckets.get(key);
+    if (!existing) {
+      buckets.set(key, { ...offer, fulfillment: [part] });
+      continue;
+    }
+    existing.stock += offer.stock;
+    existing.price = Math.min(existing.price, offer.price);
+    existing.fulfillment!.push(part);
+    existing.sourceOfferId = undefined;
+  }
+
+  return Array.from(buckets.values()).sort(compareOffers);
+}
+
+function recomputeGroup(group: SupplierGroup): SupplierGroup {
+  group.offers = consolidateOffers(group.offers);
+  const prices = group.offers.map((offer) => offer.ourPrice);
+  group.minPrice = Math.min(...prices);
+  group.maxPrice = Math.max(...prices);
+  group.totalStock = group.offers.reduce((sum, offer) => sum + offer.stock, 0);
+  const deliveries = group.offers
+    .map((offer) => offer.deliveryDays)
+    .filter((days): days is number => days != null);
+  group.minDeliveryDays = deliveries.length ? Math.min(...deliveries) : null;
+  return group;
+}
+
 /**
  * Сортировка ТОВАРОВ (групп) для блока аналогов:
  * «в наличии → быстрее → дешевле». В отличие от предложений одного товара,
@@ -191,9 +281,7 @@ export function dedupeGroups(groups: SupplierGroup[]): SupplierGroup[] {
     if (!existing.imageUrl && g.imageUrl) existing.imageUrl = g.imageUrl;
   }
 
-  for (const g of map.values()) {
-    g.offers.sort(compareOffers);
-  }
+  for (const g of map.values()) recomputeGroup(g);
 
   return Array.from(map.values()).sort((a, b) => a.minPrice - b.minPrice);
 }
@@ -252,9 +340,7 @@ export function mergeFamilyGroups(groups: SupplierGroup[]): SupplierGroup[] {
     }
   }
 
-  for (const { g } of byKey.values()) {
-    g.offers.sort(compareOffers);
-  }
+  for (const { g } of byKey.values()) recomputeGroup(g);
   return out;
 }
 
@@ -332,6 +418,7 @@ export function groupOffers(
       ourPrice: applyMarkup(item.price, { brand }),
       stock: item.stock,
       deliveryDays: item.deliveryDays ?? null,
+      sourceOfferId: item.sourceOfferId,
     };
 
     const existing = groups.get(key);
@@ -362,9 +449,7 @@ export function groupOffers(
     }
   }
 
-  for (const group of groups.values()) {
-    group.offers.sort(compareOffers);
-  }
+  for (const group of groups.values()) recomputeGroup(group);
 
   return Array.from(groups.values()).sort((a, b) => a.minPrice - b.minPrice);
 }
@@ -397,7 +482,3 @@ export async function searchAllSuppliers(
   const results = await Promise.all(promises);
   return results.flat();
 }
-
-
-
-

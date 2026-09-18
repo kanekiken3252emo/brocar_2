@@ -59,8 +59,7 @@ export class ArmtekAdapter implements SupplierAdapter {
   private kunnrRg: string;
 
   constructor() {
-    this.baseUrl =
-      process.env.ARMTEK_API_URL || "http://ws.armtek.ru/api";
+    this.baseUrl = process.env.ARMTEK_API_URL || "http://ws.armtek.ru/api";
     this.login = process.env.ARMTEK_LOGIN || "";
     this.password = process.env.ARMTEK_PASSWORD || "";
     this.vkorg = process.env.ARMTEK_VKORG || "4000";
@@ -93,9 +92,9 @@ export class ArmtekAdapter implements SupplierAdapter {
         ...(params.brand ? { BRAND: params.brand } : {}),
       }).toString();
 
-      const auth = Buffer.from(
-        `${this.login}:${this.password}`
-      ).toString("base64");
+      const auth = Buffer.from(`${this.login}:${this.password}`).toString(
+        "base64"
+      );
 
       const response = await axios.post<ArmtekEnvelope<ArmtekSearchItem[]>>(
         `${this.baseUrl}/ws_search/search?format=json`,
@@ -140,6 +139,9 @@ export class ArmtekAdapter implements SupplierAdapter {
           supplier: `Armtek (${row.KEYZAK || "склад"})`,
           supplierCode: "armtek",
           deliveryDays: deliveryDaysFromDlvdt(row.DLVDT),
+          sourceOfferId: [row.ARTID, row.KEYZAK, row.PARNR, row.RDPRF]
+            .map((value) => String(value ?? ""))
+            .join("|"),
           raw: {
             artid: row.ARTID,
             keyzak: row.KEYZAK,
@@ -205,9 +207,9 @@ export class ArmtekAdapter implements SupplierAdapter {
         ...(serverBrand ? { BRAND: serverBrand } : {}),
       }).toString();
 
-      const auth = Buffer.from(
-        `${this.login}:${this.password}`
-      ).toString("base64");
+      const auth = Buffer.from(`${this.login}:${this.password}`).toString(
+        "base64"
+      );
 
       const response = await axios.post<ArmtekEnvelope<ArmtekSearchItem[]>>(
         `${this.baseUrl}/ws_search/search?format=json`,

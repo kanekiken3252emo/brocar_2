@@ -162,6 +162,7 @@ function parsePartBlock(partXml: string, items: SupplierItem[]): void {
     // Берём только обычные предложения (type=0) с ненулевым остатком
     if (count > 0 && price > 0 && type === "0") {
       const deliveryDays = delivery ? parseInt(delivery, 10) : null;
+      const stockId = extractTag(stockXml, "id");
       items.push({
         article: partnumber,
         brand,
@@ -171,8 +172,9 @@ function parsePartBlock(partXml: string, items: SupplierItem[]): void {
         supplier: `Rossko (${description})`,
         supplierCode: "rossko",
         deliveryDays,
+        sourceOfferId: `${brand}|${partnumber}|${stockId || description}`,
         raw: {
-          stock_id: extractTag(stockXml, "id"),
+          stock_id: stockId,
           delivery_days: delivery ? parseInt(delivery, 10) : null,
           multiplicity: parseInt(
             extractTag(stockXml, "multiplicity") || "1",

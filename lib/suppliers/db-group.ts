@@ -5,9 +5,11 @@ import { products, productStocks } from "@/lib/db/schema";
 import { getVegaName } from "@/lib/vega-names";
 import {
   compareOffers,
+  consolidateOffers,
   isValidPrice,
   normalizeArticle,
   type SupplierGroup,
+  type SupplierOffer,
 } from "@/lib/suppliers/adapter";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { sameBrandFamily } from "@/lib/brands/families.mjs";
@@ -98,7 +100,7 @@ export async function findDbProductGroup(
         .from(productStocks)
         .where(inArray(productStocks.productId, productIds));
 
-  const offers = stocks
+  let offers: SupplierOffer[] = stocks
     .map((s) => ({
       supplier: getVegaName(s.supplierCode) || s.warehouseName,
       supplierCode: s.supplierCode,
@@ -106,6 +108,7 @@ export async function findDbProductGroup(
       ourPrice: Number(s.ourPrice),
       stock: s.quantity,
       deliveryDays: s.deliveryDays ?? null,
+      sourceOfferId: `db-stock:${s.supplierCode}|${s.warehouseName}|${s.supplierPrice}|${s.deliveryDays ?? "null"}`,
     }))
     .filter(
       (offer) =>
@@ -128,11 +131,13 @@ export async function findDbProductGroup(
       ourPrice: Number(p.ourPrice),
       stock: p.stock,
       deliveryDays: null,
+      sourceOfferId: `db-product:${p.id}`,
     });
   }
 
   if (offers.length === 0) return null;
 
+  offers = consolidateOffers(offers);
   offers.sort(compareOffers);
   const prices = offers.map((o) => o.ourPrice);
   const deliveries = offers

@@ -132,6 +132,7 @@ export class PartKomAdapter implements SupplierAdapter {
           supplier: `ПартКом (${row.placement || "склад"})`,
           supplierCode: "partkom",
           deliveryDays: resolveDeliveryDays(row),
+          sourceOfferId: `${row.partId ?? row.number ?? params.article}|${row.providerId ?? "provider"}|${row.placementId ?? row.placement ?? "placement"}`,
           raw: {
             partId: row.partId,
             makerId: row.makerId,

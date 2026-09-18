@@ -57,6 +57,13 @@ export interface BergOffer {
   // Реальное имя поставщика/склада (этот тип переиспользуется как общий оффер
   // для всех поставщиков). Нужно для письма магазину; покупателю не показывается.
   supplier?: string;
+  supplierCode?: string;
+  sourceOfferId?: string;
+  fulfillment?: Array<{
+    supplier: string;
+    stock: number;
+    sourceOfferId?: string;
+  }>;
 }
 
 // Search Request
@@ -145,4 +152,3 @@ export interface BergOrderState {
   name: string;
   type: 0 | 1 | 2; // 0 - normal, 1 - initial, 2 - final
 }
-

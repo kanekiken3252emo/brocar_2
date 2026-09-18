@@ -62,6 +62,7 @@ function sortOffers(
 }
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
@@ -90,7 +91,15 @@ export interface ProductShell {
  * сохранить выбор пользователя, даже если живая цена отличается от сидированной.
  */
 function offerKey(o: BergOffer): string {
-  return o.warehouse?.name || o.supplier || "";
+  return (
+    o.sourceOfferId ||
+    o.fulfillment
+      ?.map((part) => part.sourceOfferId || part.supplier)
+      .join("|") ||
+    o.warehouse?.name ||
+    o.supplier ||
+    ""
+  );
 }
 
 interface Characteristic {
@@ -116,6 +125,9 @@ function groupToBergResource(g: SupplierGroup): BergResource {
     is_transit: false,
     warehouse: { id: 0, name: getVegaName(o.supplierCode), type: 1 },
     supplier: o.supplier,
+    supplierCode: o.supplierCode,
+    sourceOfferId: o.sourceOfferId,
+    fulfillment: o.fulfillment,
   }));
   return {
     id: 0,
@@ -345,7 +357,14 @@ export default function ProductClient({
         stock: offer.quantity,
         qty,
         deliveryDays: offer.average_period,
-        supplier: offer.supplier,
+        supplier: buildSupplierAllocation(
+          {
+            supplier: offer.supplier || "Поставщик",
+            stock: offer.quantity,
+            fulfillment: offer.fulfillment,
+          },
+          qty
+        ),
       });
     } catch (err: any) {
       window.dispatchEvent(
@@ -370,7 +389,10 @@ export default function ProductClient({
   const offerQty = (offer: BergOffer) => qtyByOffer[offerIndex(offer)] ?? 1;
   const changeQty = (offer: BergOffer, delta: number) => {
     const idx = offerIndex(offer);
-    setQtyByOffer((m) => ({ ...m, [idx]: Math.max(1, (m[idx] ?? 1) + delta) }));
+    setQtyByOffer((m) => ({
+      ...m,
+      [idx]: Math.min(offer.quantity, Math.max(1, (m[idx] ?? 1) + delta)),
+    }));
   };
 
   // Кнопка «В корзину» в строке предложения — кладёт ИМЕННО этот оффер в
@@ -805,7 +827,8 @@ export default function ProductClient({
                           <button
                             type="button"
                             onClick={() => changeQty(offer, 1)}
-                            className="w-8 h-9 flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
+                            disabled={offerQty(offer) >= offer.quantity}
+                            className="w-8 h-9 flex items-center justify-center text-neutral-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             aria-label="Увеличить"
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -945,7 +968,8 @@ export default function ProductClient({
                                 <button
                                   type="button"
                                   onClick={() => changeQty(offer, 1)}
-                                  className="w-7 h-8 flex items-center justify-center text-neutral-400 hover:text-white transition-colors"
+                                  disabled={offerQty(offer) >= offer.quantity}
+                                  className="w-7 h-8 flex items-center justify-center text-neutral-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                   aria-label="Увеличить"
                                 >
                                   <Plus className="h-3 w-3" />

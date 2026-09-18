@@ -5,7 +5,7 @@ import { sameBrandFamily } from "../brands/families.mjs";
 /**
  * Berg.ru API adapter
  * Documentation: https://api.berg.ru
- * 
+ *
  * Rate limits:
  * - 300 requests per minute
  * - 100,000 requests per day
@@ -35,7 +35,7 @@ export class BergAdapter implements SupplierAdapter {
       // Berg.ru API: GET /v1.0/ordering/get_stock
       // Documentation: https://api.berg.ru
       // Berg.ru requires specific URL format without encoding
-      
+
       // Build URL manually without encoding brackets.
       // analogs=1 — Berg добавляет в ответ заменители других брендов (кроссы).
       const requestStock = async (brandName?: string) => {
@@ -128,6 +128,7 @@ export class BergAdapter implements SupplierAdapter {
             supplier: `Berg (${offer.warehouse?.name || "склад"})`,
             supplierCode: "berg",
             deliveryDays: period,
+            sourceOfferId: `${resource.id}|${offer.warehouse?.id ?? "warehouse"}`,
             raw: {
               resource_id: resource.id,
               warehouse_id: offer.warehouse?.id,
@@ -159,10 +160,14 @@ export class BergAdapter implements SupplierAdapter {
       if (axios.isAxiosError(error)) {
         // Handle rate limiting (429 Too Many Requests)
         if (error.response?.status === 429) {
-          console.error("Berg.ru API: Rate limit exceeded (300/min or 100k/day)");
+          console.error(
+            "Berg.ru API: Rate limit exceeded (300/min or 100k/day)"
+          );
         } else if (error.response?.status === 300) {
           // 300 Multiple Choices - article is ambiguous
-          console.warn("Berg.ru API: Article is ambiguous, need to specify brand");
+          console.warn(
+            "Berg.ru API: Article is ambiguous, need to specify brand"
+          );
         } else {
           console.error("Berg.ru API error:", {
             status: error.response?.status,
@@ -171,7 +176,10 @@ export class BergAdapter implements SupplierAdapter {
             params: error.config?.params,
           });
           // Log full error details
-          console.error("Full error details:", JSON.stringify(error.response?.data, null, 2));
+          console.error(
+            "Full error details:",
+            JSON.stringify(error.response?.data, null, 2)
+          );
         }
       } else {
         console.error("Berg.ru unexpected error:", error);
@@ -185,4 +193,3 @@ export class BergAdapter implements SupplierAdapter {
 const bergAdapter = new BergAdapter();
 
 export default bergAdapter;
-

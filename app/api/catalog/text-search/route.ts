@@ -3,7 +3,11 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { and, inArray, or, sql as dsql, type SQL } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups, isValidPrice, normalizeArticle as normArticleKey } from "@/lib/suppliers/adapter";
+import {
+  dedupeGroups,
+  isValidPrice,
+  normalizeArticle as normArticleKey,
+} from "@/lib/suppliers/adapter";
 import { lookupCachedBatch } from "@/lib/product-images";
 import { CACHE_LISTING } from "@/lib/http-cache";
 import { withServerTiming } from "@/lib/server-timing";
@@ -94,7 +98,11 @@ function escapeRegex(s: string): string {
 }
 
 /** Оценка релевантности строки запросу (выше — релевантнее). */
-function relevance(nameNorm: string, articleLower: string, tokens: string[]): number {
+function relevance(
+  nameNorm: string,
+  articleLower: string,
+  tokens: string[]
+): number {
   let score = 0;
   for (const t of tokens) {
     // nameNorm уже свёрнут (ё→е), поэтому ё в классе границ не нужен.
@@ -141,7 +149,9 @@ async function getHandler(request: NextRequest) {
     // trgm-индекс (seq scan всей таблицы) — см. проверку q.length выше.
     const tokens = tokenize(qNorm).filter((t) => t.length >= 3);
     const tokenConds =
-      tokens.length === 0 ? [tokenCondition(qNorm)] : tokens.map(tokenCondition);
+      tokens.length === 0
+        ? [tokenCondition(qNorm)]
+        : tokens.map(tokenCondition);
 
     const stockPositive = dsql`${products.stock} > 0`;
 
@@ -174,7 +184,9 @@ async function getHandler(request: NextRequest) {
         // (~1.1с на ранжирование), 0.5 — меньше кандидатов, чище матчи, быстрее.
         // SET LOCAL действует только внутри этой транзакции (пул не загрязняем).
         rows = await db.transaction(async (tx) => {
-          await tx.execute(dsql`SET LOCAL pg_trgm.word_similarity_threshold = 0.5`);
+          await tx.execute(
+            dsql`SET LOCAL pg_trgm.word_similarity_threshold = 0.5`
+          );
           return await tx
             .select(SELECT)
             .from(products)
@@ -237,7 +249,10 @@ async function getHandler(request: NextRequest) {
             .where(inArray(productStocks.productId, ids))
         : Promise.resolve([] as Array<typeof productStocks.$inferSelect>),
       lookupCachedBatch(
-        topRanked.map((p) => ({ brand: p.brand ?? "", article: normArticleKey(p.article) }))
+        topRanked.map((p) => ({
+          brand: p.brand ?? "",
+          article: normArticleKey(p.article),
+        }))
       ).catch(() => new Map<string, string | null>()),
     ]);
 
@@ -258,6 +273,7 @@ async function getHandler(request: NextRequest) {
           ourPrice: Number(s.ourPrice),
           stock: s.quantity,
           deliveryDays: s.deliveryDays ?? null,
+          sourceOfferId: `db-stock:${s.supplierCode}|${s.warehouseName}|${s.supplierPrice}|${s.deliveryDays ?? "null"}`,
         }))
         // Защита от битых цен (NaN/мусор из импорта) — иначе minPrice=NaN роняет
         // рендер карточки на клиенте (в category-роуте такой фильтр уже есть).
@@ -288,11 +304,16 @@ async function getHandler(request: NextRequest) {
     // после дедупликации восстанавливаем порядок из `ranked`.
     const rank = new Map<string, number>();
     topRanked.forEach((p, i) => {
-      rank.set(`${normArticleKey(p.article)}|${(p.brand ?? "").trim().toLowerCase()}`, i);
+      rank.set(
+        `${normArticleKey(p.article)}|${(p.brand ?? "").trim().toLowerCase()}`,
+        i
+      );
     });
     const deduped = dedupeGroups(groups).sort((a, b) => {
-      const ra = rank.get(`${a.article}|${a.brand.trim().toLowerCase()}`) ?? Infinity;
-      const rb = rank.get(`${b.article}|${b.brand.trim().toLowerCase()}`) ?? Infinity;
+      const ra =
+        rank.get(`${a.article}|${a.brand.trim().toLowerCase()}`) ?? Infinity;
+      const rb =
+        rank.get(`${b.article}|${b.brand.trim().toLowerCase()}`) ?? Infinity;
       return ra - rb;
     });
     // Картинки берём из уже полученного кэша (тот же ключ, что в category-роуте:
@@ -301,19 +322,27 @@ async function getHandler(request: NextRequest) {
     const imgNorm = (s: string) => s.trim().toLowerCase();
     const enriched = deduped.map((g) => {
       const url = imageCache.get(`${imgNorm(g.brand)}|${imgNorm(g.article)}`);
-      return typeof url === "string" && url.length > 0 ? { ...g, imageUrl: url } : g;
+      return typeof url === "string" && url.length > 0
+        ? { ...g, imageUrl: url }
+        : g;
     });
 
-    return NextResponse.json({
-      q,
-      groups: enriched,
-      count: enriched.length,
-      mode,
-      limit,
-    }, { headers: { "Cache-Control": CACHE_LISTING } });
+    return NextResponse.json(
+      {
+        q,
+        groups: enriched,
+        count: enriched.length,
+        mode,
+        limit,
+      },
+      { headers: { "Cache-Control": CACHE_LISTING } }
+    );
   } catch (error) {
     console.error("Text search error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 

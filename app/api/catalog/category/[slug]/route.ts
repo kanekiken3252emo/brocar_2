@@ -3,7 +3,11 @@ import { db } from "@/lib/db";
 import { products, productStocks } from "@/lib/db/schema";
 import { eq, desc, asc, and, sql as dsql, inArray } from "drizzle-orm";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
-import { dedupeGroups, isValidPrice, MAX_PLAUSIBLE_PRICE } from "@/lib/suppliers/adapter";
+import {
+  dedupeGroups,
+  isValidPrice,
+  MAX_PLAUSIBLE_PRICE,
+} from "@/lib/suppliers/adapter";
 import { getCategoryMeta } from "@/lib/catalog/classifier";
 import {
   ATTRIBUTE_META,
@@ -226,7 +230,7 @@ async function getHandler(
       const stocks = stocksByProduct.get(p.id) ?? [];
       const offers: SupplierOffer[] = stocks
         .map((s) => ({
-          // Анонимизированное имя склада (VEGA N) — реальные warehouse_name
+          // Анонимизированное имя склада (VEGA N) - реальные warehouse_name
           // (напр. «BERG EKB») наружу не отдаём.
           supplier: getVegaName(s.supplierCode),
           supplierCode: s.supplierCode,
@@ -234,6 +238,7 @@ async function getHandler(
           ourPrice: Number(s.ourPrice),
           stock: s.quantity,
           deliveryDays: s.deliveryDays ?? null,
+          sourceOfferId: `db-stock:${s.supplierCode}|${s.warehouseName}|${s.supplierPrice}|${s.deliveryDays ?? "null"}`,
         }))
         // Отдельный офер тоже может нести битую цену (NaN/мусор) при валидном
         // товаре — без отсева Math.min(…, NaN) = NaN снова обнулил бы minPrice
@@ -287,18 +292,21 @@ async function getHandler(
       }
     });
 
-    return NextResponse.json({
-      slug,
-      title: meta?.title ?? slug,
-      description: meta?.description ?? null,
-      groups: enriched,
-      count,
-      limit,
-      offset,
-      page: Math.floor(offset / limit) + 1,
-      availableBrands,
-      facets,
-    }, { headers: { "Cache-Control": CACHE_LISTING } });
+    return NextResponse.json(
+      {
+        slug,
+        title: meta?.title ?? slug,
+        description: meta?.description ?? null,
+        groups: enriched,
+        count,
+        limit,
+        offset,
+        page: Math.floor(offset / limit) + 1,
+        availableBrands,
+        facets,
+      },
+      { headers: { "Cache-Control": CACHE_LISTING } }
+    );
   } catch (error) {
     console.error("Catalog category route error:", error);
     return NextResponse.json(

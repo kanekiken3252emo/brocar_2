@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { carts, cartItems, products } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { generateSessionId } from "@/lib/utils";
 import { validatePromo, discountAmount } from "@/lib/promo";
@@ -84,10 +84,25 @@ async function mergeCartItems(fromCartId: number, toCartId: number) {
     where: eq(cartItems.cartId, fromCartId),
   });
   for (const it of fromItems) {
+    const priceCondition =
+      it.price == null
+        ? isNull(cartItems.price)
+        : eq(cartItems.price, it.price);
+    const deliveryCondition =
+      it.deliveryDays == null
+        ? isNull(cartItems.deliveryDays)
+        : eq(cartItems.deliveryDays, it.deliveryDays);
+    const supplierCondition =
+      it.supplier == null
+        ? isNull(cartItems.supplier)
+        : eq(cartItems.supplier, it.supplier);
     const existing = await db.query.cartItems.findFirst({
       where: and(
         eq(cartItems.cartId, toCartId),
-        eq(cartItems.productId, it.productId)
+        eq(cartItems.productId, it.productId),
+        priceCondition,
+        deliveryCondition,
+        supplierCondition
       ),
     });
     if (existing) {
@@ -233,14 +248,20 @@ async function getCartWithItems(cartId: number) {
   // создании заказа (см. /api/orders), чтобы предпросмотр совпал с чеком.
   const subtotal = Number(
     items
-      .reduce((sum, item) => sum + Number((item.price * item.qty).toFixed(2)), 0)
+      .reduce(
+        (sum, item) => sum + Number((item.price * item.qty).toFixed(2)),
+        0
+      )
       .toFixed(2)
   );
 
   // Применённый промокод (хранится при корзине). Валидируем серверно: если код
   // отключили/истёк после применения — скидку не показываем, total = subtotal.
-  let promo: { code: string; discountPct: number; discountAmount: number } | null =
-    null;
+  let promo: {
+    code: string;
+    discountPct: number;
+    discountAmount: number;
+  } | null = null;
   if (cart.promoCode) {
     const check = await validatePromo(cart.promoCode);
     if (check.ok) {
@@ -286,7 +307,9 @@ export async function GET() {
     const cart = await getOrCreateCart(user?.id || null, sessionId);
     const cartData = await getCartWithItems(cart.id);
 
-    const response = NextResponse.json(cartData || { items: [], subtotal: 0, total: 0 });
+    const response = NextResponse.json(
+      cartData || { items: [], subtotal: 0, total: 0 }
+    );
 
     // Куку ставим всегда — она якорь корзины и при логине, и после разлогина.
     setSessionCookie(response, sessionId);
@@ -318,6 +341,12 @@ export async function POST(request: NextRequest) {
     // Ветка для добавления прямо от поставщика: upsert товара → обычный "add"
     if (body && body.action === "addFromSupplier") {
       const data = addFromSupplierSchema.parse(body);
+      if (data.stock < 1 || data.qty > data.stock) {
+        return NextResponse.json(
+          { error: "Запрошенное количество превышает остаток предложения" },
+          { status: 409 }
+        );
+      }
       const cart = await getOrCreateCart(user?.id || null, sessionId!);
 
       const productId = await upsertProductByArticle({
@@ -333,22 +362,37 @@ export async function POST(request: NextRequest) {
       // количество; ДРУГОЙ оффер того же артикула (другая цена) становится
       // ОТДЕЛЬНОЙ строкой — иначе 400 + 100 затирались бы в 2×100.
       const priceSnapshot = data.ourPrice.toFixed(2);
+      const deliveryDays = data.deliveryDays ?? null;
+      const supplier = data.supplier ?? null;
 
       const existingItem = await db.query.cartItems.findFirst({
         where: and(
           eq(cartItems.cartId, cart.id),
           eq(cartItems.productId, productId),
-          eq(cartItems.price, priceSnapshot)
+          eq(cartItems.price, priceSnapshot),
+          deliveryDays == null
+            ? isNull(cartItems.deliveryDays)
+            : eq(cartItems.deliveryDays, deliveryDays),
+          supplier == null
+            ? isNull(cartItems.supplier)
+            : eq(cartItems.supplier, supplier)
         ),
       });
 
       if (existingItem) {
+        if (existingItem.qty + data.qty > data.stock) {
+          return NextResponse.json(
+            {
+              error:
+                "В корзине уже выбрано доступное количество этого предложения",
+            },
+            { status: 409 }
+          );
+        }
         await db
           .update(cartItems)
           .set({
             qty: existingItem.qty + data.qty,
-            deliveryDays: data.deliveryDays ?? existingItem.deliveryDays,
-            supplier: data.supplier ?? existingItem.supplier,
           })
           .where(eq(cartItems.id, existingItem.id));
       } else {
@@ -357,8 +401,8 @@ export async function POST(request: NextRequest) {
           productId,
           qty: data.qty,
           price: priceSnapshot,
-          deliveryDays: data.deliveryDays ?? null,
-          supplier: data.supplier ?? null,
+          deliveryDays,
+          supplier,
         });
       }
 
@@ -473,7 +517,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-

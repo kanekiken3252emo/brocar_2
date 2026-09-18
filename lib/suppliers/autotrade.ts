@@ -193,7 +193,10 @@ export class AutotradeAdapter implements SupplierAdapter {
 
         // API возвращает code != 0 на ошибках. Логируем, но возвращаем
         // ответ как есть — вызывающая сторона решит что делать.
-        if (typeof response.data?.code === "number" && response.data.code !== 0) {
+        if (
+          typeof response.data?.code === "number" &&
+          response.data.code !== 0
+        ) {
           console.warn("Autotrade API non-zero code:", {
             method,
             code: response.data.code,
@@ -370,6 +373,7 @@ export class AutotradeAdapter implements SupplierAdapter {
           supplier: `Autotrade (${s.name ?? s.legend ?? "склад"})`,
           supplierCode: "autotrade",
           deliveryDays: transitDays,
+          sourceOfferId: `${item.inside_id_in ?? article}|${s.id ?? s.name ?? s.legend ?? "warehouse"}`,
           raw: {
             inside_id_in: item.inside_id_in,
             stock_id: s.id,

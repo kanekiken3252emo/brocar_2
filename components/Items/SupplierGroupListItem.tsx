@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ShoppingCart, Package, Clock, MapPin, ChevronDown } from "lucide-react";
+import {
+  ShoppingCart,
+  Package,
+  Clock,
+  MapPin,
+  ChevronDown,
+} from "lucide-react";
 import type { SupplierGroup, SupplierOffer } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
+import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
 import { formatDeliveryDays } from "@/lib/utils";
@@ -39,7 +46,7 @@ export async function addOfferToCart(
       supplierPrice: offer.price,
       stock: offer.stock,
       deliveryDays: offer.deliveryDays,
-      supplier: offer.supplier,
+      supplier: buildSupplierAllocation(offer, 1),
     });
   } catch (err: any) {
     window.dispatchEvent(
@@ -54,7 +61,11 @@ function StockDot({ stock }: { stock: number }) {
   return (
     <span
       className={`w-2 h-2 rounded-full ${
-        stock > 5 ? "bg-green-500" : stock > 0 ? "bg-yellow-500" : "bg-neutral-600"
+        stock > 5
+          ? "bg-green-500"
+          : stock > 0
+            ? "bg-yellow-500"
+            : "bg-neutral-600"
       }`}
     />
   );
@@ -89,7 +100,8 @@ function OfferRow({
         </span>
       </td>
       <td className="px-4 py-3 text-right text-white font-semibold whitespace-nowrap">
-        {formatPrice(offer.ourPrice)} <span className="text-neutral-500">₽</span>
+        {formatPrice(offer.ourPrice)}{" "}
+        <span className="text-neutral-500">₽</span>
       </td>
       <td className="px-4 py-3 w-12 text-right">
         <button
@@ -120,7 +132,8 @@ function OfferMobileCard({
           {getVegaName(offer.supplierCode)}
         </span>
         <span className="text-base font-bold text-white whitespace-nowrap">
-          {formatPrice(offer.ourPrice)} <span className="text-neutral-500">₽</span>
+          {formatPrice(offer.ourPrice)}{" "}
+          <span className="text-neutral-500">₽</span>
         </span>
       </div>
       <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
@@ -137,8 +150,7 @@ function OfferMobileCard({
         onClick={(e) => addOfferToCart(e, offer, group)}
         className="w-full py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-600 text-white rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 transition-colors"
       >
-        <ShoppingCart className="w-4 h-4" />
-        В корзину
+        <ShoppingCart className="w-4 h-4" />В корзину
       </button>
     </div>
   );
@@ -241,7 +253,9 @@ export default function SupplierGroupListItem({ group }: Props) {
           onClick={() => setExpanded(!expanded)}
           className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium text-neutral-400 hover:text-orange-400 bg-neutral-800/30 hover:bg-neutral-800/60 border-t border-neutral-800 transition-colors"
         >
-          <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
           {expanded
             ? "Свернуть"
             : `Ещё ${group.offers.length - 1} предложен${group.offers.length - 1 === 1 ? "ие" : group.offers.length - 1 < 5 ? "ия" : "ий"}`}

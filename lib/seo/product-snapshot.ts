@@ -1,5 +1,6 @@
 import "server-only";
 import snapshot from "@/data/seo-indexed-product-snapshot.json";
+import supplierSnapshot from "@/data/seo-supplier-product-snapshot.json";
 import wave2Manifest from "@/data/seo-product-wave-2.json";
 import wave3Manifest from "@/data/seo-product-wave-3.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
@@ -46,6 +47,7 @@ const wave3Items = waveSnapshotItems(wave3Manifest.products as WaveSeoItem[]);
 
 const items = [
   ...(snapshot.products as ProductSeoSnapshotItem[]),
+  ...(supplierSnapshot.products as ProductSeoSnapshotItem[]),
   ...wave2Items,
   ...wave3Items,
 ]

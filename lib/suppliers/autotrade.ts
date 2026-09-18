@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { SupplierAdapter, SearchParams, SupplierItem } from "./adapter";
+import { sameBrandFamily } from "@/lib/brands/families.mjs";
 
 /**
  * Autotrade (api2.autotrade.su) REST/JSON-RPC-like adapter.
@@ -225,11 +226,14 @@ export class AutotradeAdapter implements SupplierAdapter {
     if (!params.article) return [];
 
     // Без бренда — сначала находим возможные пары (article, brand) через
-    // getItemsByQuery, потом для каждой делаем getStocksAndPrices. Это
+    // getItemsByQuery, затем запрашиваем их одним пакетом getStocksAndPrices. Это
     // позволяет показывать Autotrade в выдаче когда пользователь ищет
     // только по артикулу (например ввёл строку без пробела).
     if (!params.brand) {
-      return this.searchAllBrandsForArticle(params.article);
+      return this.searchAllBrandsForArticle(
+        params.article,
+        params.preferredBrand
+      );
     }
 
     const data = await this.call<AutotradeStocksAndPricesResponse>(
@@ -252,14 +256,13 @@ export class AutotradeAdapter implements SupplierAdapter {
 
   /**
    * Поиск без указанного бренда: находим все уникальные (article, brand)
-   * через getItemsByQuery (strict=1), затем для каждой пары запрашиваем
-   * остатки и цены через getStocksAndPrices.
-   *
-   * Ограничиваем 5 первыми уникальными парами — больше не имеет смысла
-   * (5 секунд лимита на throttle и searchAllSuppliers timeout = 8с).
+   * через getItemsByQuery (strict=1), а остатки и цены запрашиваем одним
+   * пакетом getStocksAndPrices. Если карточка открыта с брендом,
+   * не запрашиваем несвязанные бренды из поискового ответа.
    */
   private async searchAllBrandsForArticle(
-    article: string
+    article: string,
+    preferredBrand?: string
   ): Promise<SupplierItem[]> {
     const searchData = await this.call<AutotradeItemsByQueryResponse>(
       "getItemsByQuery",
@@ -274,7 +277,14 @@ export class AutotradeAdapter implements SupplierAdapter {
       }
     );
 
-    const items = searchData?.items ?? [];
+    const discoveredItems = searchData?.items ?? [];
+    const items = preferredBrand
+      ? discoveredItems.filter(
+          (item) =>
+            Boolean(item.brand_name) &&
+            sameBrandFamily(item.brand_name, preferredBrand)
+        )
+      : discoveredItems;
     if (items.length === 0) return [];
 
     // Уникальные пары article+brand из ответа поиска.
@@ -290,12 +300,32 @@ export class AutotradeAdapter implements SupplierAdapter {
 
     if (uniquePairs.size === 0) return [];
 
-    const allItems: SupplierItem[] = [];
+    // getStocksAndPrices принимает несколько пар article+brand за один вызов.
+    // Раньше каждая пара запрашивалась отдельно: вместе с getItemsByQuery это
+    // создавало до шести последовательных запросов при лимите Autotrade 1 req/s.
+    // Один пакетный вызов сокращает ветку до двух запросов и не оставляет хвост
+    // очереди, который продолжал выполняться после внешнего таймаута.
+    const requestItems: Record<string, Record<string, number>> = {};
     for (const pair of uniquePairs.values()) {
-      const result = await this.search(pair);
-      allItems.push(...result);
+      requestItems[pair.article] ??= {};
+      requestItems[pair.article][pair.brand] = 1;
     }
-    return allItems;
+
+    const stockData = await this.call<AutotradeStocksAndPricesResponse>(
+      "getStocksAndPrices",
+      {
+        storages: [0],
+        items: requestItems,
+        withDelivery: 1,
+      }
+    );
+
+    if (!stockData?.items) return [];
+
+    return this.flattenStocksAndPrices(stockData.items, {
+      article,
+      preferredBrand,
+    });
   }
 
   /**

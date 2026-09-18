@@ -78,7 +78,10 @@ export interface ProductShell {
   group: SupplierGroup | null;
   /** Имя зафиксировано проверенным SEO-снимком и не должно прыгать после hydration. */
   seoResolved?: boolean;
-  /** Цена снимка используется только в серверном Title, не в карточке и корзине. */
+  /**
+   * Проверенная цена снимка для первого серверного кадра. Она не создаёт оффер
+   * и не разрешает покупку до ответа живого API.
+   */
   seoMinimumPrice?: number | null;
 }
 
@@ -425,9 +428,21 @@ export default function ProductClient({
     (sum, offer) => sum + offer.quantity,
     0
   );
+  // Supplier-only карточка в первом HTML уже знает проверенную цену из
+  // SEO-снимка, но ещё не имеет живых офферов. Показываем эту цену только пока
+  // идёт загрузка; после ответа API источником цены снова становятся офферы, а
+  // при пустом ответе честно возвращается «По запросу». Корзина при этом всё
+  // равно заблокирована, потому что selectedOffer отсутствует.
+  const snapshotPrice =
+    loading &&
+    shell.seoMinimumPrice != null &&
+    Number.isFinite(shell.seoMinimumPrice) &&
+    shell.seoMinimumPrice > 0
+      ? shell.seoMinimumPrice
+      : null;
   const minPrice = availableOffers.length
     ? Math.min(...availableOffers.map((o) => o.price))
-    : null;
+    : snapshotPrice;
 
   // Заголовочная цена = цена ВЫБРАННОГО оффера (та, что уйдёт в корзину), чтобы
   // «карточка == корзина» при любом выборе. minPrice — только fallback, пока

@@ -216,7 +216,7 @@ export function Header({ user }: HeaderProps) {
                 <Phone className="h-4 w-4 text-orange-500" />
                 <span className="font-semibold text-white">8 (343) 382-20-62</span>
                 <span className="text-neutral-600">·</span>
-                <span className="font-semibold text-white">+7 (932) 600-60-15</span>
+                <span className="font-semibold text-white">+7 (932) 600-60-52</span>
               </div>
             </div>
             {/* Основной номер (городской) слева на мобилке (десктоп — в блоке слева выше) */}
@@ -490,9 +490,9 @@ export function Header({ user }: HeaderProps) {
                   <Phone className="h-4 w-4 text-orange-500" />
                   <span className="font-semibold">8 (343) 382-20-62</span>
                 </a>
-                <a href="tel:+79326006015" className="flex items-center gap-2 text-white">
+                <a href="tel:+79326006052" className="flex items-center gap-2 text-white">
                   <Phone className="h-4 w-4 text-orange-500" />
-                  <span className="font-semibold">+7 (932) 600-60-15</span>
+                  <span className="font-semibold">+7 (932) 600-60-52</span>
                 </a>
                 <div className="flex items-center gap-2 text-neutral-400 text-sm">
                   <MapPin className="h-4 w-4 text-orange-500" />

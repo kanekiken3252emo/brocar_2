@@ -168,10 +168,10 @@ export default async function OrderDetailPage({
                     </a>{" "}
                     или{" "}
                     <a
-                      href="tel:+79326006015"
+                      href="tel:+79326006052"
                       className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
                     >
-                      +7 (932) 600‑60‑15
+                      +7 (932) 600‑60‑52
                     </a>
                   </p>
                 </div>

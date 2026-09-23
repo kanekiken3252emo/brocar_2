@@ -89,8 +89,8 @@ export function Footer() {
                   8 (343) 382-20-62
                 </a>
                 <span className="text-neutral-600">·</span>
-                <a href="tel:+79326006015" className="hover:text-orange-500 transition-colors">
-                  +7 (932) 600-60-15
+                <a href="tel:+79326006052" className="hover:text-orange-500 transition-colors">
+                  +7 (932) 600-60-52
                 </a>
               </p>
               <p className="flex items-center gap-2">

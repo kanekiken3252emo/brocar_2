@@ -65,7 +65,7 @@
       <div style="background:#fafafa;border-top:1px solid #ececec;padding:20px 32px;text-align:center;">
         <p style="margin:0 0 4px;font-size:13px;color:#777777;font-weight:bold;">BroCar — автозапчасти</p>
         <p style="margin:0;font-size:12px;color:#aaaaaa;">
-          Екатеринбург, ул. Заводская, 16 · +7 (932) 600-60-15<br/>
+          Екатеринбург, ул. Заводская, 16 · +7 (932) 600-60-52<br/>
           <a href="https://brocarparts.ru" style="color:#ea580c;">brocarparts.ru</a>
         </p>
       </div>
@@ -112,7 +112,7 @@
       <div style="background:#fafafa;border-top:1px solid #ececec;padding:20px 32px;text-align:center;">
         <p style="margin:0 0 4px;font-size:13px;color:#777777;font-weight:bold;">BroCar — автозапчасти</p>
         <p style="margin:0;font-size:12px;color:#aaaaaa;">
-          Екатеринбург, ул. Заводская, 16 · +7 (932) 600-60-15<br/>
+          Екатеринбург, ул. Заводская, 16 · +7 (932) 600-60-52<br/>
           <a href="https://brocarparts.ru" style="color:#ea580c;">brocarparts.ru</a>
         </p>
       </div>

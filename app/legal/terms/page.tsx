@@ -150,7 +150,7 @@ export default function TermsPage() {
                   href="tel:+73433822062"
                   className="text-orange-500 hover:text-orange-400"
                 >
-                  +7 (932) 600-60-15
+                  +7 (932) 600-60-52
                 </a>
                 . Продавец рассматривает обращения в сроки, установленные
                 законодательством РФ.

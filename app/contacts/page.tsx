@@ -92,8 +92,8 @@ export default function ContactsPage() {
                 <a href="tel:+73433822062" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-1">
                   8 (343) 382-20-62
                 </a>
-                <a href="tel:+79326006015" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
-                  +7 (932) 600-60-15
+                <a href="tel:+79326006052" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
+                  +7 (932) 600-60-52
                 </a>
                 <div className="space-y-2 text-neutral-400">
                   <p className="flex items-center gap-2">

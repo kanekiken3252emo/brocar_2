@@ -239,10 +239,16 @@ export default async function ProductPage({
   // название/цена/наличие — из снимка шелла. Для «живых» артикулов (данные
   // приходят клиентским опросом) разметку не выдумываем.
   const offers = shell.group?.offers ?? [];
-  const price = offers.length
-    ? Math.min(...offers.map((o) => o.ourPrice))
+  // SEO-снимок уже содержит проверенную минимальную цену для карточек, где
+  // локальная группа не успела загрузиться в ограничение SSR. Используем её и
+  // в JSON-LD, но не заявляем наличие, пока сервер не получил офферы.
+  const price = getMinimumAvailablePrice(shell);
+  const highPrice = offers.length
+    ? Math.max(...offers.map((o) => o.ourPrice))
+    : price;
+  const inStock = offers.length
+    ? offers.some((offer) => offer.stock > 0)
     : null;
-  const inStock = offers.some((o) => o.stock > 0);
   const productPath = productUrl(canonicalArticle, canonicalBrandName);
   // Если сервер уже определил товар, его идентичность (бренд + название) остаётся
   // единой для H1, title, хлебных крошек и JSON-LD. Клиентский опрос обновляет
@@ -266,10 +272,8 @@ export default async function ProductPage({
             image: shell.imageUrl,
             url: `${SITE_URL}${productPath}`,
             price,
-            highPrice: offers.length
-              ? Math.max(...offers.map((o) => o.ourPrice))
-              : null,
-            offerCount: offers.length,
+            highPrice,
+            offerCount: offers.length || undefined,
             inStock,
           })}
         />

@@ -213,7 +213,7 @@ export function productSchema(input: {
   price: number | null;
   highPrice?: number | null;
   offerCount?: number;
-  inStock: boolean;
+  inStock: boolean | null;
 }) {
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -226,9 +226,12 @@ export function productSchema(input: {
   };
 
   if (input.price != null && input.price > 0) {
-    const availability = input.inStock
-      ? "https://schema.org/InStock"
-      : "https://schema.org/PreOrder";
+    const availability =
+      input.inStock == null
+        ? null
+        : input.inStock
+          ? "https://schema.org/InStock"
+          : "https://schema.org/PreOrder";
     schema.offers =
       (input.offerCount ?? 1) > 1
         ? {
@@ -238,7 +241,7 @@ export function productSchema(input: {
             highPrice: input.highPrice ?? input.price,
             offerCount: input.offerCount,
             priceCurrency: "RUB",
-            availability,
+            ...(availability ? { availability } : {}),
             seller: { "@id": ORG_ID },
           }
         : {
@@ -247,7 +250,7 @@ export function productSchema(input: {
             price: input.price,
             priceCurrency: "RUB",
             itemCondition: "https://schema.org/NewCondition",
-            availability,
+            ...(availability ? { availability } : {}),
             seller: { "@id": ORG_ID },
           };
   }

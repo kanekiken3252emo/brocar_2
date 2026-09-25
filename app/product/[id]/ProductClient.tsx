@@ -43,6 +43,22 @@ const SORT_OPTIONS: {
   { key: "reliability", label: "Надёжность", defaultDir: "desc" },
 ];
 
+const PILOT_SORT_OPTIONS: typeof SORT_OPTIONS = [
+  { key: "price", label: "Цена", defaultDir: "asc" },
+  { key: "delivery", label: "Доставка", defaultDir: "asc" },
+  { key: "quantity", label: "В наличии", defaultDir: "desc" },
+  {
+    key: "reliability",
+    label: "Надёжность поставки",
+    defaultDir: "desc",
+  },
+];
+
+function warehouseNumber(name: string): string {
+  const match = name.trim().match(/^VEGA\s+(\d+)$/i);
+  return match?.[1] ?? name;
+}
+
 function sortOffers(
   offers: BergOffer[],
   key: SortField | null,
@@ -109,6 +125,7 @@ interface OriginalItem {
 
 function groupToBergResource(g: SupplierGroup): BergResource {
   const offers: BergOffer[] = g.offers.map((o) => ({
+    name: o.name,
     price: o.ourPrice,
     quantity: o.stock,
     available_more: false,
@@ -137,11 +154,13 @@ export default function ProductClient({
   brand,
   shell,
   preserveShellName = false,
+  offerTablePilot = false,
 }: {
   article: string;
   brand: string;
   shell: ProductShell;
   preserveShellName?: boolean;
+  offerTablePilot?: boolean;
 }) {
   const productId = article;
 
@@ -446,6 +465,17 @@ export default function ProductClient({
     displayBrand
   );
   const imageBrand = shell.brand || brand || product?.brand?.name || "";
+  const offerSortOptions = offerTablePilot ? PILOT_SORT_OPTIONS : SORT_OPTIONS;
+  const offerDisplayName = (offer: BergOffer) =>
+    getSafeProductName(
+      offer.name || displayName,
+      product?.article || shell.article || productId,
+      displayBrand
+    );
+  const offerWarehouseName = (offer: BergOffer) =>
+    offerTablePilot
+      ? warehouseNumber(offer.warehouse.name)
+      : offer.warehouse.name;
 
   const availableOffers =
     product?.offers?.filter((offer) => offer.quantity > 0) ?? [];
@@ -750,7 +780,7 @@ export default function ProductClient({
                     <span className="text-xs text-neutral-500 shrink-0">
                       Сортировать:
                     </span>
-                    {SORT_OPTIONS.map((opt) => (
+                    {offerSortOptions.map((opt) => (
                       <button
                         key={opt.key}
                         type="button"
@@ -786,11 +816,19 @@ export default function ProductClient({
                           : ""
                       } ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
                     >
+                      {offerTablePilot && (
+                        <p
+                          className="mb-2 text-sm font-medium leading-snug text-white [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+                          title={offerDisplayName(offer)}
+                        >
+                          {offerDisplayName(offer)}
+                        </p>
+                      )}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-3.5 h-3.5 text-neutral-500" />
                           <span className="text-sm text-neutral-300">
-                            {offer.warehouse.name}
+                            {offerWarehouseName(offer)}
                           </span>
                         </div>
                         <span className="text-base font-bold text-white">
@@ -850,9 +888,16 @@ export default function ProductClient({
 
                 {/* Desktop table */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full">
+                  <table
+                    className={`w-full ${offerTablePilot ? "min-w-[1180px]" : ""}`}
+                  >
                     <thead className="bg-neutral-800/50">
                       <tr>
+                        {offerTablePilot && (
+                          <th className="w-[30%] min-w-60 px-5 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                            Наименование
+                          </th>
+                        )}
                         <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                           Склад
                         </th>
@@ -862,7 +907,7 @@ export default function ProductClient({
                             onClick={() => toggleSort("quantity", "desc")}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
                           >
-                            Количество
+                            {offerTablePilot ? "В наличии" : "Количество"}
                             {sortIcon("quantity")}
                           </button>
                         </th>
@@ -882,7 +927,7 @@ export default function ProductClient({
                             onClick={() => toggleSort("delivery", "asc")}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
                           >
-                            Срок
+                            {offerTablePilot ? "Доставка" : "Срок"}
                             {sortIcon("delivery")}
                           </button>
                         </th>
@@ -890,14 +935,30 @@ export default function ProductClient({
                           <button
                             type="button"
                             onClick={() => toggleSort("reliability", "desc")}
+                            title={
+                              offerTablePilot
+                                ? "Доля выполненных заказов поставщика"
+                                : undefined
+                            }
                             className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
                           >
-                            Надежность
+                            {offerTablePilot
+                              ? "Надёжность поставки"
+                              : "Надежность"}
                             {sortIcon("reliability")}
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                          Действие
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-neutral-400 uppercase tracking-wider"
+                          scope="col"
+                        >
+                          {offerTablePilot ? (
+                            <span className="sr-only">
+                              Количество для заказа и добавление в корзину
+                            </span>
+                          ) : (
+                            "Действие"
+                          )}
                         </th>
                       </tr>
                     </thead>
@@ -915,11 +976,21 @@ export default function ProductClient({
                             selectedOffer === offer ? "bg-orange-500/10" : ""
                           }`}
                         >
+                          {offerTablePilot && (
+                            <td className="w-[30%] min-w-60 px-5 py-4 align-top">
+                              <span
+                                className="text-sm font-medium leading-snug text-white [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
+                                title={offerDisplayName(offer)}
+                              >
+                                {offerDisplayName(offer)}
+                              </span>
+                            </td>
+                          )}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <MapPin className="w-4 h-4 text-neutral-500" />
                               <span className="text-sm text-neutral-300">
-                                {offer.warehouse.name}
+                                {offerWarehouseName(offer)}
                               </span>
                             </div>
                           </td>

@@ -100,8 +100,13 @@ export async function findDbProductGroup(
         .from(productStocks)
         .where(inArray(productStocks.productId, productIds));
 
+  const productNameById = new Map(
+    matchingRows.map((row) => [row.id, row.name] as const)
+  );
+
   let offers: SupplierOffer[] = stocks
     .map((s) => ({
+      name: productNameById.get(s.productId) || p.name,
       supplier: getVegaName(s.supplierCode) || s.warehouseName,
       supplierCode: s.supplierCode,
       price: Number(s.supplierPrice),
@@ -125,6 +130,7 @@ export async function findDbProductGroup(
         isValidPrice(Number(p.ourPrice))))
   ) {
     offers.push({
+      name: p.name,
       supplier: p.brand || "BROCAR",
       supplierCode: p.source || "manual",
       price: Number(p.supplierPrice),

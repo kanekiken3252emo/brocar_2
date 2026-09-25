@@ -43,6 +43,8 @@ export interface BergAddressTimetable {
 }
 
 export interface BergOffer {
+  /** Название товара из строки конкретного поставщика. */
+  name?: string;
   price: number;
   quantity: number;
   available_more: boolean;

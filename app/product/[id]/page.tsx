@@ -52,23 +52,23 @@ const getShell = cache(
       const isPriorityProduct = isProductInSeoWave(article, brand);
       const isWave5Product = isProductInSeoWave5(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
-      const offerSnapshot = await getProductOfferSnapshot(
-        article,
-        brand
-      ).catch(() => null);
+      const offerSnapshot = await getProductOfferSnapshot(article, brand).catch(
+        () => null
+      );
       const localGroupPromise = offerSnapshot
         ? Promise.resolve(null)
         : findDbProductGroup(article, brand, {
             aggregateFreshOffers: isPriorityProduct,
             aggregateNames: true,
           }).catch(() => null);
-      const liveGroupPromise = !offerSnapshot && isWave5Product
-        ? getProductSupplierSeed(article, brand)
-            .then(({ mainGroups }) =>
-              pickMainProductGroup(mainGroups, article, brand)
-            )
-            .catch(() => null)
-        : Promise.resolve(null);
+      const liveGroupPromise =
+        !offerSnapshot && isWave5Product
+          ? getProductSupplierSeed(article, brand)
+              .then(({ mainGroups }) =>
+                pickMainProductGroup(mainGroups, article, brand)
+              )
+              .catch(() => null)
+          : Promise.resolve(null);
       // Для индексируемой карточки имя и минимальная цена уже есть в локальном
       // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
@@ -295,6 +295,10 @@ export default async function ProductPage({
   // единой для H1, title, хлебных крошек и JSON-LD. Клиентский опрос обновляет
   // только коммерческие данные: цену, наличие, срок и список предложений.
   const preserveShellName = Boolean(shell.group);
+  const offerTablePilot = isProductInSeoWave5(
+    canonicalArticle,
+    canonicalBrandName
+  );
 
   const crumbs = [
     { name: "Главная", href: "/" },
@@ -327,6 +331,7 @@ export default async function ProductPage({
         brand={canonicalBrandName}
         shell={shell}
         preserveShellName={preserveShellName}
+        offerTablePilot={offerTablePilot}
       />
     </>
   );

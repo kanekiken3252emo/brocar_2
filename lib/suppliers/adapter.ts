@@ -35,6 +35,8 @@ export interface SupplierFulfillmentPart {
  * То же самое что SupplierItem + наценка (ourPrice).
  */
 export interface SupplierOffer {
+  /** Название товара в строке конкретного поставщика. */
+  name?: string;
   supplier: string;
   supplierCode: string;
   price: number;
@@ -203,6 +205,7 @@ export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
         : previous;
     exact.set(exactKey, {
       ...better,
+      name: pickBetterName(previous.name || "", offer.name || "") || undefined,
       stock: Math.max(offer.stock, previous.stock),
     });
   }
@@ -231,6 +234,8 @@ export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
     }
     existing.stock += offer.stock;
     existing.price = Math.min(existing.price, offer.price);
+    existing.name =
+      pickBetterName(existing.name || "", offer.name || "") || undefined;
     existing.fulfillment!.push(part);
     existing.sourceOfferId = undefined;
   }
@@ -466,6 +471,7 @@ export function groupOffers(
     const key = `${normalizeArticle(item.article)}|${brandKey(brand)}`;
 
     const offer: SupplierOffer = {
+      name: repairSupplierName(item.name),
       supplier: item.supplier,
       supplierCode: item.supplierCode || "unknown",
       price: item.price,

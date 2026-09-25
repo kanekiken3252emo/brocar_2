@@ -3,6 +3,7 @@ import wave1Manifest from "@/data/seo-product-wave-1.json";
 import wave2Manifest from "@/data/seo-product-wave-2.json";
 import wave3Manifest from "@/data/seo-product-wave-3.json";
 import wave4Manifest from "@/data/seo-product-wave-4.json";
+import wave5Manifest from "@/data/seo-product-wave-5.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 
@@ -20,17 +21,20 @@ export const PRODUCT_WAVE_1 = wave1Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_2 = wave2Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_3 = wave3Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_4 = wave4Manifest.products as ProductWaveItem[];
+export const PRODUCT_WAVE_5 = wave5Manifest.products as ProductWaveItem[];
 export const PRODUCT_SEO_WAVE_BATCHES = [
   PRODUCT_WAVE_1,
   PRODUCT_WAVE_2,
   PRODUCT_WAVE_3,
   PRODUCT_WAVE_4,
+  PRODUCT_WAVE_5,
 ];
 export const PRODUCT_SEO_WAVES = [
   ...PRODUCT_WAVE_1,
   ...PRODUCT_WAVE_2,
   ...PRODUCT_WAVE_3,
   ...PRODUCT_WAVE_4,
+  ...PRODUCT_WAVE_5,
 ];
 
 const waveKeys = new Set(

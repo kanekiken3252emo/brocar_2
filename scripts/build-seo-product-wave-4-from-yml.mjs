@@ -68,6 +68,7 @@ function sortCandidates(left, right) {
 }
 
 const args = parseArgs(process.argv.slice(2));
+const currentWave = args.wave4 ? 5 : 4;
 for (const required of [
   "feed",
   "demand",
@@ -117,6 +118,9 @@ if (args.metrics) {
 const wave1Payload = JSON.parse(await readFile(args.wave1, "utf8"));
 const wave2Payload = JSON.parse(await readFile(args.wave2, "utf8"));
 const wave3Payload = JSON.parse(await readFile(args.wave3, "utf8"));
+const wave4Payload = args.wave4
+  ? JSON.parse(await readFile(args.wave4, "utf8"))
+  : { products: [] };
 const wave1Products = Array.isArray(wave1Payload.products)
   ? wave1Payload.products
   : [];
@@ -126,7 +130,15 @@ const wave2Products = Array.isArray(wave2Payload.products)
 const wave3Products = Array.isArray(wave3Payload.products)
   ? wave3Payload.products
   : [];
-const priorProducts = [...wave1Products, ...wave2Products, ...wave3Products];
+const wave4Products = Array.isArray(wave4Payload.products)
+  ? wave4Payload.products
+  : [];
+const priorProducts = [
+  ...wave1Products,
+  ...wave2Products,
+  ...wave3Products,
+  ...wave4Products,
+];
 const priorKeys = new Set(
   priorProducts.map((row) => identity(row.article, row.brand))
 );
@@ -283,7 +295,7 @@ for (const categoryId of categoryOrder) {
 
 if (selected.length !== TARGET_SIZE) {
   throw new Error(
-    `Could not fill wave 4: selected ${selected.length} of ${TARGET_SIZE}`
+    `Could not fill wave ${currentWave}: selected ${selected.length} of ${TARGET_SIZE}`
   );
 }
 
@@ -297,21 +309,21 @@ const selectedKeyList = selectedProducts.map((row) =>
   identity(row.article, row.brand)
 );
 if (new Set(selectedKeyList).size !== selectedProducts.length) {
-  throw new Error("Wave 4 contains duplicate product identities");
+  throw new Error(`Wave ${currentWave} contains duplicate product identities`);
 }
 if (selectedKeyList.some((key) => priorKeys.has(key))) {
-  throw new Error("Wave 4 overlaps a prior wave");
+  throw new Error(`Wave ${currentWave} overlaps a prior wave`);
 }
 if (selectedProducts.some((row) => isVin(row.article))) {
-  throw new Error("Wave 4 contains a VIN-like article");
+  throw new Error(`Wave ${currentWave} contains a VIN-like article`);
 }
 
 const manifest = {
-  wave: 4,
+  wave: currentWave,
   generatedAt: feedGeneratedAt.slice(0, 10),
   targetSize: TARGET_SIZE,
   selectionRule:
-    "current stock and positive price; first remaining direct external article demand, then products with image, defined category and a brand represented in prior waves; category and brand caps; no overlap with waves 1-3; max 3 brands per article",
+    `current stock and positive price; first remaining direct external article demand, then products with image, defined category and a brand represented in prior waves; category and brand caps; no overlap with waves 1-${currentWave - 1}; max 3 brands per article`,
   productCount: selectedProducts.length,
   products: selectedProducts,
 };
@@ -328,6 +340,7 @@ const audit = {
     wave1: args.wave1,
     wave2: args.wave2,
     wave3: args.wave3,
+    wave4: args.wave4 || null,
   },
   rules: {
     targetSize: TARGET_SIZE,

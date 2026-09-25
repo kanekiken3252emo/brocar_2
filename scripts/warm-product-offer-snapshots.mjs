@@ -68,7 +68,7 @@ const known = new Map(
   ])
 );
 const staleBefore = Date.now() - maxAgeHours * 60 * 60 * 1000;
-const queue = products
+const candidates = products
   .map((product) => {
     const articleNorm = String(product.article || "")
       .replace(/[^0-9A-Za-zА-Яа-я]/gu, "")
@@ -76,9 +76,23 @@ const queue = products
     const key = `${articleNorm}|${brandKey(canonicalBrand(product.brand))}`;
     return { ...product, snapshotAt: known.get(key) ?? 0 };
   })
-  .filter((product) => product.snapshotAt < staleBefore)
-  .sort((a, b) => a.snapshotAt - b.snapshotAt)
-  .slice(0, limit);
+  .filter((product) => product.snapshotAt < staleBefore);
+
+function shuffle(items) {
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [items[index], items[target]] = [items[target], items[index]];
+  }
+  return items;
+}
+
+// Отсутствующие снимки важнее устаревших. Перемешивание внутри группы не даёт
+// нескольким карточкам без живых офферов навсегда блокировать очередь прогрева.
+const missing = shuffle(
+  candidates.filter((product) => product.snapshotAt === 0)
+);
+const stale = shuffle(candidates.filter((product) => product.snapshotAt !== 0));
+const queue = [...missing, ...stale].slice(0, limit);
 
 console.log(
   `Прогрев снимков: волн ${waves.join(",")}, кандидатов ${queue.length}/${products.length}, параллельность ${concurrency}`

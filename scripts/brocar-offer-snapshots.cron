@@ -1,0 +1,1 @@
+*/20 * * * * root /usr/bin/flock -n /var/lock/brocar-offer-snapshots.lock /var/www/brocar/scripts/warm-product-offer-snapshots-cron.sh >> /var/log/brocar-offer-snapshots.log 2>&1

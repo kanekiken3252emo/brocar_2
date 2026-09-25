@@ -34,6 +34,27 @@ const capture = (html, expression) => {
   return match ? decodeHtml(match[1]) : "";
 };
 
+const attributeValue = (tag, attribute) => {
+  const match = tag.match(
+    new RegExp(`${attribute}=(["'])([\\s\\S]*?)\\1`, "i")
+  );
+  return match ? decodeHtml(match[2]) : "";
+};
+
+const metaContent = (html, name) => {
+  const tag = html.match(
+    new RegExp(`<meta[^>]+name=["']${name}["'][^>]*>`, "i")
+  )?.[0];
+  return tag ? attributeValue(tag, "content") : "";
+};
+
+const canonicalHref = (html) => {
+  const tag = html.match(
+    /<link[^>]+rel=["']canonical["'][^>]*>/i
+  )?.[0];
+  return tag ? attributeValue(tag, "href") : "";
+};
+
 async function inspect(product) {
   const path = `/product/${encodeURIComponent(product.article)}?brand=${encodeURIComponent(product.brand)}`;
   const response = await fetch(`${baseUrl}${path}`, {
@@ -44,9 +65,13 @@ async function inspect(product) {
   const lower = html.toLowerCase();
   const title = capture(html, /<title>([\s\S]*?)<\/title>/i);
   const h1 = capture(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  const description = metaContent(html, "description");
+  const canonical = canonicalHref(html);
   const titleCount = (html.match(/<title>/gi) || []).length;
   const h1Count = (html.match(/<h1\b/gi) || []).length;
   const titleIndex = lower.indexOf("<title");
+  const descriptionIndex = lower.indexOf('<meta name="description"');
+  const canonicalIndex = lower.indexOf('<link rel="canonical"');
   const headEndIndex = lower.indexOf("</head>");
   const bodyIndex = lower.indexOf("<body");
   const price = new Intl.NumberFormat("ru-RU", {
@@ -56,6 +81,11 @@ async function inspect(product) {
     /\s+/g,
     " "
   );
+  const expectedDescription =
+    `Купить ${h1} (${product.seoBrand} артикул ${product.article}): ` +
+    "цена, наличие, быстрая доставка по Екатеринбургу и всей России. " +
+    "Заказывайте в BroCar!";
+  const expectedCanonical = `https://brocarparts.ru${path}`;
 
   const errors = [];
   if (response.status !== 200) errors.push(`status=${response.status}`);
@@ -65,9 +95,37 @@ async function inspect(product) {
   if (title !== expectedTitle) {
     errors.push(`title mismatch: ${JSON.stringify(title)}`);
   }
+  if (description !== expectedDescription) {
+    errors.push(`description mismatch: ${JSON.stringify(description)}`);
+  }
+  if (canonical !== expectedCanonical) {
+    errors.push(`canonical mismatch: ${JSON.stringify(canonical)}`);
+  }
   if (!(titleIndex >= 0 && titleIndex < headEndIndex && titleIndex < bodyIndex)) {
     errors.push(
       `title outside initial head: title=${titleIndex}, headEnd=${headEndIndex}, body=${bodyIndex}`
+    );
+  }
+  if (
+    !(
+      descriptionIndex >= 0 &&
+      descriptionIndex < headEndIndex &&
+      descriptionIndex < bodyIndex
+    )
+  ) {
+    errors.push(
+      `description outside initial head: description=${descriptionIndex}, headEnd=${headEndIndex}, body=${bodyIndex}`
+    );
+  }
+  if (
+    !(
+      canonicalIndex >= 0 &&
+      canonicalIndex < headEndIndex &&
+      canonicalIndex < bodyIndex
+    )
+  ) {
+    errors.push(
+      `canonical outside initial head: canonical=${canonicalIndex}, headEnd=${headEndIndex}, body=${bodyIndex}`
     );
   }
 

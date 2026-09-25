@@ -28,6 +28,10 @@ import {
   getProductSupplierSeed,
   pickMainProductGroup,
 } from "@/lib/product-supplier-seed";
+import {
+  getProductOfferSnapshot,
+  PRODUCT_OFFER_SNAPSHOT_LIMIT,
+} from "@/lib/product-offer-snapshot";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
@@ -40,7 +44,6 @@ import {
 
 // Один lookup на запрос, общий для generateMetadata и самой страницы.
 const SEO_SHELL_DB_TIMEOUT_MS = 500;
-const WAVE_5_OFFER_LIMIT = 20;
 
 const getShell = cache(
   async (rawArticle: string, brand: string): Promise<ProductShell> => {
@@ -49,11 +52,17 @@ const getShell = cache(
       const isPriorityProduct = isProductInSeoWave(article, brand);
       const isWave5Product = isProductInSeoWave5(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
-      const localGroupPromise = findDbProductGroup(article, brand, {
-        aggregateFreshOffers: isPriorityProduct,
-        aggregateNames: true,
-      }).catch(() => null);
-      const liveGroupPromise = isWave5Product
+      const offerSnapshot = await getProductOfferSnapshot(
+        article,
+        brand
+      ).catch(() => null);
+      const localGroupPromise = offerSnapshot
+        ? Promise.resolve(null)
+        : findDbProductGroup(article, brand, {
+            aggregateFreshOffers: isPriorityProduct,
+            aggregateNames: true,
+          }).catch(() => null);
+      const liveGroupPromise = !offerSnapshot && isWave5Product
         ? getProductSupplierSeed(article, brand)
             .then(({ mainGroups }) =>
               pickMainProductGroup(mainGroups, article, brand)
@@ -63,8 +72,9 @@ const getShell = cache(
       // Для индексируемой карточки имя и минимальная цена уже есть в локальном
       // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
-      const localGroup =
-        seoSnapshot && !isWave5Product
+      const localGroup = offerSnapshot
+        ? null
+        : seoSnapshot && !isWave5Product
           ? await Promise.race([
               localGroupPromise,
               new Promise<null>((resolve) =>
@@ -77,9 +87,11 @@ const getShell = cache(
       // поставщиков выполняет клиентский /api/product/[article]; запускать его
       // ещё раз из generateMetadata/RSC нельзя, иначе открытие карточки ждёт
       // внешний API и создаёт повторную очередь запросов Autotrade.
-      const sourceGroup = liveGroup
-        ? toPublicSupplierGroup(liveGroup)
-        : localGroup;
+      const sourceGroup = offerSnapshot
+        ? offerSnapshot
+        : liveGroup
+          ? toPublicSupplierGroup(liveGroup)
+          : localGroup;
       const resolvedGroup = seoSnapshot
         ? {
             ...(sourceGroup ?? {
@@ -109,9 +121,10 @@ const getShell = cache(
         };
       }
 
-      const group = isWave5Product
-        ? limitSupplierGroupOffers(resolvedGroup, WAVE_5_OFFER_LIMIT)
-        : resolvedGroup;
+      const group = limitSupplierGroupOffers(
+        resolvedGroup,
+        PRODUCT_OFFER_SNAPSHOT_LIMIT
+      );
 
       // Если карточка существует только в SEO-снимке, не задерживаем первый HTML
       // отдельным запросом к удалённой БД картинок. ProductClient догрузит фото
@@ -282,10 +295,6 @@ export default async function ProductPage({
   // единой для H1, title, хлебных крошек и JSON-LD. Клиентский опрос обновляет
   // только коммерческие данные: цену, наличие, срок и список предложений.
   const preserveShellName = Boolean(shell.group);
-  const offerLimitPilot = isProductInSeoWave5(
-    canonicalArticle,
-    canonicalBrandName
-  );
 
   const crumbs = [
     { name: "Главная", href: "/" },
@@ -318,7 +327,6 @@ export default async function ProductPage({
         brand={canonicalBrandName}
         shell={shell}
         preserveShellName={preserveShellName}
-        offerLimitPilot={offerLimitPilot}
       />
     </>
   );

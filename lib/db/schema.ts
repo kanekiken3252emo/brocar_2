@@ -133,6 +133,31 @@ export const productStocks = pgTable("product_stocks", {
     .notNull(),
 });
 
+// Постоянный серверный снимок до 20 публичных предложений для карточки.
+// Живой API обновляет его после успешного ответа поставщиков, а RSC читает
+// мгновенно: поисковый робот получает предложения в исходном HTML без ожидания
+// семи внешних API. group_data хранит только уже очищенную публичную группу.
+export const productOfferSnapshots = pgTable(
+  "product_offer_snapshots",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    articleNorm: text("article_norm").notNull(),
+    brandKey: text("brand_key").notNull(),
+    article: text("article").notNull(),
+    brand: text("brand").notNull(),
+    groupData: jsonb("group_data").$type<Record<string, unknown>>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    identityIdx: uniqueIndex("product_offer_snapshots_identity_idx").on(
+      t.articleNorm,
+      t.brandKey
+    ),
+  })
+);
+
 // Кэш URL картинок товаров по (brand, article).
 // Заполняется лениво при первом запросе картинки — см. lib/product-images.ts.
 // image_url = NULL означает «уже искали, картинки нет» (negative cache),

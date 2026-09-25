@@ -137,13 +137,11 @@ export default function ProductClient({
   brand,
   shell,
   preserveShellName = false,
-  offerLimitPilot = false,
 }: {
   article: string;
   brand: string;
   shell: ProductShell;
   preserveShellName?: boolean;
-  offerLimitPilot?: boolean;
 }) {
   const productId = article;
 
@@ -173,6 +171,9 @@ export default function ProductClient({
   const manualOfferSelection = useRef(false);
   const [offersCollapsed, setOffersCollapsed] = useState(false);
   const [showAllOffers, setShowAllOffers] = useState(false);
+  // Исходный HTML содержит все 20 строк. После hydration интерфейс сворачивает
+  // их до пяти, поэтому поисковому роботу не нужен JavaScript для списка.
+  const [hasHydrated, setHasHydrated] = useState(false);
   // Пользовательская сортировка предложений (клик по заголовку / пилюле).
   const [sortKey, setSortKey] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -184,6 +185,10 @@ export default function ProductClient({
   const [qtyByOffer, setQtyByOffer] = useState<Record<number, number>>({});
 
   const router = useRouter();
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
 
   // «Назад» возвращает туда, откуда пришёл (список цен по артикулу, результаты
   // поиска, VIN-каталог), а не в общий каталог — иначе после мисклика на
@@ -478,16 +483,8 @@ export default function ProductClient({
     : null;
   // Сортированный список (или дефолтный порядок сервера, если sortKey=null).
   const sortedOffers = sortOffers(product?.offers ?? [], sortKey, sortDir);
-  let visibleOffers = sortedOffers;
-  if (!offerLimitPilot && !showAllOffers) {
-    visibleOffers = sortedOffers.slice(0, 3);
-    // В дефолтном порядке всегда показываем самый дешёвый рядом с топ-3. При
-    // активной сортировке порядок задаёт пользователь — не вмешиваемся.
-    if (!sortKey && cheapestOffer && !visibleOffers.includes(cheapestOffer)) {
-      visibleOffers = [...visibleOffers, cheapestOffer];
-    }
-  }
-  const initiallyVisibleOffers = offerLimitPilot ? 5 : 3;
+  const visibleOffers = sortedOffers;
+  const initiallyVisibleOffers = 5;
   // Клик по заголовку/пилюле: тот же столбец → переключить направление,
   // другой → выбрать его с дефолтным направлением.
   function toggleSort(key: SortField, defaultDir: "asc" | "desc") {
@@ -599,7 +596,7 @@ export default function ProductClient({
                           manualOfferSelection.current = true;
                           setPrevOffer(selectedOffer);
                           setSelectedOffer(cheapestOffer);
-                          if (offerLimitPilot) setShowAllOffers(true);
+                          setShowAllOffers(true);
                         }}
                         className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left text-sm text-orange-400 hover:text-orange-300 transition-colors"
                       >
@@ -782,7 +779,7 @@ export default function ProductClient({
                     <div
                       key={index}
                       className={`p-4 ${
-                        offerLimitPilot &&
+                        hasHydrated &&
                         !showAllOffers &&
                         index >= initiallyVisibleOffers
                           ? "hidden"
@@ -909,7 +906,7 @@ export default function ProductClient({
                         <tr
                           key={index}
                           className={`hover:bg-neutral-800/50 transition-colors ${
-                            offerLimitPilot &&
+                            hasHydrated &&
                             !showAllOffers &&
                             index >= initiallyVisibleOffers
                               ? "hidden"

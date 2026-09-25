@@ -23,6 +23,8 @@
     "db:auth-migrate": "node --env-file=.env.local scripts/migrate-auth-users.mjs",
     "s3:cors": "node --env-file=.env.local scripts/set-s3-cors.mjs",
     "db:catalog-idx": "node --env-file=.env.local scripts/add-catalog-indexes.mjs",
+    "db:offer-snapshots": "node --env-file=.env.local scripts/create-product-offer-snapshots.mjs",
+    "db:warm-offer-snapshots": "node --env-file=.env.local scripts/warm-product-offer-snapshots.mjs",
     "db:reclaim-bloat": "node --env-file=.env.local scripts/reclaim-index-bloat.mjs",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit"

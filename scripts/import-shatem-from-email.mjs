@@ -168,6 +168,15 @@ async function main() {
     `\n   Складов: ${byWarehouse.size}, уникальных товаров: ${productsArr.length}, строк остатков: ${totalStockRows}`
   );
 
+  // Нулевой/неразобранный прайс нельзя считать успешным полным обновлением:
+  // иначе DELETE ниже стирает последний рабочий остаток ШАТЕ-М целиком.
+  if (productsArr.length === 0 || totalStockRows === 0) {
+    await client.logout().catch(() => {});
+    throw new Error(
+      "Прайсы ШАТЕ-М найдены, но не дали ни одной позиции. Старые остатки сохранены, письма не помечены."
+    );
+  }
+
   if (DRY) {
     console.log("\n— DRY-RUN, примеры товаров: —");
     for (const p of productsArr.slice(0, 3)) {
@@ -186,6 +195,23 @@ async function main() {
   const sql = await makeImportSql();
   MARKUP_MULT = await loadMarkupMultiplier(sql);
   console.log(`   наценка: ${Math.round((MARKUP_MULT - 1) * 100)}%`);
+
+  // Дополнительная защита от частично повреждённой выгрузки: если новый набор
+  // меньше четверти предыдущего, не заменяем им всю таблицу автоматически.
+  const [previous] = await sql`
+    SELECT count(*)::int AS count
+    FROM product_stocks
+    WHERE supplier_code = 'shate-m'
+  `;
+  const previousStockRows = Number(previous?.count || 0);
+  const minimumStockRows = Math.floor(previousStockRows * 0.25);
+  if (previousStockRows > 0 && totalStockRows < minimumStockRows) {
+    await sql.end();
+    await client.logout().catch(() => {});
+    throw new Error(
+      `Новый прайс ШАТЕ-М подозрительно мал: ${totalStockRows} строк против ${previousStockRows}. Старые остатки сохранены.`
+    );
+  }
 
   const BATCH = 500;
   console.log("\n⬆️  Upsert products…");

@@ -19,14 +19,15 @@ import { enrichGroupsWithImages } from "@/lib/product-images";
 import { CACHE_PRODUCT } from "@/lib/http-cache";
 import { findDbProductGroup } from "@/lib/suppliers/db-group";
 import { withServerTiming } from "@/lib/server-timing";
-import { isProductInSeoWave5 } from "@/lib/seo/product-wave";
 import { applyPricingSync } from "@/lib/pricing";
+import {
+  PRODUCT_OFFER_SNAPSHOT_LIMIT,
+  saveProductOfferSnapshot,
+} from "@/lib/product-offer-snapshot";
 import {
   getProductSupplierSeed,
   pickMainProductGroup,
 } from "@/lib/product-supplier-seed";
-
-const WAVE_5_OFFER_LIMIT = 20;
 
 interface ProductDetailResponse {
   group: SupplierGroup | null;
@@ -47,7 +48,6 @@ async function getHandler(
     const { article } = await params;
     const decoded = decodeURIComponent(article);
     const brand = request.nextUrl.searchParams.get("brand") || "";
-    const offerLimitPilot = isProductInSeoWave5(decoded, brand);
 
     // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M.
     // Даём адаптерам 9000мс: их собственный сетевой таймаут — 8000мс.
@@ -88,13 +88,10 @@ async function getHandler(
 
     // Поставщики ничего не дали — пробуем каталог из БД (ручные/тестовые товары).
     if (!mainGroup) {
-      mainGroup = await findDbProductGroup(
-        decoded,
-        brand,
-        offerLimitPilot
-          ? { aggregateFreshOffers: true, aggregateNames: true }
-          : undefined
-      ).catch(() => null);
+      mainGroup = await findDbProductGroup(decoded, brand, {
+        aggregateFreshOffers: true,
+        aggregateNames: true,
+      }).catch(() => null);
     }
 
     let characteristics: ShateCharacteristic[] = [];
@@ -172,14 +169,28 @@ async function getHandler(
     // Засеваем картинку и для ГЛАВНОГО товара (не только аналогов) — иначе клиент
     // делает второй, медленный запрос /api/product-image за самой важной картинкой
     // экрана (LCP). enrichGroupsWithImages подставит готовый URL из кэша, если он есть.
-    const responseMainGroup =
-      mainGroup && offerLimitPilot
-        ? limitSupplierGroupOffers(mainGroup, WAVE_5_OFFER_LIMIT)
-        : mainGroup;
+    const responseMainGroup = mainGroup
+      ? limitSupplierGroupOffers(mainGroup, PRODUCT_OFFER_SNAPSHOT_LIMIT)
+      : null;
+    const publicMainGroup = responseMainGroup
+      ? toPublicSupplierGroup(responseMainGroup)
+      : null;
     let enrichedMain: SupplierGroup | null = responseMainGroup;
     if (responseMainGroup) {
       const [m] = await enrichGroupsWithImages([responseMainGroup]);
       enrichedMain = m ?? responseMainGroup;
+    }
+
+    // Записываем только успешный непустой ответ. Ошибка снимка не должна
+    // ломать покупателю живую карточку, но остаётся видимой в серверном логе.
+    if (publicMainGroup) {
+      await saveProductOfferSnapshot(
+        decoded,
+        brand || publicMainGroup.brand,
+        publicMainGroup
+      ).catch((error) => {
+        console.error("Product offer snapshot write error:", error);
+      });
     }
 
     const response: ProductDetailResponse = {

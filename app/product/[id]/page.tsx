@@ -11,6 +11,7 @@ import { canonicalBrand } from "@/lib/brands/canonical.mjs";
 import {
   limitSupplierGroupOffers,
   normalizeArticle,
+  toPublicSupplierGroup,
 } from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
 import {
@@ -23,6 +24,10 @@ import {
   getSafeProductName,
   isUsableProductName,
 } from "@/lib/suppliers/mojibake";
+import {
+  getProductSupplierSeed,
+  pickMainProductGroup,
+} from "@/lib/product-supplier-seed";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
@@ -48,6 +53,13 @@ const getShell = cache(
         aggregateFreshOffers: isPriorityProduct,
         aggregateNames: true,
       }).catch(() => null);
+      const liveGroupPromise = isWave5Product
+        ? getProductSupplierSeed(article, brand)
+            .then(({ mainGroups }) =>
+              pickMainProductGroup(mainGroups, article, brand)
+            )
+            .catch(() => null)
+        : Promise.resolve(null);
       // Для индексируемой карточки имя и минимальная цена уже есть в локальном
       // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
@@ -60,11 +72,14 @@ const getShell = cache(
               ),
             ])
           : await localGroupPromise;
+      const liveGroup = await liveGroupPromise;
       // Серверный HTML использует только локальные данные. Живой опрос семи
       // поставщиков выполняет клиентский /api/product/[article]; запускать его
       // ещё раз из generateMetadata/RSC нельзя, иначе открытие карточки ждёт
       // внешний API и создаёт повторную очередь запросов Autotrade.
-      const sourceGroup = localGroup;
+      const sourceGroup = liveGroup
+        ? toPublicSupplierGroup(liveGroup)
+        : localGroup;
       const resolvedGroup = seoSnapshot
         ? {
             ...(sourceGroup ?? {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  searchAllSuppliers,
   groupOffers,
   dedupeGroups,
   mergeFamilyGroups,
@@ -9,26 +8,23 @@ import {
   normalizeArticle,
   toPublicSupplierGroup,
   type SupplierGroup,
-  type SupplierItem,
 } from "@/lib/suppliers/adapter";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { brandFamilyId, sameBrandFamily } from "@/lib/brands/families.mjs";
-import bergAdapter from "@/lib/suppliers/berg";
-import rosskoAdapter from "@/lib/suppliers/rossko";
 import shateMAdapter, {
   ShateMAdapter,
   type ShateCharacteristic,
 } from "@/lib/suppliers/shate-m";
-import forumAutoAdapter from "@/lib/suppliers/forum-auto";
-import armtekAdapter from "@/lib/suppliers/armtek";
-import autotradeAdapter from "@/lib/suppliers/autotrade";
-import partKomAdapter from "@/lib/suppliers/partkom";
-import { applyPricingSync } from "@/lib/pricing";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { CACHE_PRODUCT } from "@/lib/http-cache";
 import { findDbProductGroup } from "@/lib/suppliers/db-group";
 import { withServerTiming } from "@/lib/server-timing";
 import { isProductInSeoWave5 } from "@/lib/seo/product-wave";
+import { applyPricingSync } from "@/lib/pricing";
+import {
+  getProductSupplierSeed,
+  pickMainProductGroup,
+} from "@/lib/product-supplier-seed";
 
 const WAVE_5_OFFER_LIMIT = 20;
 
@@ -53,16 +49,6 @@ async function getHandler(
     const brand = request.nextUrl.searchParams.get("brand") || "";
     const offerLimitPilot = isProductInSeoWave5(decoded, brand);
 
-    const adapters = [
-      bergAdapter,
-      rosskoAdapter,
-      shateMAdapter,
-      forumAutoAdapter,
-      armtekAdapter,
-      autotradeAdapter,
-      partKomAdapter,
-    ];
-
     // Параллельно: офферы по точному article+brand от всех + articleId в ShATE-M.
     // Даём адаптерам 9000мс: их собственный сетевой таймаут — 8000мс.
     // Каждый адаптер по race отдаёт ЛИБО полный список, ЛИБО [] — частичных нет,
@@ -72,25 +58,14 @@ async function getHandler(
     // ярлыками (CITROEN / PEUGEOT / PSA; OPEL / GM), и сужение запроса брендом
     // прятало и оригинал под другим ярлыком, и его кроссы («OPEL — 2 аналога,
     // GM — 50»). Свою группу выбираем ниже по артикулу + семейству брендов.
-    const [mainItems, shateArticleId] = await Promise.all([
-      searchAllSuppliers(
-        adapters,
-        // withCrosses: Rossko/Berg отдают и заменители — блок «Аналоги в
-        // продаже» наполняется реальными кроссами, а не 1-2 позициями.
-        { article: decoded, preferredBrand: brand, withCrosses: true },
-        9000
-      ).catch(() => [] as SupplierItem[]),
-      (shateMAdapter as ShateMAdapter)
-        .findArticleId(decoded, brand)
-        .catch(() => null),
-    ]);
-
-    const pricing = (base: number, ctx: { brand?: string }) =>
-      applyPricingSync(base, ctx);
-
     // Ярлыки одного концерна с одним артикулом (PSA / PEUGEOT/CITROEN /
     // Citroen) сливаются в одну группу со всеми предложениями.
-    const mainGroups = mergeFamilyGroups(groupOffers(mainItems, pricing));
+    const { mainGroups, shateArticleId } = await getProductSupplierSeed(
+      decoded,
+      brand
+    );
+    const pricing = (base: number, ctx: { brand?: string }) =>
+      applyPricingSync(base, ctx);
 
     // Главная группа: сверяем И артикул, И бренд. Раньше матчили только бренд
     // с фолбэком на mainGroups[0] (группы отсортированы по цене) — и на карточку
@@ -101,16 +76,15 @@ async function getHandler(
     // главной быть не могут — они уйдут в «Аналоги» ниже.
     const wantedArticle = normalizeArticle(decoded);
     const wantedBrandKey = brand ? brandKey(canonicalBrand(brand)) : "";
-    const sameArticle = mainGroups.filter((g) => g.article === wantedArticle);
     // Приоритет: точный бренд → бренд того же СЕМЕЙСТВА (CITROEN ≈ PSA ≈
     // Peugeot/Citroen — это тот же оригинал) → без брендового запроса берём
     // первую группу. Если бренд задан, но ни одна группа не из его семейства —
     // главной НЕ подменяем (чужой бренд с тем же артикулом уйдёт в аналоги).
-    let mainGroup: SupplierGroup | null =
-      (wantedBrandKey
-        ? (sameArticle.find((g) => brandKey(g.brand) === wantedBrandKey) ??
-          sameArticle.find((g) => sameBrandFamily(g.brand, brand)))
-        : sameArticle[0]) ?? null;
+    let mainGroup: SupplierGroup | null = pickMainProductGroup(
+      mainGroups,
+      decoded,
+      brand
+    );
 
     // Поставщики ничего не дали — пробуем каталог из БД (ручные/тестовые товары).
     if (!mainGroup) {

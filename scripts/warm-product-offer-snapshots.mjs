@@ -25,7 +25,7 @@ const maxAgeHours = Math.max(1, Number(arg("max-age-hours", "168")) || 168);
 const waveArg = String(arg("wave", "all"));
 const waves =
   waveArg === "all"
-    ? [1, 2, 3, 4, 5]
+    ? [5, 4, 3, 2, 1]
     : waveArg
         .split(",")
         .map(Number)

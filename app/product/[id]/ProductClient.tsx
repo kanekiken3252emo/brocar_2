@@ -137,11 +137,13 @@ export default function ProductClient({
   brand,
   shell,
   preserveShellName = false,
+  offerLimitPilot = false,
 }: {
   article: string;
   brand: string;
   shell: ProductShell;
   preserveShellName?: boolean;
+  offerLimitPilot?: boolean;
 }) {
   const productId = article;
 
@@ -477,7 +479,7 @@ export default function ProductClient({
   // Сортированный список (или дефолтный порядок сервера, если sortKey=null).
   const sortedOffers = sortOffers(product?.offers ?? [], sortKey, sortDir);
   let visibleOffers = sortedOffers;
-  if (!showAllOffers) {
+  if (!offerLimitPilot && !showAllOffers) {
     visibleOffers = sortedOffers.slice(0, 3);
     // В дефолтном порядке всегда показываем самый дешёвый рядом с топ-3. При
     // активной сортировке порядок задаёт пользователь — не вмешиваемся.
@@ -485,6 +487,7 @@ export default function ProductClient({
       visibleOffers = [...visibleOffers, cheapestOffer];
     }
   }
+  const initiallyVisibleOffers = offerLimitPilot ? 5 : 3;
   // Клик по заголовку/пилюле: тот же столбец → переключить направление,
   // другой → выбрать его с дефолтным направлением.
   function toggleSort(key: SortField, defaultDir: "asc" | "desc") {
@@ -596,6 +599,7 @@ export default function ProductClient({
                           manualOfferSelection.current = true;
                           setPrevOffer(selectedOffer);
                           setSelectedOffer(cheapestOffer);
+                          if (offerLimitPilot) setShowAllOffers(true);
                         }}
                         className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left text-sm text-orange-400 hover:text-orange-300 transition-colors"
                       >
@@ -777,7 +781,13 @@ export default function ProductClient({
                   {visibleOffers.map((offer, index) => (
                     <div
                       key={index}
-                      className={`p-4 ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
+                      className={`p-4 ${
+                        offerLimitPilot &&
+                        !showAllOffers &&
+                        index >= initiallyVisibleOffers
+                          ? "hidden"
+                          : ""
+                      } ${selectedOffer === offer ? "bg-orange-500/10" : ""}`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -899,6 +909,12 @@ export default function ProductClient({
                         <tr
                           key={index}
                           className={`hover:bg-neutral-800/50 transition-colors ${
+                            offerLimitPilot &&
+                            !showAllOffers &&
+                            index >= initiallyVisibleOffers
+                              ? "hidden"
+                              : ""
+                          } ${
                             selectedOffer === offer ? "bg-orange-500/10" : ""
                           }`}
                         >
@@ -985,7 +1001,7 @@ export default function ProductClient({
                   </table>
                 </div>
 
-                {product.offers.length > 3 && (
+                {product.offers.length > initiallyVisibleOffers && (
                   <button
                     onClick={() => setShowAllOffers(!showAllOffers)}
                     className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-neutral-400 hover:text-orange-400 bg-neutral-800/30 hover:bg-neutral-800/60 border-t border-neutral-800 transition-colors"

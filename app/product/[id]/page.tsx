@@ -8,9 +8,15 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { SITE_URL, productSchema } from "@/lib/seo/structured-data";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { canonicalBrand } from "@/lib/brands/canonical.mjs";
-import { normalizeArticle } from "@/lib/suppliers/adapter";
+import {
+  limitSupplierGroupOffers,
+  normalizeArticle,
+} from "@/lib/suppliers/adapter";
 import { productUrl } from "@/lib/product-url";
-import { isProductInSeoWave } from "@/lib/seo/product-wave";
+import {
+  isProductInSeoWave,
+  isProductInSeoWave5,
+} from "@/lib/seo/product-wave";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
 import {
   buildProductSeoTitle,
@@ -29,12 +35,14 @@ import {
 
 // Один lookup на запрос, общий для generateMetadata и самой страницы.
 const SEO_SHELL_DB_TIMEOUT_MS = 500;
+const WAVE_5_OFFER_LIMIT = 20;
 
 const getShell = cache(
   async (rawArticle: string, brand: string): Promise<ProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
       const isPriorityProduct = isProductInSeoWave(article, brand);
+      const isWave5Product = isProductInSeoWave5(article, brand);
       const seoSnapshot = getProductSeoSnapshot(article, brand);
       const localGroupPromise = findDbProductGroup(article, brand, {
         aggregateFreshOffers: isPriorityProduct,
@@ -43,20 +51,21 @@ const getShell = cache(
       // Для индексируемой карточки имя и минимальная цена уже есть в локальном
       // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
-      const localGroup = seoSnapshot
-        ? await Promise.race([
-            localGroupPromise,
-            new Promise<null>((resolve) =>
-              setTimeout(() => resolve(null), SEO_SHELL_DB_TIMEOUT_MS)
-            ),
-          ])
-        : await localGroupPromise;
+      const localGroup =
+        seoSnapshot && !isWave5Product
+          ? await Promise.race([
+              localGroupPromise,
+              new Promise<null>((resolve) =>
+                setTimeout(() => resolve(null), SEO_SHELL_DB_TIMEOUT_MS)
+              ),
+            ])
+          : await localGroupPromise;
       // Серверный HTML использует только локальные данные. Живой опрос семи
       // поставщиков выполняет клиентский /api/product/[article]; запускать его
       // ещё раз из generateMetadata/RSC нельзя, иначе открытие карточки ждёт
       // внешний API и создаёт повторную очередь запросов Autotrade.
       const sourceGroup = localGroup;
-      const group = seoSnapshot
+      const resolvedGroup = seoSnapshot
         ? {
             ...(sourceGroup ?? {
               article: seoSnapshot.article,
@@ -73,7 +82,7 @@ const getShell = cache(
             name: seoSnapshot.name,
           }
         : sourceGroup;
-      if (!group) {
+      if (!resolvedGroup) {
         return {
           article,
           brand: brand || null,
@@ -84,6 +93,10 @@ const getShell = cache(
           seoMinimumPrice: null,
         };
       }
+
+      const group = isWave5Product
+        ? limitSupplierGroupOffers(resolvedGroup, WAVE_5_OFFER_LIMIT)
+        : resolvedGroup;
 
       // Если карточка существует только в SEO-снимке, не задерживаем первый HTML
       // отдельным запросом к удалённой БД картинок. ProductClient догрузит фото
@@ -254,6 +267,10 @@ export default async function ProductPage({
   // единой для H1, title, хлебных крошек и JSON-LD. Клиентский опрос обновляет
   // только коммерческие данные: цену, наличие, срок и список предложений.
   const preserveShellName = Boolean(shell.group);
+  const offerLimitPilot = isProductInSeoWave5(
+    canonicalArticle,
+    canonicalBrandName
+  );
 
   const crumbs = [
     { name: "Главная", href: "/" },
@@ -286,6 +303,7 @@ export default async function ProductPage({
         brand={canonicalBrandName}
         shell={shell}
         preserveShellName={preserveShellName}
+        offerLimitPilot={offerLimitPilot}
       />
     </>
   );

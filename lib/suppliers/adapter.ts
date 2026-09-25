@@ -136,6 +136,34 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
   return a.ourPrice - b.ourPrice; // при равном сроке дешевле — выше
 }
 
+/**
+ * Оставляет первые `limit` предложений в уже установленном порядке и приводит
+ * агрегаты группы к фактически возвращаемому списку. Исходный объект не меняет.
+ */
+export function limitSupplierGroupOffers(
+  group: SupplierGroup,
+  limit: number
+): SupplierGroup {
+  if (!Number.isInteger(limit) || limit < 1 || group.offers.length <= limit) {
+    return group;
+  }
+
+  const offers = group.offers.slice(0, limit);
+  const prices = offers.map((offer) => offer.ourPrice);
+  const deliveries = offers
+    .map((offer) => offer.deliveryDays)
+    .filter((days): days is number => days != null);
+
+  return {
+    ...group,
+    offers,
+    minPrice: Math.min(...prices),
+    maxPrice: Math.max(...prices),
+    totalStock: offers.reduce((sum, offer) => sum + offer.stock, 0),
+    minDeliveryDays: deliveries.length ? Math.min(...deliveries) : null,
+  };
+}
+
 function atomicOffers(offer: SupplierOffer): SupplierOffer[] {
   if (!offer.fulfillment?.length) return [offer];
   return offer.fulfillment.map((part) => ({

@@ -5,6 +5,7 @@ import {
   dedupeGroups,
   mergeFamilyGroups,
   compareGroupsByDelivery,
+  limitSupplierGroupOffers,
   normalizeArticle,
   toPublicSupplierGroup,
   type SupplierGroup,
@@ -27,6 +28,9 @@ import { enrichGroupsWithImages } from "@/lib/product-images";
 import { CACHE_PRODUCT } from "@/lib/http-cache";
 import { findDbProductGroup } from "@/lib/suppliers/db-group";
 import { withServerTiming } from "@/lib/server-timing";
+import { isProductInSeoWave5 } from "@/lib/seo/product-wave";
+
+const WAVE_5_OFFER_LIMIT = 20;
 
 interface ProductDetailResponse {
   group: SupplierGroup | null;
@@ -47,6 +51,7 @@ async function getHandler(
     const { article } = await params;
     const decoded = decodeURIComponent(article);
     const brand = request.nextUrl.searchParams.get("brand") || "";
+    const offerLimitPilot = isProductInSeoWave5(decoded, brand);
 
     const adapters = [
       bergAdapter,
@@ -109,7 +114,13 @@ async function getHandler(
 
     // Поставщики ничего не дали — пробуем каталог из БД (ручные/тестовые товары).
     if (!mainGroup) {
-      mainGroup = await findDbProductGroup(decoded, brand).catch(() => null);
+      mainGroup = await findDbProductGroup(
+        decoded,
+        brand,
+        offerLimitPilot
+          ? { aggregateFreshOffers: true, aggregateNames: true }
+          : undefined
+      ).catch(() => null);
     }
 
     let characteristics: ShateCharacteristic[] = [];
@@ -187,10 +198,14 @@ async function getHandler(
     // Засеваем картинку и для ГЛАВНОГО товара (не только аналогов) — иначе клиент
     // делает второй, медленный запрос /api/product-image за самой важной картинкой
     // экрана (LCP). enrichGroupsWithImages подставит готовый URL из кэша, если он есть.
-    let enrichedMain: SupplierGroup | null = mainGroup;
-    if (mainGroup) {
-      const [m] = await enrichGroupsWithImages([mainGroup]);
-      enrichedMain = m ?? mainGroup;
+    const responseMainGroup =
+      mainGroup && offerLimitPilot
+        ? limitSupplierGroupOffers(mainGroup, WAVE_5_OFFER_LIMIT)
+        : mainGroup;
+    let enrichedMain: SupplierGroup | null = responseMainGroup;
+    if (responseMainGroup) {
+      const [m] = await enrichGroupsWithImages([responseMainGroup]);
+      enrichedMain = m ?? responseMainGroup;
     }
 
     const response: ProductDetailResponse = {

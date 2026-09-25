@@ -44,6 +44,13 @@ const waveKeys = new Set(
   )
 );
 
+const wave5Keys = new Set(
+  PRODUCT_WAVE_5.map(
+    (item) =>
+      `${normalizeArticle(item.article)}|${brandKey(canonicalBrand(item.brand))}`
+  )
+);
+
 if (waveKeys.size !== PRODUCT_SEO_WAVES.length) {
   throw new Error("Published product SEO waves contain duplicate identities");
 }
@@ -55,6 +62,17 @@ export function isProductInSeoWave(
 ): boolean {
   if (!brand) return false;
   return waveKeys.has(
+    `${normalizeArticle(article)}|${brandKey(canonicalBrand(brand))}`
+  );
+}
+
+/** Проверяет, входит ли товар в пятую SEO-волну (`/sitemaps/products/4`). */
+export function isProductInSeoWave5(
+  article: string,
+  brand?: string | null
+): boolean {
+  if (!brand) return false;
+  return wave5Keys.has(
     `${normalizeArticle(article)}|${brandKey(canonicalBrand(brand))}`
   );
 }

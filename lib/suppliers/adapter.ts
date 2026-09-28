@@ -179,8 +179,8 @@ function atomicOffers(offer: SupplierOffer): SupplierOffer[] {
 
 /**
  * Убирает один и тот же физический оффер, повторно пришедший через поиск/
- * семейство брендов, а затем объединяет разные склады только когда покупателю
- * показываются одинаковые поставщик, розничная цена и срок.
+ * семейство брендов. Разные физические склады остаются отдельными строками,
+ * даже когда у них совпадают поставщик, розничная цена и срок.
  */
 export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
   const exact = new Map<string, SupplierOffer>();
@@ -210,37 +210,7 @@ export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
     });
   }
 
-  const buckets = new Map<string, SupplierOffer>();
-  for (const offer of exact.values()) {
-    const key = `${offer.supplierCode}|${offer.ourPrice}|${offer.deliveryDays ?? "null"}`;
-    const part: SupplierFulfillmentPart = {
-      supplier: offer.supplier,
-      stock: offer.stock,
-      sourceOfferId: offer.sourceOfferId,
-    };
-    const existing = buckets.get(key);
-    if (!existing) {
-      buckets.set(key, { ...offer, fulfillment: undefined });
-      continue;
-    }
-    if (!existing.fulfillment) {
-      existing.fulfillment = [
-        {
-          supplier: existing.supplier,
-          stock: existing.stock,
-          sourceOfferId: existing.sourceOfferId,
-        },
-      ];
-    }
-    existing.stock += offer.stock;
-    existing.price = Math.min(existing.price, offer.price);
-    existing.name =
-      pickBetterName(existing.name || "", offer.name || "") || undefined;
-    existing.fulfillment!.push(part);
-    existing.sourceOfferId = undefined;
-  }
-
-  return Array.from(buckets.values()).sort(compareOffers);
+  return Array.from(exact.values()).sort(compareOffers);
 }
 
 /** Убирает внутренние ID поставщиков перед сериализацией в браузер. */

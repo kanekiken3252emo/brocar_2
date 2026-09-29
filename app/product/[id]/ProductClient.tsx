@@ -242,9 +242,9 @@ export default function ProductClient({
     setError(null);
 
     try {
-      // fresh=1 меняет ключ старого nginx-кэша, уже сохранённого до запрета
-      // кэширования. Сам новый ответ route отдаёт с no-store/X-Accel-Expires: 0.
-      const query = new URLSearchParams({ fresh: "1" });
+      // Уникальное значение меняет ключ любого старого nginx-кэша, уже сохранённого
+      // до запрета кэширования. Новый ответ route отдаёт с no-store/X-Accel-Expires: 0.
+      const query = new URLSearchParams({ fresh: Date.now().toString() });
       if (brand) query.set("brand", brand);
       const url = `/api/product/${encodeURIComponent(productId)}?${query}`;
       const res = await fetch(url, { cache: "no-store" });

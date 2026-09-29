@@ -16,7 +16,7 @@ import {
 import { productUrl } from "@/lib/product-url";
 import {
   isProductInSeoWave,
-  isProductInSeoWave5,
+  isProductInEnhancedOfferTableWave,
 } from "@/lib/seo/product-wave";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
 import {
@@ -50,7 +50,10 @@ const getShell = cache(
     const article = decodeURIComponent(rawArticle);
     try {
       const isPriorityProduct = isProductInSeoWave(article, brand);
-      const isWave5Product = isProductInSeoWave5(article, brand);
+      const hasEnhancedOfferTable = isProductInEnhancedOfferTableWave(
+        article,
+        brand
+      );
       const seoSnapshot = getProductSeoSnapshot(article, brand);
       const offerSnapshot = await getProductOfferSnapshot(article, brand).catch(
         () => null
@@ -62,7 +65,7 @@ const getShell = cache(
             aggregateNames: true,
           }).catch(() => null);
       const liveGroupPromise =
-        !offerSnapshot && isWave5Product
+        !offerSnapshot && hasEnhancedOfferTable
           ? getProductSupplierSeed(article, brand)
               .then(({ mainGroups }) =>
                 pickMainProductGroup(mainGroups, article, brand)
@@ -74,7 +77,7 @@ const getShell = cache(
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
       const localGroup = offerSnapshot
         ? null
-        : seoSnapshot && !isWave5Product
+        : seoSnapshot && !hasEnhancedOfferTable
           ? await Promise.race([
               localGroupPromise,
               new Promise<null>((resolve) =>
@@ -295,7 +298,7 @@ export default async function ProductPage({
   // единой для H1, title, хлебных крошек и JSON-LD. Клиентский опрос обновляет
   // только коммерческие данные: цену, наличие, срок и список предложений.
   const preserveShellName = Boolean(shell.group);
-  const offerTablePilot = isProductInSeoWave5(
+  const offerTablePilot = isProductInEnhancedOfferTableWave(
     canonicalArticle,
     canonicalBrandName
   );

@@ -4,6 +4,7 @@ import wave2Manifest from "@/data/seo-product-wave-2.json";
 import wave3Manifest from "@/data/seo-product-wave-3.json";
 import wave4Manifest from "@/data/seo-product-wave-4.json";
 import wave5Manifest from "@/data/seo-product-wave-5.json";
+import wave6Manifest from "@/data/seo-product-wave-6.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 
@@ -22,12 +23,14 @@ export const PRODUCT_WAVE_2 = wave2Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_3 = wave3Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_4 = wave4Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_5 = wave5Manifest.products as ProductWaveItem[];
+export const PRODUCT_WAVE_6 = wave6Manifest.products as ProductWaveItem[];
 export const PRODUCT_SEO_WAVE_BATCHES = [
   PRODUCT_WAVE_1,
   PRODUCT_WAVE_2,
   PRODUCT_WAVE_3,
   PRODUCT_WAVE_4,
   PRODUCT_WAVE_5,
+  PRODUCT_WAVE_6,
 ];
 export const PRODUCT_SEO_WAVES = [
   ...PRODUCT_WAVE_1,
@@ -35,6 +38,7 @@ export const PRODUCT_SEO_WAVES = [
   ...PRODUCT_WAVE_3,
   ...PRODUCT_WAVE_4,
   ...PRODUCT_WAVE_5,
+  ...PRODUCT_WAVE_6,
 ];
 
 const waveKeys = new Set(
@@ -44,8 +48,8 @@ const waveKeys = new Set(
   )
 );
 
-const wave5Keys = new Set(
-  PRODUCT_WAVE_5.map(
+const enhancedOfferTableKeys = new Set(
+  [...PRODUCT_WAVE_5, ...PRODUCT_WAVE_6].map(
     (item) =>
       `${normalizeArticle(item.article)}|${brandKey(canonicalBrand(item.brand))}`
   )
@@ -66,13 +70,13 @@ export function isProductInSeoWave(
   );
 }
 
-/** Проверяет, входит ли товар в пятую SEO-волну (`/sitemaps/products/4`). */
-export function isProductInSeoWave5(
+/** Проверяет, входит ли товар в SEO-волны с расширенной таблицей предложений. */
+export function isProductInEnhancedOfferTableWave(
   article: string,
   brand?: string | null
 ): boolean {
   if (!brand) return false;
-  return wave5Keys.has(
+  return enhancedOfferTableKeys.has(
     `${normalizeArticle(article)}|${brandKey(canonicalBrand(brand))}`
   );
 }

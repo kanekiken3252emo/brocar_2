@@ -19,6 +19,7 @@ import {
   Tag,
   Phone,
   Truck,
+  AlertTriangle,
 } from "lucide-react";
 import { formatDeliveryDays } from "@/lib/utils";
 
@@ -40,6 +41,18 @@ interface CartItem {
   /** Снимок цены оффера этой строки (та, что в сумме и в заказе). */
   price: number;
   deliveryDays?: number | null;
+  availableStock?: number | null;
+  verificationStatus?:
+    | "pending"
+    | "verified"
+    | "unavailable"
+    | "insufficient_stock";
+  conditionChange?: {
+    previousPrice: number;
+    previousDeliveryDays: number | null;
+    priceIncreased: boolean;
+    deliveryWorsened: boolean;
+  } | null;
   product: CartProduct;
 }
 
@@ -55,12 +68,21 @@ interface CartData {
   subtotal: number;
   total: number;
   promo?: CartPromo | null;
+  needsVerification?: boolean;
+  verificationFailedCount?: number;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function formatPrice(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
+}
+
+function isSelectable(item: CartItem) {
+  return (
+    item.verificationStatus !== "unavailable" &&
+    item.verificationStatus !== "insufficient_stock"
+  );
 }
 
 async function apiCart(body: object) {
@@ -163,6 +185,8 @@ function CartItemRow({
   // Адрес карточки — как везде на сайте: /product/<артикул>?brand=<бренд>.
   // Числовой id из базы страница товара НЕ понимает («Товар не найден»).
   const productHref = `/product/${encodeURIComponent(item.product.article)}?brand=${encodeURIComponent(item.product.brand)}`;
+  const unavailable = item.verificationStatus === "unavailable";
+  const insufficient = item.verificationStatus === "insufficient_stock";
   return (
     <div
       className={`flex gap-3 sm:gap-4 p-4 sm:p-5 bg-neutral-900 border rounded-2xl transition-colors ${
@@ -176,6 +200,7 @@ function CartItemRow({
         type="checkbox"
         checked={checked}
         onChange={() => onToggleSelect(item.id)}
+        disabled={unavailable || insufficient}
         className="mt-1 h-5 w-5 accent-orange-500 shrink-0 cursor-pointer"
         aria-label={checked ? "Убрать из заказа" : "Добавить в заказ"}
       />
@@ -219,6 +244,16 @@ function CartItemRow({
               Под заказ
             </span>
           )}
+          {unavailable && (
+            <span className="text-xs text-red-400 bg-red-500/10 rounded-md px-2 py-0.5">
+              Больше недоступно
+            </span>
+          )}
+          {insufficient && (
+            <span className="text-xs text-yellow-300 bg-yellow-500/10 rounded-md px-2 py-0.5">
+              Доступно только {item.availableStock ?? 0} шт.
+            </span>
+          )}
           {item.deliveryDays != null && (
             <span className="text-xs text-neutral-300 bg-neutral-800 rounded-md px-2 py-0.5 inline-flex items-center gap-1">
               <Truck className="h-3 w-3 text-orange-500" />
@@ -235,6 +270,22 @@ function CartItemRow({
         <p className="text-orange-500 font-bold text-lg mt-1">
           {formatPrice(item.price)}
         </p>
+        {item.conditionChange && (
+          <div className="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs leading-relaxed text-yellow-200">
+            Условия изменились: {item.conditionChange.priceIncreased && (
+              <>
+                цена была {formatPrice(item.conditionChange.previousPrice)}, стала {formatPrice(item.price)}
+              </>
+            )}
+            {item.conditionChange.priceIncreased && item.conditionChange.deliveryWorsened && "; "}
+            {item.conditionChange.deliveryWorsened && (
+              <>
+                срок был {formatDeliveryDays(item.conditionChange.previousDeliveryDays)}, стал {formatDeliveryDays(item.deliveryDays)}
+              </>
+            )}
+            . Позиция сохранена в корзине.
+          </div>
+        )}
       </div>
 
       {/* Qty + remove */}
@@ -243,7 +294,7 @@ function CartItemRow({
         <div className="flex items-center gap-2 bg-neutral-800 border border-neutral-700 rounded-xl p-1">
           <button
             onClick={() => onUpdateQty(item.id, item.qty - 1)}
-            disabled={loading || item.qty <= 1}
+            disabled={loading || unavailable || insufficient || item.qty <= 1}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Уменьшить"
           >
@@ -254,7 +305,7 @@ function CartItemRow({
           </span>
           <button
             onClick={() => onUpdateQty(item.id, item.qty + 1)}
-            disabled={loading}
+            disabled={loading || unavailable || insufficient || (item.availableStock != null && item.qty >= item.availableStock)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Увеличить"
           >
@@ -296,14 +347,31 @@ export default function CartPage() {
   const [promoInput, setPromoInput] = useState("");
   const [promoBusy, setPromoBusy] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(async (refreshExpired = false) => {
     try {
       const res = await fetch("/api/cart");
       if (!res.ok) throw new Error();
       const data: CartData = await res.json();
       setCart(data);
       setFetchStatus("ok");
+      if (refreshExpired && data.needsVerification && data.items.length > 0) {
+        setVerifying(true);
+        setVerificationError(null);
+        try {
+          const refreshed = await apiCart({ action: "refreshOffers" });
+          setCart(refreshed);
+          if ((refreshed.verificationFailedCount ?? 0) > 0) {
+            setVerificationError("Не все позиции удалось проверить. Повторим проверку перед оформлением.");
+          }
+        } catch {
+          setVerificationError("Не удалось проверить условия. Повторим проверку перед оформлением.");
+        } finally {
+          setVerifying(false);
+        }
+      }
     } catch {
       setCart({ items: [], subtotal: 0, total: 0 });
       setFetchStatus("ok"); // treat API error as empty cart (DB not connected yet)
@@ -311,14 +379,14 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
-    fetchCart();
+    fetchCart(true);
   }, [fetchCart]);
 
   // Синхронизируем выбор с содержимым корзины: первая загрузка — все отмечены;
   // далее сохраняем выбор, отбрасывая удалённые позиции.
   useEffect(() => {
     if (!cart) return;
-    const ids = cart.items.map((i) => i.id);
+    const ids = cart.items.filter(isSelectable).map((i) => i.id);
     setSelected((prev) => {
       if (prev === null) return new Set(ids);
       const next = new Set<number>();
@@ -338,7 +406,7 @@ export default function CartPage() {
   }
 
   function toggleAll() {
-    const ids = (cart?.items ?? []).map((i) => i.id);
+    const ids = (cart?.items ?? []).filter(isSelectable).map((i) => i.id);
     setSelected((prev) => {
       const base = prev ?? new Set(ids);
       const isAll = ids.length > 0 && ids.every((id) => base.has(id));
@@ -413,7 +481,7 @@ export default function CartPage() {
     // В заказ уйдут только ОТМЕЧЕННЫЕ позиции — сохраняем их для /checkout.
     const all = cart?.items ?? [];
     const set = selected ?? new Set(all.map((i) => i.id));
-    const ids = all.filter((it) => set.has(it.id)).map((it) => it.id);
+    const ids = all.filter((it) => isSelectable(it) && set.has(it.id)).map((it) => it.id);
     if (ids.length === 0) return;
     try {
       sessionStorage.setItem("checkout_item_ids", JSON.stringify(ids));
@@ -439,9 +507,10 @@ export default function CartPage() {
 
   // Выбор и суммы по отмеченным позициям (итог платит только за них).
   const selectedSet = selected ?? new Set(items.map((i) => i.id));
-  const selectedItems = items.filter((it) => selectedSet.has(it.id));
+  const selectableItems = items.filter(isSelectable);
+  const selectedItems = items.filter((it) => isSelectable(it) && selectedSet.has(it.id));
   const allChecked =
-    items.length > 0 && selectedItems.length === items.length;
+    selectableItems.length > 0 && selectedItems.length === selectableItems.length;
   const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
   const selSubtotal = round2(
     selectedItems.reduce((s, it) => s + round2(it.price * it.qty), 0)
@@ -498,6 +567,18 @@ export default function CartPage() {
           <div className="max-w-5xl mx-auto grid lg:grid-cols-3 gap-8">
             {/* Items */}
             <div className="lg:col-span-2 space-y-3">
+              {verifying && (
+                <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+                  <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                  Проверяем актуальные цену, срок и остаток…
+                </div>
+              )}
+              {verificationError && (
+                <div className="flex items-start gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 text-sm text-yellow-200">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  {verificationError}
+                </div>
+              )}
               {/* Выбрать все — в заказ уйдут только отмеченные позиции */}
               <label className="flex items-center gap-3 px-1 pb-1 cursor-pointer select-none w-fit">
                 <input
@@ -651,7 +732,7 @@ export default function CartPage() {
                     className="w-full gap-2"
                     size="lg"
                     onClick={handleCheckout}
-                    disabled={checkingOut || mutating || selectedItems.length === 0}
+                    disabled={checkingOut || mutating || verifying || selectedItems.length === 0}
                   >
                     {checkingOut ? (
                       <>

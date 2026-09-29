@@ -3,12 +3,17 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { carts, cartItems, products } from "@/lib/db/schema";
-import { eq, and, isNull, like } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { generateSessionId } from "@/lib/utils";
 import { validatePromo, discountAmount } from "@/lib/promo";
 import { isReturnableSupplier } from "@/lib/suppliers/returns";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
+import {
+  isCartItemVerificationFresh,
+  refreshCartOffers,
+  resolveRequestedCartOffer,
+} from "@/lib/cart/verification";
 
 const addToCartSchema = z.object({
   action: z.enum(["add", "remove", "update"]),
@@ -31,6 +36,7 @@ const addFromSupplierSchema = z.object({
   qty: z.number().int().min(1).optional().default(1),
   deliveryDays: z.number().int().nullable().optional(),
   supplier: z.string().nullable().optional(),
+  supplierIdentity: z.string().nullable().optional(),
   supplierCode: z
     .string()
     .regex(/^[a-z0-9-]+$/i)
@@ -255,6 +261,10 @@ async function getCartWithItems(cartId: number) {
       qty: item.qty,
       price: linePrice,
       deliveryDays: item.deliveryDays,
+      availableStock: item.availableStock,
+      verifiedAt: item.verifiedAt?.toISOString() ?? null,
+      verificationStatus: item.verificationStatus ?? "pending",
+      conditionChange: item.conditionChange,
       // Возвратность позиции по поставщику (Берг → false). Саму строку supplier
       // покупателю не отдаём — только этот флаг для политики возврата на оформлении.
       returnable: isReturnableSupplier(item.supplier),
@@ -264,7 +274,7 @@ async function getCartWithItems(cartId: number) {
         brand: item.product.brand,
         name: item.product.name,
         price: linePrice,
-        stock: item.product.stock,
+        stock: item.availableStock ?? item.product.stock,
       },
     };
   });
@@ -301,6 +311,9 @@ async function getCartWithItems(cartId: number) {
   }
 
   const total = Number((subtotal - (promo?.discountAmount ?? 0)).toFixed(2));
+  const needsVerification = cart.items.some(
+    (item) => !isCartItemVerificationFresh(item.verifiedAt)
+  );
 
   return {
     id: cart.id,
@@ -308,6 +321,7 @@ async function getCartWithItems(cartId: number) {
     subtotal,
     promo,
     total,
+    needsVerification,
   };
 }
 
@@ -322,6 +336,7 @@ export async function GET() {
         items: [],
         subtotal: 0,
         total: 0,
+        needsVerification: false,
       });
     }
 
@@ -333,7 +348,12 @@ export async function GET() {
     const cartData = await getCartWithItems(cart.id);
 
     const response = NextResponse.json(
-      cartData || { items: [], subtotal: 0, total: 0 }
+      cartData || {
+        items: [],
+        subtotal: 0,
+        total: 0,
+        needsVerification: false,
+      }
     );
 
     // Куку ставим всегда — она якорь корзины и при логине, и после разлогина.
@@ -363,75 +383,80 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    if (body && body.action === "refreshOffers") {
+      const cart = await getOrCreateCart(user?.id || null, sessionId!);
+      const refresh = await refreshCartOffers(cart.id);
+      const cartData = await getCartWithItems(cart.id);
+      const response = NextResponse.json({
+        ...cartData,
+        verificationFailedCount: refresh.failed,
+      });
+      setSessionCookie(response, sessionId);
+      return response;
+    }
+
     // Ветка для добавления прямо от поставщика: upsert товара → обычный "add"
     if (body && body.action === "addFromSupplier") {
       const data = addFromSupplierSchema.parse(body);
-      if (data.stock < 1 || data.qty > data.stock) {
+      const resolved = await resolveRequestedCartOffer({
+        article: data.article,
+        brand: data.brand,
+        ourPrice: data.ourPrice,
+        stock: data.stock,
+        deliveryDays: data.deliveryDays ?? null,
+        supplierCode: data.supplierCode,
+        supplierIdentity: data.supplierIdentity,
+      });
+      if (!resolved) {
+        return NextResponse.json(
+          {
+            error:
+              "Предложение изменилось. Обновите страницу товара и выберите его снова.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const { group, offer, verifiedAt } = resolved;
+      if (offer.stock < 1 || data.qty > offer.stock) {
         return NextResponse.json(
           { error: "Запрошенное количество превышает остаток предложения" },
           { status: 409 }
         );
       }
-      const supplier = data.supplier ?? null;
-      const routeSuffix = data.supplierCode
-        ? ` [offer:${data.supplierCode.toLowerCase()}]`
-        : "";
-      const routeParts = data.fulfillment?.length
-        ? data.fulfillment
-        : supplier
-          ? [{ supplier, stock: data.stock }]
-          : undefined;
-      if (
-        routeParts &&
-        routeParts.reduce((sum, part) => sum + part.stock, 0) !== data.stock
-      ) {
-        return NextResponse.json(
-          { error: "Некорректная разбивка остатка по складам" },
-          { status: 400 }
-        );
-      }
       const supplierSnapshot = (qty: number) =>
-        supplier
-          ? `${buildSupplierAllocation(
-              { supplier, stock: data.stock, fulfillment: routeParts },
-              qty
-            )}${routeSuffix}`
-          : null;
+        buildSupplierAllocation(offer, qty);
       const cart = await getOrCreateCart(user?.id || null, sessionId!);
 
       const productId = await upsertProductByArticle({
-        article: data.article,
-        brand: data.brand,
-        name: data.name,
-        ourPrice: data.ourPrice,
-        supplierPrice: data.supplierPrice ?? data.ourPrice,
-        stock: data.stock,
+        article: group.article,
+        brand: group.brand,
+        name: group.name || data.name,
+        ourPrice: offer.ourPrice,
+        supplierPrice: offer.price,
+        stock: offer.stock,
       });
 
-      // Снимок цены оффера. ТОТ ЖЕ оффер (тот же артикул + та же цена) суммирует
-      // количество; ДРУГОЙ оффер того же артикула (другая цена) становится
-      // ОТДЕЛЬНОЙ строкой — иначе 400 + 100 затирались бы в 2×100.
-      const priceSnapshot = data.ourPrice.toFixed(2);
-      const deliveryDays = data.deliveryDays ?? null;
-
-      const existingItem = await db.query.cartItems.findFirst({
+      const priceSnapshot = offer.ourPrice.toFixed(2);
+      const deliveryDays = offer.deliveryDays;
+      const candidateItems = await db.query.cartItems.findMany({
         where: and(
           eq(cartItems.cartId, cart.id),
-          eq(cartItems.productId, productId),
-          eq(cartItems.price, priceSnapshot),
-          deliveryDays == null
-            ? isNull(cartItems.deliveryDays)
-            : eq(cartItems.deliveryDays, deliveryDays),
-          routeSuffix
-            ? like(cartItems.supplier, `%${routeSuffix}`)
-            : supplier == null
-              ? isNull(cartItems.supplier)
-              : eq(cartItems.supplier, supplier)
+          eq(cartItems.productId, productId)
         ),
       });
+      const existingItem = candidateItems.find((item) =>
+        offer.sourceOfferId
+          ? item.sourceOfferId === offer.sourceOfferId &&
+            item.supplierCode === offer.supplierCode
+          : item.supplierCode === offer.supplierCode &&
+            item.offerSupplier === offer.supplier &&
+            item.price === priceSnapshot &&
+            item.deliveryDays === deliveryDays
+      );
 
       if (existingItem) {
-        if (existingItem.qty + data.qty > data.stock) {
+        if (existingItem.qty + data.qty > offer.stock) {
           return NextResponse.json(
             {
               error:
@@ -445,6 +470,13 @@ export async function POST(request: NextRequest) {
           .set({
             qty: existingItem.qty + data.qty,
             supplier: supplierSnapshot(existingItem.qty + data.qty),
+            supplierCode: offer.supplierCode,
+            offerSupplier: offer.supplier,
+            sourceOfferId: offer.sourceOfferId ?? null,
+            availableStock: offer.stock,
+            verifiedAt,
+            verificationStatus: "verified",
+            conditionChange: null,
           })
           .where(eq(cartItems.id, existingItem.id));
       } else {
@@ -455,6 +487,13 @@ export async function POST(request: NextRequest) {
           price: priceSnapshot,
           deliveryDays,
           supplier: supplierSnapshot(data.qty),
+          supplierCode: offer.supplierCode,
+          offerSupplier: offer.supplier,
+          sourceOfferId: offer.sourceOfferId ?? null,
+          availableStock: offer.stock,
+          verifiedAt,
+          verificationStatus: "verified",
+          conditionChange: null,
         });
       }
 
@@ -536,6 +575,28 @@ export async function POST(request: NextRequest) {
               )
             );
         } else {
+          const item = await db.query.cartItems.findFirst({
+            where: and(
+              eq(cartItems.cartId, cart.id),
+              eq(cartItems.id, validatedData.cartItemId)
+            ),
+          });
+          if (!item) {
+            return NextResponse.json(
+              { error: "Позиция корзины не найдена" },
+              { status: 404 }
+            );
+          }
+          if (
+            item.availableStock != null &&
+            validatedData.qty != null &&
+            validatedData.qty > item.availableStock
+          ) {
+            return NextResponse.json(
+              { error: "Запрошенное количество превышает доступный остаток" },
+              { status: 409 }
+            );
+          }
           await db
             .update(cartItems)
             .set({ qty: validatedData.qty })

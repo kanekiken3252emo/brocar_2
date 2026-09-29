@@ -18,6 +18,11 @@ interface CartItem {
   deliveryDays?: number | null;
   // Возвратность позиции (приходит с сервера): Берг → false, остальные → true.
   returnable?: boolean;
+  verificationStatus?:
+    | "pending"
+    | "verified"
+    | "unavailable"
+    | "insufficient_stock";
   product: { name: string; article: string; price: number };
 }
 interface CartData {
@@ -25,6 +30,8 @@ interface CartData {
   subtotal: number;
   total: number;
   promo?: { code: string; discountPct: number; discountAmount: number } | null;
+  needsVerification?: boolean;
+  verificationFailedCount?: number;
 }
 
 /**
@@ -89,7 +96,15 @@ export default function CheckoutPage() {
 
         // корзина
         const cartRes = await fetch("/api/cart");
-        const cartData = await cartRes.json();
+        let cartData: CartData = await cartRes.json();
+        if (cartData.needsVerification && cartData.items.length > 0) {
+          const refreshRes = await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "refreshOffers" }),
+          });
+          if (refreshRes.ok) cartData = await refreshRes.json();
+        }
         setCart(cartData);
       } catch {
         setError("Не удалось загрузить данные");
@@ -132,6 +147,12 @@ export default function CheckoutPage() {
     if (phone.replace(/\D/g, "").length !== 11)
       return setError("Проверьте номер телефона: нужно +7 и 10 цифр");
     const orderItems = getCheckoutItems();
+    if (orderItems.some((it) => it.verificationStatus === "unavailable")) {
+      return setError("Одна из позиций больше недоступна. Вернитесь в корзину и удалите её.");
+    }
+    if (orderItems.some((it) => it.verificationStatus === "insufficient_stock")) {
+      return setError("Для одной из позиций не хватает остатка. Вернитесь в корзину и измените количество.");
+    }
     const hasNonStockNow = orderItems.some((it) => (it.deliveryDays ?? 0) >= 2);
     if (hasNonStockNow && !agreed)
       return setError("Подтвердите согласие с условиями заказа товара под заказ");

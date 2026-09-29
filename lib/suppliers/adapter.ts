@@ -15,6 +15,8 @@ export interface SupplierItem {
   name: string;
   price: number;
   stock: number;
+  /** Поставщик сообщил нижнюю границу остатка (например, `>100` или `100+`). */
+  availableMore?: boolean;
   supplier: string;
   supplierCode?: string;
   deliveryDays?: number | null;
@@ -42,6 +44,8 @@ export interface SupplierOffer {
   price: number;
   ourPrice: number;
   stock: number;
+  /** Остаток ограничен отображаемым порогом поставщика, фактически товара больше. */
+  availableMore?: boolean;
   deliveryDays: number | null;
   sourceOfferId?: string;
   /** Разбивка объединённого публичного оффера по физическим складам. */
@@ -207,6 +211,7 @@ export function consolidateOffers(offers: SupplierOffer[]): SupplierOffer[] {
       ...better,
       name: pickBetterName(previous.name || "", offer.name || "") || undefined,
       stock: Math.max(offer.stock, previous.stock),
+      availableMore: Boolean(previous.availableMore || offer.availableMore),
     });
   }
 
@@ -447,6 +452,7 @@ export function groupOffers(
       price: item.price,
       ourPrice: applyMarkup(item.price, { brand }),
       stock: item.stock,
+      availableMore: item.availableMore,
       deliveryDays: item.deliveryDays ?? null,
       sourceOfferId: item.sourceOfferId,
     };

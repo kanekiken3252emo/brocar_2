@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { SupplierAdapter, SearchParams, SupplierItem } from "./adapter";
+import { parseSupplierStock } from "./stock.mjs";
 
 /**
  * ПартКом (part-kom.ru) REST v4 adapter.
@@ -107,7 +108,8 @@ export class PartKomAdapter implements SupplierAdapter {
 
       const items: SupplierItem[] = [];
       for (const row of data) {
-        const stock = toInt(row.quantity);
+        const parsedStock = parseSupplierStock(row.quantity);
+        const stock = parsedStock.stock;
         const price = toFloat(row.price);
         if (stock <= 0 || price <= 0) continue;
 
@@ -129,6 +131,7 @@ export class PartKomAdapter implements SupplierAdapter {
           name: row.description || "",
           price,
           stock,
+          availableMore: parsedStock.availableMore,
           supplier: `ПартКом (${row.placement || "склад"})`,
           supplierCode: "partkom",
           deliveryDays: resolveDeliveryDays(row),

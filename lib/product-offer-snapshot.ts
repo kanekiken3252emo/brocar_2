@@ -40,15 +40,23 @@ function isSupplierGroup(value: unknown): value is SupplierGroup {
   );
 }
 
-/** Читает постоянный снимок предложений для исходного серверного HTML. */
-export async function getProductOfferSnapshot(
+export interface ProductOfferSnapshotState {
+  group: SupplierGroup;
+  updatedAt: Date;
+}
+
+/** Читает снимок вместе со временем последней серверной проверки. */
+export async function getProductOfferSnapshotState(
   article: string,
   brand: string
-): Promise<SupplierGroup | null> {
+): Promise<ProductOfferSnapshotState | null> {
   if (!article || !brand) return null;
   const key = identity(article, brand);
   const [row] = await db
-    .select({ groupData: productOfferSnapshots.groupData })
+    .select({
+      groupData: productOfferSnapshots.groupData,
+      updatedAt: productOfferSnapshots.updatedAt,
+    })
     .from(productOfferSnapshots)
     .where(
       and(
@@ -58,7 +66,17 @@ export async function getProductOfferSnapshot(
     )
     .limit(1);
 
-  return isSupplierGroup(row?.groupData) ? row.groupData : null;
+  return isSupplierGroup(row?.groupData) && row.updatedAt
+    ? { group: row.groupData, updatedAt: row.updatedAt }
+    : null;
+}
+
+/** Читает постоянный снимок предложений для исходного серверного HTML. */
+export async function getProductOfferSnapshot(
+  article: string,
+  brand: string
+): Promise<SupplierGroup | null> {
+  return (await getProductOfferSnapshotState(article, brand))?.group ?? null;
 }
 
 /**

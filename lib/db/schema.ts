@@ -234,6 +234,25 @@ export const cartItems = pgTable("cart_items", {
   // Реальный поставщик/склад позиции (напр. «Autotrade (Москва)»). Хранится
   // СЕРВЕРНО для письма магазину — покупателю не отдаётся (у него VEGA-имена).
   supplier: text("supplier"),
+  // Стабильная привязка к конкретному живому офферу. Эти поля никогда не
+  // принимаются на веру из браузера: сервер заполняет их после сверки со своим
+  // снимком или свежим ответом поставщиков. null = легаси-строка.
+  supplierCode: text("supplier_code"),
+  offerSupplier: text("offer_supplier"),
+  sourceOfferId: text("source_offer_id"),
+  availableStock: integer("available_stock"),
+  // Последняя успешная серверная проверка. Результат действует один час.
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  verificationStatus: text("verification_status"),
+  // Заполняется только если при очередной проверке цена выросла или срок стал
+  // хуже. Нужен для честного сообщения в корзине; при тех же/лучших условиях
+  // очищается, и обновление проходит без лишнего уведомления.
+  conditionChange: jsonb("condition_change").$type<{
+    previousPrice: number;
+    previousDeliveryDays: number | null;
+    priceIncreased: boolean;
+    deliveryWorsened: boolean;
+  }>(),
 });
 
 // Orders table
@@ -375,7 +394,3 @@ export const news = pgTable("news", {
     .defaultNow()
     .notNull(),
 });
-
-
-
-

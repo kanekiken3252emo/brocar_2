@@ -64,6 +64,7 @@ export default function SupplierItemCard({
         stock: primaryOffer.stock,
         deliveryDays: primaryOffer.deliveryDays,
         supplier: buildSupplierAllocation(primaryOffer, 1),
+        supplierIdentity: primaryOffer.supplier,
         supplierCode: primaryOffer.supplierCode,
         fulfillment: primaryOffer.fulfillment,
       });

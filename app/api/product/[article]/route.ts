@@ -187,7 +187,7 @@ async function getHandler(
       await saveProductOfferSnapshot(
         decoded,
         brand || publicMainGroup.brand,
-        publicMainGroup
+        responseMainGroup!
       ).catch((error) => {
         console.error("Product offer snapshot write error:", error);
       });

@@ -387,6 +387,7 @@ export default function ProductClient({
           },
           qty
         ),
+        supplierIdentity: offer.supplier || null,
         supplierCode: offer.supplierCode,
         fulfillment: offer.fulfillment,
       });

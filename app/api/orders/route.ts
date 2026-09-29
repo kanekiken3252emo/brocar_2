@@ -4,6 +4,10 @@ import { carts, orders, orderItems } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { validatePromo, discountAmount } from "@/lib/promo";
+import {
+  isCartItemVerificationFresh,
+  refreshCartOffers,
+} from "@/lib/cart/verification";
 
 /**
  * Создаёт заказ из корзины текущего пользователя.
@@ -35,7 +39,7 @@ export async function POST(request: Request) {
       : null;
 
     // Находим корзину пользователя со всеми позициями
-    const cart = await db.query.carts.findFirst({
+    let cart = await db.query.carts.findFirst({
       where: eq(carts.userId, user.id),
       with: {
         items: {
@@ -49,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     // Позиции для заказа: выбранные (если пришёл список) или вся корзина.
-    const selectedItems = wantedIds
+    let selectedItems = wantedIds
       ? cart.items.filter((it) => wantedIds.has(it.id))
       : cart.items;
 
@@ -57,6 +61,52 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Не выбраны позиции для заказа" },
         { status: 400 }
+      );
+    }
+
+    // Не ходим к поставщикам на каждое оформление: серверный результат живёт
+    // ровно час. Если выбранная позиция просрочена, делаем одну сверку и заново
+    // читаем только серверные данные перед созданием заказа.
+    const staleIds = selectedItems
+      .filter((item) => !isCartItemVerificationFresh(item.verifiedAt))
+      .map((item) => item.id);
+    if (staleIds.length > 0) {
+      await refreshCartOffers(cart.id, staleIds);
+      cart = await db.query.carts.findFirst({
+        where: eq(carts.id, cart.id),
+        with: { items: { with: { product: true } } },
+      });
+      if (!cart) {
+        return NextResponse.json({ error: "Корзина не найдена" }, { status: 400 });
+      }
+      selectedItems = wantedIds
+        ? cart.items.filter((it) => wantedIds.has(it.id))
+        : cart.items;
+    }
+
+    if (selectedItems.some((item) => item.verificationStatus === "unavailable")) {
+      return NextResponse.json(
+        {
+          error:
+            "Одна из позиций больше недоступна. Вернитесь в корзину и удалите её.",
+        },
+        { status: 409 }
+      );
+    }
+    if (
+      selectedItems.some(
+        (item) =>
+          item.verificationStatus === "insufficient_stock" ||
+          (item.availableStock != null && item.qty > item.availableStock) ||
+          !isCartItemVerificationFresh(item.verifiedAt)
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Не удалось подтвердить условия одной из позиций. Вернитесь в корзину и повторите проверку.",
+        },
+        { status: 409 }
       );
     }
 

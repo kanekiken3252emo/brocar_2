@@ -2,6 +2,7 @@
 // и в живых ответах поставщиков, как и в импортированном каталоге.
 import { canonicalBrand, brandKey } from "../brands/canonical.mjs";
 import { brandFamilyId, familyDisplayName } from "../brands/families.mjs";
+import { getEffectiveDeliveryDays } from "../utils";
 // Ремонт битых названий из живых ответов поставщиков (особенно Armtek):
 // «KopfstГ tze» → «Kopfstütze», выбор чистого дубля вместо «Р С С Р».
 import { repairSupplierName, nameScore, pickBetterName } from "./mojibake";
@@ -124,7 +125,7 @@ export function isValidPrice(n: number): boolean {
 /**
  * Сортировка предложений внутри товара: «в наличии → быстрее → дешевле».
  *   1) сначала то, что в наличии (остаток > 0);
- *   2) затем по сроку доставки
+ *   2) затем по фактическому сроку доставки с учётом границы 12:00 ЕКБ
  *      (быстрее — выше; «уточн.»/null — в конец);
  *   3) при равном сроке — по возрастанию цены.
  * Используется и в карточке товара, и в карточках поиска, чтобы порядок
@@ -135,8 +136,8 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
   const bInStock = b.stock > 0 ? 1 : 0;
   if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
 
-  const aDays = a.deliveryDays ?? Infinity;
-  const bDays = b.deliveryDays ?? Infinity;
+  const aDays = getEffectiveDeliveryDays(a.deliveryDays) ?? Infinity;
+  const bDays = getEffectiveDeliveryDays(b.deliveryDays) ?? Infinity;
   if (aDays !== bDays) return aDays - bDays; // быстрее — выше
 
   return a.ourPrice - b.ourPrice; // при равном сроке дешевле — выше

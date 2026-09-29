@@ -32,10 +32,17 @@ export default function SupplierItemCard({
   showAddToCart = true,
   priority = false,
 }: SupplierItemCardProps) {
-  const isInStock = group.totalStock > 0;
+  // Карточка каталога должна описывать одно реальное предложение целиком.
+  // Офферы уже отсортированы сервером: сначала в наличии, затем быстрее и
+  // дешевле. Раньше цена бралась из самого дешёвого (иногда на 11 дней), срок -
+  // из самого быстрого, а остаток суммировался по всем складам. При переходе
+  // внутрь покупатель закономерно видел другую основную цену.
+  const primaryOffer = group.offers[0];
+  const isInStock = (primaryOffer?.stock ?? 0) > 0;
+  const displayPrice = primaryOffer?.ourPrice;
   // Цена может быть битой (NaN→null из импорта) — тогда не показываем сумму и
   // не даём «в корзину»: продать товар без цены нельзя.
-  const hasPrice = isValidPrice(group.minPrice);
+  const hasPrice = isValidPrice(displayPrice ?? Number.NaN);
   const uniqueSuppliers = new Set(group.offers.map((o) => o.supplierCode)).size;
 
   const href = `/product/${encodeURIComponent(group.article)}?brand=${encodeURIComponent(
@@ -45,21 +52,20 @@ export default function SupplierItemCard({
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const bestOffer = group.offers[0];
-    if (!bestOffer) return;
+    if (!primaryOffer) return;
     flyToCart(e.currentTarget as HTMLElement);
     try {
       await addSupplierItemToCart({
         article: group.article,
         brand: group.brand,
         name: group.name,
-        ourPrice: bestOffer.ourPrice,
-        supplierPrice: bestOffer.price,
-        stock: bestOffer.stock,
-        deliveryDays: bestOffer.deliveryDays,
-        supplier: buildSupplierAllocation(bestOffer, 1),
-        supplierCode: bestOffer.supplierCode,
-        fulfillment: bestOffer.fulfillment,
+        ourPrice: primaryOffer.ourPrice,
+        supplierPrice: primaryOffer.price,
+        stock: primaryOffer.stock,
+        deliveryDays: primaryOffer.deliveryDays,
+        supplier: buildSupplierAllocation(primaryOffer, 1),
+        supplierCode: primaryOffer.supplierCode,
+        fulfillment: primaryOffer.fulfillment,
       });
     } catch (err: any) {
       window.dispatchEvent(
@@ -101,16 +107,15 @@ export default function SupplierItemCard({
           <div className="flex items-center gap-3 text-xs text-neutral-500 mb-3 flex-wrap">
             <div className="flex items-center gap-1">
               <Package className="w-3.5 h-3.5" />
-              <span>{group.totalStock} шт.</span>
+              <span>
+                {primaryOffer?.stock ?? 0}
+                {primaryOffer?.availableMore ? "+" : ""} шт.
+              </span>
             </div>
-            {group.minDeliveryDays != null && (
+            {primaryOffer?.deliveryDays != null && (
               <div className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                <span>
-                  {group.minDeliveryDays === 0
-                    ? formatDeliveryDays(0)
-                    : `от ${group.minDeliveryDays} дн.`}
-                </span>
+                <span>{formatDeliveryDays(primaryOffer.deliveryDays)}</span>
               </div>
             )}
             <div className="flex items-center gap-1">
@@ -125,9 +130,9 @@ export default function SupplierItemCard({
             <div>
               {hasPrice ? (
                 <>
-                  <div className="text-xs text-neutral-500">от</div>
+                  <div className="text-xs text-neutral-500">Цена</div>
                   <div className="text-xl font-bold text-white">
-                    {formatPrice(group.minPrice)}{" "}
+                    {formatPrice(displayPrice)}{" "}
                     <span className="text-sm text-neutral-400">₽</span>
                   </div>
                 </>

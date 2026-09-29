@@ -25,41 +25,51 @@ export interface ProductSupplierSeed {
 }
 
 /**
- * Общий двухминутный снимок живого поиска. Серверный HTML пятой SEO-волны и
- * последующий клиентский API используют одни данные, не опрашивая семь
- * поставщиков дважды при одном открытии карточки.
+ * Двухминутный снимок живого поиска только для серверного SEO-шелла. Клиентский
+ * API использует отдельный свежий опрос ниже: коммерческие данные на экране не
+ * должны зависеть от отложенного обновления Next Data Cache.
  */
+const adapters = [
+  bergAdapter,
+  rosskoAdapter,
+  shateMAdapter,
+  forumAutoAdapter,
+  armtekAdapter,
+  autotradeAdapter,
+  partKomAdapter,
+];
+
+/**
+ * Свежий опрос поставщиков для клиентской карточки. В отличие от SEO-снимка
+ * результат здесь нельзя отдавать из Data Cache: остаток, срок и закупочная
+ * цена могут измениться у поставщика между соседними открытиями карточки.
+ */
+export async function fetchFreshProductSupplierSeed(
+  article: string,
+  brand: string
+): Promise<ProductSupplierSeed> {
+  const [mainItems, shateArticleId] = await Promise.all([
+    searchAllSuppliers(
+      adapters,
+      { article, preferredBrand: brand, withCrosses: true },
+      9000
+    ).catch(() => [] as SupplierItem[]),
+    (shateMAdapter as ShateMAdapter)
+      .findArticleId(article, brand)
+      .catch(() => null),
+  ]);
+
+  const pricing = (base: number, ctx: { brand?: string }) =>
+    applyPricingSync(base, ctx);
+
+  return {
+    mainGroups: mergeFamilyGroups(groupOffers(mainItems, pricing)),
+    shateArticleId,
+  };
+}
+
 const loadProductSupplierSeed = unstable_cache(
-  async (article: string, brand: string): Promise<ProductSupplierSeed> => {
-    const adapters = [
-      bergAdapter,
-      rosskoAdapter,
-      shateMAdapter,
-      forumAutoAdapter,
-      armtekAdapter,
-      autotradeAdapter,
-      partKomAdapter,
-    ];
-
-    const [mainItems, shateArticleId] = await Promise.all([
-      searchAllSuppliers(
-        adapters,
-        { article, preferredBrand: brand, withCrosses: true },
-        9000
-      ).catch(() => [] as SupplierItem[]),
-      (shateMAdapter as ShateMAdapter)
-        .findArticleId(article, brand)
-        .catch(() => null),
-    ]);
-
-    const pricing = (base: number, ctx: { brand?: string }) =>
-      applyPricingSync(base, ctx);
-
-    return {
-      mainGroups: mergeFamilyGroups(groupOffers(mainItems, pricing)),
-      shateArticleId,
-    };
-  },
+  fetchFreshProductSupplierSeed,
   ["product-supplier-seed-v1"],
   { revalidate: 120 }
 );

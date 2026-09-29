@@ -25,7 +25,7 @@ import {
   saveProductOfferSnapshot,
 } from "@/lib/product-offer-snapshot";
 import {
-  getProductSupplierSeed,
+  fetchFreshProductSupplierSeed,
   pickMainProductGroup,
 } from "@/lib/product-supplier-seed";
 
@@ -60,7 +60,7 @@ async function getHandler(
     // GM — 50»). Свою группу выбираем ниже по артикулу + семейству брендов.
     // Ярлыки одного концерна с одним артикулом (PSA / PEUGEOT/CITROEN /
     // Citroen) сливаются в одну группу со всеми предложениями.
-    const { mainGroups, shateArticleId } = await getProductSupplierSeed(
+    const { mainGroups, shateArticleId } = await fetchFreshProductSupplierSeed(
       decoded,
       brand
     );
@@ -202,7 +202,10 @@ async function getHandler(
     };
 
     return NextResponse.json(response, {
-      headers: { "Cache-Control": CACHE_PRODUCT },
+      headers: {
+        "Cache-Control": CACHE_PRODUCT,
+        "X-Accel-Expires": "0",
+      },
     });
   } catch (error) {
     console.error("Product detail route error:", error);

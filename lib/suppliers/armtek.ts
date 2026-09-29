@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { SupplierAdapter, SearchParams, SupplierItem } from "./adapter";
+import { parseSupplierStock } from "./stock.mjs";
 
 /**
  * Armtek REST API adapter.
@@ -125,7 +126,8 @@ export class ArmtekAdapter implements SupplierAdapter {
       const items: SupplierItem[] = [];
 
       for (const row of rows) {
-        const stock = parseInt(row.RVALUE || "0", 10);
+        const parsedStock = parseSupplierStock(row.RVALUE);
+        const stock = parsedStock.stock;
         const price = parseFloat(row.PRICE || "0");
         if (!Number.isFinite(stock) || stock <= 0) continue;
         if (!Number.isFinite(price) || price <= 0) continue;
@@ -136,6 +138,7 @@ export class ArmtekAdapter implements SupplierAdapter {
           name: row.NAME || "",
           price,
           stock,
+          availableMore: parsedStock.availableMore,
           supplier: `Armtek (${row.KEYZAK || "склад"})`,
           supplierCode: "armtek",
           deliveryDays: deliveryDaysFromDlvdt(row.DLVDT),

@@ -128,7 +128,7 @@ function groupToBergResource(g: SupplierGroup): BergResource {
     name: o.name,
     price: o.ourPrice,
     quantity: o.stock,
-    available_more: false,
+    available_more: Boolean(o.availableMore),
     reliability: 90,
     multiplication_factor: 1,
     average_period: o.deliveryDays ?? 0,
@@ -481,10 +481,9 @@ export default function ProductClient({
 
   const availableOffers =
     product?.offers?.filter((offer) => offer.quantity > 0) ?? [];
-  const totalStock = availableOffers.reduce(
-    (sum, offer) => sum + offer.quantity,
-    0
-  );
+  // Верхняя цена, остаток и срок должны описывать один и тот же выбранный склад.
+  // Раньше зелёный бейдж суммировал все 20 предложений и не соответствовал цене.
+  const selectedStock = selectedOffer?.quantity ?? 0;
   // Supplier-only карточка в первом HTML уже знает проверенную цену из
   // SEO-снимка, но ещё не имеет живых офферов. Показываем эту цену только пока
   // идёт загрузка; после ответа API источником цены снова становятся офферы, а
@@ -686,7 +685,7 @@ export default function ProductClient({
               {/* Add to Cart */}
               <Button
                 onClick={handleAddToCart}
-                disabled={!selectedOffer || totalStock === 0}
+                disabled={!selectedOffer || selectedStock === 0}
                 size="xl"
                 className="w-full"
               >
@@ -698,7 +697,7 @@ export default function ProductClient({
               <div className="flex items-center gap-4">
                 {!product && loading ? (
                   <div className="h-10 w-44 bg-neutral-800 border border-neutral-700 rounded-xl animate-pulse" />
-                ) : totalStock > 0 ? (
+                ) : selectedOffer && selectedStock > 0 ? (
                   <div
                     className={`flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl transition-opacity duration-300 ${
                       loading && product ? "opacity-60" : "opacity-100"
@@ -706,7 +705,8 @@ export default function ProductClient({
                   >
                     <CheckCircle className="w-5 h-5" />
                     <span className="font-semibold">
-                      В наличии: {totalStock} шт.
+                      В наличии: {selectedStock}
+                      {selectedOffer.available_more ? "+" : ""} шт.
                     </span>
                   </div>
                 ) : (

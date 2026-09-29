@@ -125,6 +125,7 @@ export class BergAdapter implements SupplierAdapter {
             name: resource.name || "",
             price: parseFloat(offer.price || 0),
             stock,
+            availableMore: Boolean(offer.available_more),
             supplier: `Berg (${offer.warehouse?.name || "склад"})`,
             supplierCode: "berg",
             deliveryDays: period,

@@ -4,7 +4,7 @@ import {
   dedupeGroups,
   mergeFamilyGroups,
   compareGroupsByDelivery,
-  limitSupplierGroupOffers,
+  selectProductGroupOffers,
   normalizeArticle,
   toPublicSupplierGroup,
   type SupplierGroup,
@@ -170,7 +170,7 @@ async function getHandler(
     // делает второй, медленный запрос /api/product-image за самой важной картинкой
     // экрана (LCP). enrichGroupsWithImages подставит готовый URL из кэша, если он есть.
     const responseMainGroup = mainGroup
-      ? limitSupplierGroupOffers(mainGroup, PRODUCT_OFFER_SNAPSHOT_LIMIT)
+      ? selectProductGroupOffers(mainGroup, PRODUCT_OFFER_SNAPSHOT_LIMIT, 5)
       : null;
     const publicMainGroup = responseMainGroup
       ? toPublicSupplierGroup(responseMainGroup)

@@ -170,6 +170,64 @@ export function limitSupplierGroupOffers(
   };
 }
 
+/**
+ * Формирует витрину карточки товара: сначала несколько самых быстрых офферов,
+ * затем самые дешёвые из оставшихся. Так основная цена по-прежнему относится к
+ * быстрой доставке, а дешёвые склады с большим сроком не пропадают из-за лимита.
+ */
+export function selectProductGroupOffers(
+  group: SupplierGroup,
+  limit: number,
+  fastestLimit = 5
+): SupplierGroup {
+  if (!Number.isInteger(limit) || limit < 1) return group;
+  if (group.offers.length === 0) return group;
+
+  const orderedByDelivery = [...group.offers].sort(compareOffers);
+  const fastestCount = Math.min(
+    Math.max(Number.isInteger(fastestLimit) ? fastestLimit : 0, 0),
+    limit
+  );
+  const fastest = orderedByDelivery.slice(0, fastestCount);
+  const fastestSet = new Set(fastest);
+  const cheapestRemaining = orderedByDelivery
+    .filter((offer) => !fastestSet.has(offer))
+    .sort((a, b) => {
+      const aInStock = a.stock > 0 ? 1 : 0;
+      const bInStock = b.stock > 0 ? 1 : 0;
+      if (aInStock !== bInStock) return bInStock - aInStock;
+      if (a.ourPrice !== b.ourPrice) return a.ourPrice - b.ourPrice;
+
+      const aDays = a.deliveryDays ?? Infinity;
+      const bDays = b.deliveryDays ?? Infinity;
+      if (aDays !== bDays) return aDays - bDays;
+      if (a.stock !== b.stock) return b.stock - a.stock;
+      return a.supplier.localeCompare(b.supplier, "ru");
+    });
+  const offers = [...fastest, ...cheapestRemaining].slice(0, limit);
+
+  if (offers.length === group.offers.length) {
+    const unchangedOrder = offers.every(
+      (offer, index) => offer === group.offers[index]
+    );
+    if (unchangedOrder) return group;
+  }
+
+  const prices = offers.map((offer) => offer.ourPrice);
+  const deliveries = offers
+    .map((offer) => offer.deliveryDays)
+    .filter((days): days is number => days != null);
+
+  return {
+    ...group,
+    offers,
+    minPrice: Math.min(...prices),
+    maxPrice: Math.max(...prices),
+    totalStock: offers.reduce((sum, offer) => sum + offer.stock, 0),
+    minDeliveryDays: deliveries.length ? Math.min(...deliveries) : null,
+  };
+}
+
 function atomicOffers(offer: SupplierOffer): SupplierOffer[] {
   if (!offer.fulfillment?.length) return [offer];
   return offer.fulfillment.map((part) => ({

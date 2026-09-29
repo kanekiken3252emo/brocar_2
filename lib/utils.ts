@@ -43,17 +43,30 @@ function localHour(): number {
 }
 
 /**
+ * Фактический срок, который видит покупатель с учётом границы приёма заказов.
+ * После 12:00 ЕКБ предложение «сегодня» становится предложением «завтра» и
+ * должно сравниваться по цене наравне с исходным сроком в один день.
+ */
+export function getEffectiveDeliveryDays(
+  days: number | null | undefined,
+  hour = localHour()
+): number | null {
+  if (days == null) return null;
+  if (days === 0 && hour >= SAME_DAY_CUTOFF_HOUR) return 1;
+  return days;
+}
+
+/**
  * Срок доставки в днях → человекочитаемая строка.
  * 0 → «сегодня» (до 12:00 ЕКБ) / «завтра» (после), 1 → «завтра»,
  * иначе «N дн.», null → «уточн.».
  */
 export function formatDeliveryDays(days: number | null | undefined): string {
-  if (days == null) return "уточн.";
-  if (days === 0) {
-    return localHour() < SAME_DAY_CUTOFF_HOUR ? "сегодня" : "завтра";
-  }
-  if (days === 1) return "завтра";
-  return `${days} дн.`;
+  const effectiveDays = getEffectiveDeliveryDays(days);
+  if (effectiveDays == null) return "уточн.";
+  if (effectiveDays === 0) return "сегодня";
+  if (effectiveDays === 1) return "завтра";
+  return `${effectiveDays} дн.`;
 }
 
 /**
@@ -111,7 +124,3 @@ export function safeLinkUrl(url: string | null | undefined): string | null {
   if (trimmed.startsWith("/")) return trimmed;
   return null;
 }
-
-
-
-

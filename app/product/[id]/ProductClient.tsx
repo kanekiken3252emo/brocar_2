@@ -242,10 +242,12 @@ export default function ProductClient({
     setError(null);
 
     try {
-      const url = `/api/product/${encodeURIComponent(productId)}${
-        brand ? `?brand=${encodeURIComponent(brand)}` : ""
-      }`;
-      const res = await fetch(url);
+      // fresh=1 меняет ключ старого nginx-кэша, уже сохранённого до запрета
+      // кэширования. Сам новый ответ route отдаёт с no-store/X-Accel-Expires: 0.
+      const query = new URLSearchParams({ fresh: "1" });
+      if (brand) query.set("brand", brand);
+      const url = `/api/product/${encodeURIComponent(productId)}?${query}`;
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Товар не найден");

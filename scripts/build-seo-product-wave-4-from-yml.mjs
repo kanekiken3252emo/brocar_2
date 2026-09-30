@@ -68,7 +68,7 @@ function sortCandidates(left, right) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const currentWave = args.wave5 ? 6 : args.wave4 ? 5 : 4;
+const currentWave = args.wave6 ? 7 : args.wave5 ? 6 : args.wave4 ? 5 : 4;
 for (const required of [
   "feed",
   "demand",
@@ -124,6 +124,9 @@ const wave4Payload = args.wave4
 const wave5Payload = args.wave5
   ? JSON.parse(await readFile(args.wave5, "utf8"))
   : { products: [] };
+const wave6Payload = args.wave6
+  ? JSON.parse(await readFile(args.wave6, "utf8"))
+  : { products: [] };
 const wave1Products = Array.isArray(wave1Payload.products)
   ? wave1Payload.products
   : [];
@@ -139,12 +142,16 @@ const wave4Products = Array.isArray(wave4Payload.products)
 const wave5Products = Array.isArray(wave5Payload.products)
   ? wave5Payload.products
   : [];
+const wave6Products = Array.isArray(wave6Payload.products)
+  ? wave6Payload.products
+  : [];
 const priorProducts = [
   ...wave1Products,
   ...wave2Products,
   ...wave3Products,
   ...wave4Products,
   ...wave5Products,
+  ...wave6Products,
 ];
 const priorKeys = new Set(
   priorProducts.map((row) => identity(row.article, row.brand))
@@ -329,8 +336,7 @@ const manifest = {
   wave: currentWave,
   generatedAt: feedGeneratedAt.slice(0, 10),
   targetSize: TARGET_SIZE,
-  selectionRule:
-    `current stock and positive price; first remaining direct external article demand, then products with image, defined category and a brand represented in prior waves; category and brand caps; no overlap with waves 1-${currentWave - 1}; max 3 brands per article`,
+  selectionRule: `current stock and positive price; first remaining direct external article demand, then products with image, defined category and a brand represented in prior waves; category and brand caps; no overlap with waves 1-${currentWave - 1}; max 3 brands per article`,
   productCount: selectedProducts.length,
   products: selectedProducts,
 };
@@ -349,6 +355,7 @@ const audit = {
     wave3: args.wave3,
     wave4: args.wave4 || null,
     wave5: args.wave5 || null,
+    wave6: args.wave6 || null,
   },
   rules: {
     targetSize: TARGET_SIZE,

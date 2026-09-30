@@ -50,6 +50,7 @@ export async function addOfferToCart(
       supplierIdentity: offer.supplier,
       supplierCode: offer.supplierCode,
       fulfillment: offer.fulfillment,
+      selectionMode: "fixed",
     });
   } catch (err: any) {
     window.dispatchEvent(

@@ -14,6 +14,8 @@ export interface AddSupplierItemParams {
   supplierIdentity?: string | null;
   supplierCode?: string;
   fulfillment?: Array<{ supplier: string; stock: number }>;
+  /** Следовать за основным оффером или сохранить явно выбранный склад. */
+  selectionMode?: "primary" | "fixed";
 }
 
 export async function addSupplierItemToCart(
@@ -36,6 +38,7 @@ export async function addSupplierItemToCart(
       supplierIdentity: params.supplierIdentity ?? null,
       supplierCode: params.supplierCode,
       fulfillment: params.fulfillment,
+      selectionMode: params.selectionMode ?? "primary",
     }),
   });
 

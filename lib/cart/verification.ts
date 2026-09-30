@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { cartItems } from "@/lib/db/schema";
+import { cartItems, products } from "@/lib/db/schema";
 import {
   compareOffers,
   type SupplierGroup,
@@ -18,6 +18,11 @@ import {
 } from "@/lib/product-offer-snapshot";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import { getEffectiveDeliveryDays } from "@/lib/utils";
+import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
+import {
+  getSafeProductName,
+  isUsableProductName,
+} from "@/lib/suppliers/mojibake";
 
 export const CART_VERIFICATION_TTL_MS = 60 * 60 * 1000;
 
@@ -28,6 +33,45 @@ export function isCartItemVerificationFresh(
   if (!verifiedAt) return false;
   const age = now.getTime() - verifiedAt.getTime();
   return age >= 0 && age < CART_VERIFICATION_TTL_MS;
+}
+
+export function getCartProductDisplayName(
+  article: string,
+  brand: string | null | undefined,
+  ...candidates: Array<string | null | undefined>
+): string {
+  const safeBrand = brand || undefined;
+  const seoName = getProductSeoSnapshot(article, safeBrand)?.name;
+  const resolved = [seoName, ...candidates].find((name) =>
+    isUsableProductName(name, article, safeBrand)
+  );
+  return getSafeProductName(resolved, article, safeBrand);
+}
+
+export async function isCartItemVerificationNeeded(item: {
+  verifiedAt: Date | null | undefined;
+  selectionMode: string;
+  sourceOfferId: string | null;
+  supplierCode: string | null;
+  offerSupplier: string | null;
+  product: { article: string; brand: string | null };
+}): Promise<boolean> {
+  if (!isCartItemVerificationFresh(item.verifiedAt)) return true;
+  const snapshot = await getProductOfferSnapshotState(
+    item.product.article,
+    item.product.brand || ""
+  ).catch(() => null);
+  if (
+    !snapshot ||
+    !item.verifiedAt ||
+    snapshot.updatedAt.getTime() <= item.verifiedAt.getTime()
+  ) {
+    return false;
+  }
+  return (
+    item.selectionMode !== "fixed" ||
+    Boolean(findStableOffer(item, snapshot.group))
+  );
 }
 
 export interface RequestedCartOffer {
@@ -111,7 +155,7 @@ export async function resolveRequestedCartOffer(
   const group = await loadFreshGroup(requested.article, requested.brand);
   if (!group) return null;
   const offer = findRequestedOffer(group, requested);
-  return offer ? { group, offer, verifiedAt: now } : null;
+  return offer ? { group, offer, verifiedAt: new Date() } : null;
 }
 
 function findStableOffer(
@@ -163,7 +207,11 @@ export interface CartRefreshResult {
   failed: number;
 }
 
-/** Одна серверная сверка просроченных/легаси-позиций корзины. */
+/**
+ * Сверяет просроченные строки и строки, для которых карточка уже получила более
+ * свежий снимок. Основная позиция следует за текущим главным оффером, а явно
+ * выбранная позиция остаётся на своём складе.
+ */
 export async function refreshCartOffers(
   cartId: number,
   onlyItemIds?: number[]
@@ -178,12 +226,8 @@ export async function refreshCartOffers(
     with: { product: true },
   });
 
-  const now = new Date();
-  const stale = rows.filter(
-    (item) => !isCartItemVerificationFresh(item.verifiedAt, now)
-  );
-  const grouped = new Map<string, typeof stale>();
-  for (const item of stale) {
+  const grouped = new Map<string, typeof rows>();
+  for (const item of rows) {
     const key = `${item.product.article}\u0000${item.product.brand || ""}`;
     const bucket = grouped.get(key);
     if (bucket) bucket.push(item);
@@ -203,24 +247,48 @@ export async function refreshCartOffers(
     while (cursor < groups.length) {
       const items = groups[cursor++];
       const first = items[0];
-      let group: SupplierGroup | null;
+      const article = first.product.article;
+      const brand = first.product.brand || "";
+      const snapshot = await getProductOfferSnapshotState(article, brand).catch(
+        () => null
+      );
+      const itemsToRefresh = items.filter(
+        (item) =>
+          !isCartItemVerificationFresh(item.verifiedAt) ||
+          Boolean(
+            snapshot &&
+              item.verifiedAt &&
+              snapshot.updatedAt.getTime() > item.verifiedAt.getTime() &&
+              (item.selectionMode !== "fixed" ||
+                findStableOffer(item, snapshot.group))
+          )
+      );
+      if (itemsToRefresh.length === 0) continue;
+
+      const requiresLive = itemsToRefresh.some(
+        (item) => !isCartItemVerificationFresh(item.verifiedAt)
+      );
+      let group: SupplierGroup | null = snapshot?.group ?? null;
+      let verifiedAt = snapshot?.updatedAt ?? new Date();
       try {
-        group = await loadFreshGroup(
-          first.product.article,
-          first.product.brand || ""
-        );
+        if (requiresLive) {
+          group = await loadFreshGroup(article, brand);
+          // Ставим время после живого опроса и записи снимка, чтобы только что
+          // проверенная строка не считалась старее созданного ею снимка.
+          verifiedAt = new Date();
+        }
       } catch (error) {
         console.error("Cart offer refresh error:", error);
-        result.failed += items.length;
+        result.failed += itemsToRefresh.length;
         continue;
       }
 
       if (!group?.offers.length) {
-        for (const item of items) {
+        for (const item of itemsToRefresh) {
           await db
             .update(cartItems)
             .set({
-              verifiedAt: now,
+              verifiedAt,
               verificationStatus: "unavailable",
               availableStock: 0,
               conditionChange: null,
@@ -232,11 +300,48 @@ export async function refreshCartOffers(
         continue;
       }
 
+      const displayName = getCartProductDisplayName(
+        article,
+        brand,
+        group.name,
+        first.product.name
+      );
+      if (
+        displayName !== first.product.name &&
+        isUsableProductName(displayName, article, brand)
+      ) {
+        await db
+          .update(products)
+          .set({ name: displayName, updatedAt: new Date() })
+          .where(eq(products.id, first.productId));
+      }
+
       const bestOffer = [...group.offers].sort(compareOffers)[0];
-      for (const item of items) {
-        // У новой строки сохраняем тот же склад. Легаси-строка (нет серверной
-        // привязки) автоматически получает текущее лучшее предложение.
-        const offer = findStableOffer(item, group) ?? bestOffer;
+      for (const item of itemsToRefresh) {
+        const fixedOffer =
+          item.selectionMode === "fixed" ? findStableOffer(item, group) : null;
+        // Новый снимок карточки содержит только витринную двадцатку. Если явно
+        // выбранного оффера в ней нет, это ещё не доказывает недоступность -
+        // оставляем свежую строку до полноценной часовой проверки поставщиков.
+        if (item.selectionMode === "fixed" && !fixedOffer && !requiresLive) {
+          continue;
+        }
+        if (item.selectionMode === "fixed" && !fixedOffer) {
+          await db
+            .update(cartItems)
+            .set({
+              verifiedAt,
+              verificationStatus: "unavailable",
+              availableStock: 0,
+              conditionChange: null,
+            })
+            .where(eq(cartItems.id, item.id));
+          result.checked += 1;
+          result.unavailable += 1;
+          continue;
+        }
+
+        const offer = fixedOffer ?? bestOffer;
         const previousPrice = Number(
           item.price ?? item.product.ourPrice ?? offer.ourPrice
         );
@@ -258,7 +363,7 @@ export async function refreshCartOffers(
             offerSupplier: offer.supplier,
             sourceOfferId: offer.sourceOfferId ?? null,
             availableStock: offer.stock,
-            verifiedAt: now,
+            verifiedAt,
             verificationStatus: enoughStock
               ? "verified"
               : "insufficient_stock",

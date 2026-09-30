@@ -241,6 +241,9 @@ export const cartItems = pgTable("cart_items", {
   offerSupplier: text("offer_supplier"),
   sourceOfferId: text("source_offer_id"),
   availableStock: integer("available_stock"),
+  // primary = строка следует за текущим основным предложением товара;
+  // fixed = покупатель явно выбрал конкретный оффер/склад.
+  selectionMode: text("selection_mode").default("primary").notNull(),
   // Последняя успешная серверная проверка. Результат действует один час.
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   verificationStatus: text("verification_status"),

@@ -67,6 +67,7 @@ export default function SupplierItemCard({
         supplierIdentity: primaryOffer.supplier,
         supplierCode: primaryOffer.supplierCode,
         fulfillment: primaryOffer.fulfillment,
+        selectionMode: "primary",
       });
     } catch (err: any) {
       window.dispatchEvent(

@@ -180,6 +180,7 @@ export default function ProductClient({
   >([]);
   const [analogs, setAnalogs] = useState<SupplierGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liveOffersVerified, setLiveOffersVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<BergOffer | null>(
     seedProduct?.offers?.[0] ?? null
@@ -225,6 +226,7 @@ export default function ProductClient({
   // данные (иначе на экране осталась бы цена предыдущего товара).
   useEffect(() => {
     manualOfferSelection.current = false;
+    setLiveOffersVerified(false);
     setProduct(seedProduct);
     setSelectedOffer(seedProduct?.offers?.[0] ?? null);
     setPrevOffer(null);
@@ -239,6 +241,7 @@ export default function ProductClient({
 
   const loadProduct = async () => {
     setLoading(true);
+    setLiveOffersVerified(false);
     setError(null);
 
     try {
@@ -305,6 +308,7 @@ export default function ProductClient({
 
       const resource = groupToBergResource(data.group);
       setProduct(resource);
+      setLiveOffersVerified((resource.offers?.length ?? 0) > 0);
 
       // Если сервер не смог определить товар и карточка появилась только после
       // живого ответа, один раз формируем title из этого ответа. Когда серверный
@@ -362,7 +366,12 @@ export default function ProductClient({
   };
 
   // Кладём КОНКРЕТНЫЙ оффер в корзину (× qty) + анимация полёта к иконке корзины.
-  const addToCart = async (offer: BergOffer, el: HTMLElement, qty = 1) => {
+  const addToCart = async (
+    offer: BergOffer,
+    el: HTMLElement,
+    qty = 1,
+    selectionMode: "primary" | "fixed" = "primary"
+  ) => {
     if (!product) return;
     flyToCart(el);
     try {
@@ -390,6 +399,7 @@ export default function ProductClient({
         supplierIdentity: offer.supplier || null,
         supplierCode: offer.supplierCode,
         fulfillment: offer.fulfillment,
+        selectionMode,
       });
     } catch (err: any) {
       window.dispatchEvent(
@@ -402,9 +412,13 @@ export default function ProductClient({
 
   // Верхняя кнопка карточки — добавляет ВЫБРАННЫЙ оффер (1 шт.).
   const handleAddToCart = (e: React.MouseEvent) => {
-    if (selectedOffer) {
-      manualOfferSelection.current = true;
-      addToCart(selectedOffer, e.currentTarget as HTMLElement);
+    if (selectedOffer && liveOffersVerified && !loading) {
+      addToCart(
+        selectedOffer,
+        e.currentTarget as HTMLElement,
+        1,
+        manualOfferSelection.current ? "fixed" : "primary"
+      );
     }
   };
 
@@ -423,9 +437,15 @@ export default function ProductClient({
   // Кнопка «В корзину» в строке предложения — кладёт ИМЕННО этот оффер в
   // выбранном количестве (и синхронизирует выбор вверху), чтобы не листать наверх.
   const addOfferToCart = (offer: BergOffer, e: React.MouseEvent) => {
+    if (loading || !liveOffersVerified) return;
     manualOfferSelection.current = true;
     setSelectedOffer(offer);
-    addToCart(offer, e.currentTarget as HTMLElement, offerQty(offer));
+    addToCart(
+      offer,
+      e.currentTarget as HTMLElement,
+      offerQty(offer),
+      "fixed"
+    );
   };
 
   // Товара нет совсем (и сервер не дал шелл, и живой опрос не нашёл) — страница
@@ -661,7 +681,7 @@ export default function ProductClient({
                       <button
                         type="button"
                         onClick={() => {
-                          manualOfferSelection.current = true;
+                          manualOfferSelection.current = false;
                           setSelectedOffer(prevOffer);
                           setPrevOffer(null);
                         }}
@@ -686,7 +706,12 @@ export default function ProductClient({
               {/* Add to Cart */}
               <Button
                 onClick={handleAddToCart}
-                disabled={!selectedOffer || selectedStock === 0}
+                disabled={
+                  !selectedOffer ||
+                  selectedStock === 0 ||
+                  loading ||
+                  !liveOffersVerified
+                }
                 size="xl"
                 className="w-full"
               >
@@ -880,7 +905,8 @@ export default function ProductClient({
                         </div>
                         <button
                           onClick={(e) => addOfferToCart(offer, e)}
-                          className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center justify-center gap-1.5"
+                          disabled={loading || !liveOffersVerified}
+                          className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <ShoppingCart className="h-4 w-4" />В корзину
                         </button>
@@ -1060,7 +1086,8 @@ export default function ProductClient({
                               </div>
                               <button
                                 onClick={(e) => addOfferToCart(offer, e)}
-                                className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center gap-1.5 shrink-0"
+                                disabled={loading || !liveOffersVerified}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors inline-flex items-center gap-1.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <ShoppingCart className="h-4 w-4" />В корзину
                               </button>

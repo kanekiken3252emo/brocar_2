@@ -6,6 +6,7 @@ import { getUser } from "@/lib/auth";
 import { validatePromo, discountAmount } from "@/lib/promo";
 import {
   isCartItemVerificationFresh,
+  isCartItemVerificationNeeded,
   refreshCartOffers,
 } from "@/lib/cart/verification";
 
@@ -67,8 +68,11 @@ export async function POST(request: Request) {
     // Не ходим к поставщикам на каждое оформление: серверный результат живёт
     // ровно час. Если выбранная позиция просрочена, делаем одну сверку и заново
     // читаем только серверные данные перед созданием заказа.
+    const verificationNeeded = await Promise.all(
+      selectedItems.map(isCartItemVerificationNeeded)
+    );
     const staleIds = selectedItems
-      .filter((item) => !isCartItemVerificationFresh(item.verifiedAt))
+      .filter((_, index) => verificationNeeded[index])
       .map((item) => item.id);
     if (staleIds.length > 0) {
       await refreshCartOffers(cart.id, staleIds);

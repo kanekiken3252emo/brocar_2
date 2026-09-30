@@ -10,10 +10,12 @@ import { validatePromo, discountAmount } from "@/lib/promo";
 import { isReturnableSupplier } from "@/lib/suppliers/returns";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import {
-  isCartItemVerificationFresh,
+  getCartProductDisplayName,
+  isCartItemVerificationNeeded,
   refreshCartOffers,
   resolveRequestedCartOffer,
 } from "@/lib/cart/verification";
+import { compareOffers } from "@/lib/suppliers/adapter";
 
 const addToCartSchema = z.object({
   action: z.enum(["add", "remove", "update"]),
@@ -51,6 +53,7 @@ const addFromSupplierSchema = z.object({
     )
     .max(100)
     .optional(),
+  selectionMode: z.enum(["primary", "fixed"]).optional().default("primary"),
 });
 
 async function upsertProductByArticle(input: {
@@ -272,7 +275,11 @@ async function getCartWithItems(cartId: number) {
         id: item.product.id,
         article: item.product.article,
         brand: item.product.brand,
-        name: item.product.name,
+        name: getCartProductDisplayName(
+          item.product.article,
+          item.product.brand,
+          item.product.name
+        ),
         price: linePrice,
         stock: item.availableStock ?? item.product.stock,
       },
@@ -311,9 +318,9 @@ async function getCartWithItems(cartId: number) {
   }
 
   const total = Number((subtotal - (promo?.discountAmount ?? 0)).toFixed(2));
-  const needsVerification = cart.items.some(
-    (item) => !isCartItemVerificationFresh(item.verifiedAt)
-  );
+  const needsVerification = (
+    await Promise.all(cart.items.map(isCartItemVerificationNeeded))
+  ).some(Boolean);
 
   return {
     id: cart.id,
@@ -417,7 +424,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { group, offer, verifiedAt } = resolved;
+      const { group, offer: requestedOffer, verifiedAt } = resolved;
+      const offer =
+        data.selectionMode === "primary"
+          ? [...group.offers].sort(compareOffers)[0]
+          : requestedOffer;
       if (offer.stock < 1 || data.qty > offer.stock) {
         return NextResponse.json(
           { error: "Запрошенное количество превышает остаток предложения" },
@@ -431,7 +442,12 @@ export async function POST(request: NextRequest) {
       const productId = await upsertProductByArticle({
         article: group.article,
         brand: group.brand,
-        name: group.name || data.name,
+        name: getCartProductDisplayName(
+          group.article,
+          group.brand,
+          group.name,
+          data.name
+        ),
         ourPrice: offer.ourPrice,
         supplierPrice: offer.price,
         stock: offer.stock,
@@ -445,15 +461,20 @@ export async function POST(request: NextRequest) {
           eq(cartItems.productId, productId)
         ),
       });
-      const existingItem = candidateItems.find((item) =>
-        offer.sourceOfferId
-          ? item.sourceOfferId === offer.sourceOfferId &&
-            item.supplierCode === offer.supplierCode
-          : item.supplierCode === offer.supplierCode &&
-            item.offerSupplier === offer.supplier &&
-            item.price === priceSnapshot &&
-            item.deliveryDays === deliveryDays
-      );
+      const existingItem =
+        data.selectionMode === "primary"
+          ? candidateItems.find((item) => item.selectionMode === "primary")
+          : candidateItems.find(
+              (item) =>
+                item.selectionMode === "fixed" &&
+                (offer.sourceOfferId
+                  ? item.sourceOfferId === offer.sourceOfferId &&
+                    item.supplierCode === offer.supplierCode
+                  : item.supplierCode === offer.supplierCode &&
+                    item.offerSupplier === offer.supplier &&
+                    item.price === priceSnapshot &&
+                    item.deliveryDays === deliveryDays)
+            );
 
       if (existingItem) {
         if (existingItem.qty + data.qty > offer.stock) {
@@ -469,11 +490,14 @@ export async function POST(request: NextRequest) {
           .update(cartItems)
           .set({
             qty: existingItem.qty + data.qty,
+            price: priceSnapshot,
+            deliveryDays,
             supplier: supplierSnapshot(existingItem.qty + data.qty),
             supplierCode: offer.supplierCode,
             offerSupplier: offer.supplier,
             sourceOfferId: offer.sourceOfferId ?? null,
             availableStock: offer.stock,
+            selectionMode: data.selectionMode,
             verifiedAt,
             verificationStatus: "verified",
             conditionChange: null,
@@ -491,6 +515,7 @@ export async function POST(request: NextRequest) {
           offerSupplier: offer.supplier,
           sourceOfferId: offer.sourceOfferId ?? null,
           availableStock: offer.stock,
+          selectionMode: data.selectionMode,
           verifiedAt,
           verificationStatus: "verified",
           conditionChange: null,

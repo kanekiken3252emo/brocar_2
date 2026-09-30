@@ -405,7 +405,7 @@ export default function VinSearchPage() {
                         Max
                       </Button>
                     </a>
-                    <a href="tel:+73433822062">
+                    <a href="tel:+73433826052">
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                         <Phone className="h-3.5 w-3.5" />
                         Позвонить

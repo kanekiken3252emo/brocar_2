@@ -42,7 +42,7 @@ function MaxIcon({ className }: { className?: string }) {
 export const metadata: Metadata = {
   title: "Контакты магазина автозапчастей в Екатеринбурге",
   description:
-    "Магазин автозапчастей BroCar в Екатеринбурге: ул. Заводская 16 (ВИЗ). Тел. 8 (343) 382-20-62, Пн–Пт 10:00–19:00, Сб до 15:00. Приезжайте или звоните!",
+    "Магазин автозапчастей BroCar в Екатеринбурге: ул. Заводская 16 (ВИЗ). Тел. 8 (343) 382-60-52, Пн–Пт 10:00–19:00, Сб до 15:00. Приезжайте или звоните!",
 };
 
 export default function ContactsPage() {
@@ -89,8 +89,8 @@ export default function ContactsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <a href="tel:+73433822062" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-1">
-                  8 (343) 382-20-62
+                <a href="tel:+73433826052" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-1">
+                  8 (343) 382-60-52
                 </a>
                 <a href="tel:+79326006052" className="text-2xl font-bold text-white hover:text-orange-500 transition-colors block mb-4">
                   +7 (932) 600-60-52
@@ -355,7 +355,7 @@ export default function ContactsPage() {
                     Telegram
                   </Button>
                 </a>
-                <a href="tel:+73433822062">
+                <a href="tel:+73433826052">
                   <Button variant="outline" className="gap-2">
                     <Phone className="h-4 w-4" />
                     Позвонить

@@ -161,10 +161,10 @@ export default async function OrderDetailPage({
                   <p className="text-xs text-neutral-400 mt-1">
                     Свяжитесь с нами — подтвердим оплату вручную:{" "}
                     <a
-                      href="tel:+73433822062"
+                      href="tel:+73433826052"
                       className="text-orange-400 font-semibold hover:text-orange-300 whitespace-nowrap"
                     >
-                      8 (343) 382‑20‑62
+                      8 (343) 382‑60‑52
                     </a>{" "}
                     или{" "}
                     <a

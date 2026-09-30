@@ -146,7 +146,7 @@ function CatalogExtras() {
                   Запрос менеджеру
                 </Button>
               </Link>
-              <a href="tel:+73433822062">
+              <a href="tel:+73433826052">
                 <Button variant="outline" className="gap-2">
                   <Phone className="h-4 w-4" />
                   Позвонить

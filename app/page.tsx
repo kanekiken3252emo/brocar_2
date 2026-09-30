@@ -550,7 +550,7 @@ export default function HomePage() {
             </p>
             <p>
               Работаем с 2014 года. Звоните{" "}
-              <a href="tel:+73433822062" className="text-orange-500 hover:text-orange-400">8 (343) 382-20-62</a>{" "}
+              <a href="tel:+73433826052" className="text-orange-500 hover:text-orange-400">8 (343) 382-60-52</a>{" "}
               — поможем подобрать и купить запчасти по выгодной цене.
             </p>
           </div>

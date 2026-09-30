@@ -267,7 +267,7 @@ export default function PrivacyPage() {
                 </a>
                 , тел.{" "}
                 <a
-                  href="tel:+73433822062"
+                  href="tel:+79326006052"
                   className="text-orange-500 hover:text-orange-400"
                 >
                   +7 (932) 600-60-52

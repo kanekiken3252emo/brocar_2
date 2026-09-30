@@ -37,7 +37,7 @@ export function organizationSchema() {
     image: `${SITE_URL}/og-image.png`,
     // Основной номер — городской (по просьбе владельца); мобильный остаётся в
     // contactPoint ниже. Меняли и отображаемый приоритет на страницах.
-    telephone: "+73433822062",
+    telephone: "+73433826052",
     email: "info@brocarparts.ru",
     priceRange: "₽₽",
     currenciesAccepted: "RUB",
@@ -84,7 +84,7 @@ export function organizationSchema() {
       },
       {
         "@type": "ContactPoint",
-        telephone: "+73433822062",
+        telephone: "+73433826052",
         contactType: "sales",
         availableLanguage: "ru",
       },

@@ -85,8 +85,8 @@ export function Footer() {
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-orange-500 shrink-0" />
-                <a href="tel:+73433822062" className="hover:text-orange-500 transition-colors">
-                  8 (343) 382-20-62
+                <a href="tel:+73433826052" className="hover:text-orange-500 transition-colors">
+                  8 (343) 382-60-52
                 </a>
                 <span className="text-neutral-600">·</span>
                 <a href="tel:+79326006052" className="hover:text-orange-500 transition-colors">
@@ -102,7 +102,7 @@ export function Footer() {
             </div>
             <div className="flex items-center gap-3">
               <a
-                href="tel:+73433822062"
+                href="tel:+73433826052"
                 className="w-10 h-10 bg-neutral-800 hover:bg-orange-500 rounded-lg flex items-center justify-center transition-colors group"
                 title="Позвонить"
               >

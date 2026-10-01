@@ -68,7 +68,15 @@ function sortCandidates(left, right) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const currentWave = args.wave6 ? 7 : args.wave5 ? 6 : args.wave4 ? 5 : 4;
+const currentWave = args.wave7
+  ? 8
+  : args.wave6
+    ? 7
+    : args.wave5
+      ? 6
+      : args.wave4
+        ? 5
+        : 4;
 for (const required of [
   "feed",
   "demand",
@@ -127,6 +135,9 @@ const wave5Payload = args.wave5
 const wave6Payload = args.wave6
   ? JSON.parse(await readFile(args.wave6, "utf8"))
   : { products: [] };
+const wave7Payload = args.wave7
+  ? JSON.parse(await readFile(args.wave7, "utf8"))
+  : { products: [] };
 const wave1Products = Array.isArray(wave1Payload.products)
   ? wave1Payload.products
   : [];
@@ -145,6 +156,9 @@ const wave5Products = Array.isArray(wave5Payload.products)
 const wave6Products = Array.isArray(wave6Payload.products)
   ? wave6Payload.products
   : [];
+const wave7Products = Array.isArray(wave7Payload.products)
+  ? wave7Payload.products
+  : [];
 const priorProducts = [
   ...wave1Products,
   ...wave2Products,
@@ -152,6 +166,7 @@ const priorProducts = [
   ...wave4Products,
   ...wave5Products,
   ...wave6Products,
+  ...wave7Products,
 ];
 const priorKeys = new Set(
   priorProducts.map((row) => identity(row.article, row.brand))
@@ -356,6 +371,7 @@ const audit = {
     wave4: args.wave4 || null,
     wave5: args.wave5 || null,
     wave6: args.wave6 || null,
+    wave7: args.wave7 || null,
   },
   rules: {
     targetSize: TARGET_SIZE,

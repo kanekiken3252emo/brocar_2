@@ -8,11 +8,11 @@ import {
   ChevronsUpDown,
   ShoppingCart,
   MapPin,
-  Clock,
+  Truck,
 } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { getVegaName } from "@/lib/vega-names";
-import { formatDeliveryDays } from "@/lib/utils";
+import { formatDeliveryLabel } from "@/lib/utils";
 import ProductImage from "@/components/Items/ProductImage";
 import { addOfferToCart } from "@/components/Items/SupplierGroupListItem";
 
@@ -26,7 +26,11 @@ function StockDot({ stock }: { stock: number }) {
   return (
     <span
       className={`inline-block h-2 w-2 rounded-full ${
-        stock > 5 ? "bg-green-500" : stock > 0 ? "bg-yellow-500" : "bg-neutral-600"
+        stock > 5
+          ? "bg-green-500"
+          : stock > 0
+            ? "bg-yellow-500"
+            : "bg-neutral-600"
       }`}
     />
   );
@@ -91,7 +95,7 @@ export default function SupplierGroupTable({
                 Наименование {sortIcon(sortBy === "name")}
               </button>
             </th>
-            <th className={`${th} text-right`}>Наличие</th>
+            <th className={`${th} text-right`}>Количество</th>
             <th className={th}>Склад</th>
             <th className={th}>
               <button
@@ -187,8 +191,8 @@ export default function SupplierGroupTable({
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-300">
                       <span className="inline-flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-neutral-500" />
-                        {formatDeliveryDays(offer.deliveryDays)}
+                        <Truck className="h-3.5 w-3.5 text-orange-500" />
+                        {formatDeliveryLabel(offer.deliveryDays)}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-white">

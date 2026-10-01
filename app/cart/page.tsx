@@ -21,7 +21,11 @@ import {
   Truck,
   AlertTriangle,
 } from "lucide-react";
-import { formatDeliveryDays } from "@/lib/utils";
+import {
+  formatDeliveryDays,
+  formatDeliveryLabel,
+  isYekaterinburgStock,
+} from "@/lib/utils";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -226,108 +230,118 @@ function CartItemRow({
           />
         </Link>
 
-      {/* Product info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap gap-2 mb-2">
-          <span className="text-xs font-mono bg-neutral-800 text-neutral-300 rounded-md px-2 py-0.5">
-            {item.product.article}
-          </span>
-          <span className="text-xs text-neutral-500 bg-neutral-800 rounded-md px-2 py-0.5">
-            {item.product.brand}
-          </span>
-          {item.product.stock > 0 ? (
-            <span className="text-xs text-green-400 bg-green-500/10 rounded-md px-2 py-0.5">
-              В наличии
+        {/* Product info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap gap-2 mb-2">
+            <span className="text-xs font-mono bg-neutral-800 text-neutral-300 rounded-md px-2 py-0.5">
+              {item.product.article}
             </span>
-          ) : (
-            <span className="text-xs text-yellow-400 bg-yellow-500/10 rounded-md px-2 py-0.5">
-              Под заказ
+            <span className="text-xs text-neutral-500 bg-neutral-800 rounded-md px-2 py-0.5">
+              {item.product.brand}
             </span>
-          )}
-          {unavailable && (
-            <span className="text-xs text-red-400 bg-red-500/10 rounded-md px-2 py-0.5">
-              Больше недоступно
-            </span>
-          )}
-          {insufficient && (
-            <span className="text-xs text-yellow-300 bg-yellow-500/10 rounded-md px-2 py-0.5">
-              Доступно только {item.availableStock ?? 0} шт.
-            </span>
-          )}
-          {item.deliveryDays != null && (
-            <span className="text-xs text-neutral-300 bg-neutral-800 rounded-md px-2 py-0.5 inline-flex items-center gap-1">
-              <Truck className="h-3 w-3 text-orange-500" />
-              {formatDeliveryDays(item.deliveryDays)}
-            </span>
-          )}
-        </div>
-        <Link
-          href={productHref}
-          className="block text-white font-medium leading-snug hover:text-orange-500 transition-colors"
-        >
-          {item.product.name}
-        </Link>
-        <p className="text-orange-500 font-bold text-lg mt-1">
-          {formatPrice(item.price)}
-        </p>
-        {item.conditionChange && (
-          <div className="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs leading-relaxed text-yellow-200">
-            Условия изменились: {item.conditionChange.priceIncreased && (
-              <>
-                цена была {formatPrice(item.conditionChange.previousPrice)}, стала {formatPrice(item.price)}
-              </>
+            {!unavailable &&
+            isYekaterinburgStock(item.product.stock, item.deliveryDays) ? (
+              <span className="text-xs text-green-400 bg-green-500/10 rounded-md px-2 py-0.5">
+                В наличии
+              </span>
+            ) : null}
+            {unavailable && (
+              <span className="text-xs text-red-400 bg-red-500/10 rounded-md px-2 py-0.5">
+                Больше недоступно
+              </span>
             )}
-            {item.conditionChange.priceIncreased && item.conditionChange.deliveryWorsened && "; "}
-            {item.conditionChange.deliveryWorsened && (
-              <>
-                срок был {formatDeliveryDays(item.conditionChange.previousDeliveryDays)}, стал {formatDeliveryDays(item.deliveryDays)}
-              </>
+            {insufficient && (
+              <span className="text-xs text-yellow-300 bg-yellow-500/10 rounded-md px-2 py-0.5">
+                Доступно только {item.availableStock ?? 0} шт.
+              </span>
             )}
-            . Позиция сохранена в корзине.
+            {item.deliveryDays != null && (
+              <span className="text-xs text-neutral-300 bg-neutral-800 rounded-md px-2 py-0.5 inline-flex items-center gap-1">
+                <Truck className="h-3 w-3 text-orange-500" />
+                {formatDeliveryLabel(item.deliveryDays)}
+              </span>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Qty + remove */}
-      <div className="flex items-center gap-3 sm:flex-col sm:items-end justify-between sm:justify-start">
-        {/* Quantity */}
-        <div className="flex items-center gap-2 bg-neutral-800 border border-neutral-700 rounded-xl p-1">
-          <button
-            onClick={() => onUpdateQty(item.id, item.qty - 1)}
-            disabled={loading || unavailable || insufficient || item.qty <= 1}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label="Уменьшить"
+          <Link
+            href={productHref}
+            className="block text-white font-medium leading-snug hover:text-orange-500 transition-colors"
           >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <span className="w-8 text-center text-white font-semibold text-sm tabular-nums">
-            {item.qty}
-          </span>
-          <button
-            onClick={() => onUpdateQty(item.id, item.qty + 1)}
-            disabled={loading || unavailable || insufficient || (item.availableStock != null && item.qty >= item.availableStock)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label="Увеличить"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Subtotal + remove */}
-        <div className="flex items-center gap-3 sm:flex-row-reverse">
-          <p className="text-neutral-300 font-semibold tabular-nums">
-            {formatPrice(item.price * item.qty)}
+            {item.product.name}
+          </Link>
+          <p className="text-orange-500 font-bold text-lg mt-1">
+            {formatPrice(item.price)}
           </p>
-          <button
-            onClick={() => onRemove(item.id)}
-            disabled={loading}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-40 transition-colors"
-            aria-label="Удалить"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {item.conditionChange && (
+            <div className="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs leading-relaxed text-yellow-200">
+              Условия изменились:{" "}
+              {item.conditionChange.priceIncreased && (
+                <>
+                  цена была {formatPrice(item.conditionChange.previousPrice)},
+                  стала {formatPrice(item.price)}
+                </>
+              )}
+              {item.conditionChange.priceIncreased &&
+                item.conditionChange.deliveryWorsened &&
+                "; "}
+              {item.conditionChange.deliveryWorsened && (
+                <>
+                  срок был{" "}
+                  {formatDeliveryDays(
+                    item.conditionChange.previousDeliveryDays
+                  )}
+                  , стал {formatDeliveryDays(item.deliveryDays)}
+                </>
+              )}
+              . Позиция сохранена в корзине.
+            </div>
+          )}
         </div>
-      </div>
+
+        {/* Qty + remove */}
+        <div className="flex items-center gap-3 sm:flex-col sm:items-end justify-between sm:justify-start">
+          {/* Quantity */}
+          <div className="flex items-center gap-2 bg-neutral-800 border border-neutral-700 rounded-xl p-1">
+            <button
+              onClick={() => onUpdateQty(item.id, item.qty - 1)}
+              disabled={loading || unavailable || insufficient || item.qty <= 1}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Уменьшить"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span className="w-8 text-center text-white font-semibold text-sm tabular-nums">
+              {item.qty}
+            </span>
+            <button
+              onClick={() => onUpdateQty(item.id, item.qty + 1)}
+              disabled={
+                loading ||
+                unavailable ||
+                insufficient ||
+                (item.availableStock != null && item.qty >= item.availableStock)
+              }
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Увеличить"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Subtotal + remove */}
+          <div className="flex items-center gap-3 sm:flex-row-reverse">
+            <p className="text-neutral-300 font-semibold tabular-nums">
+              {formatPrice(item.price * item.qty)}
+            </p>
+            <button
+              onClick={() => onRemove(item.id)}
+              disabled={loading}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-40 transition-colors"
+              aria-label="Удалить"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -348,7 +362,9 @@ export default function CartPage() {
   const [promoBusy, setPromoBusy] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(
+    null
+  );
 
   const fetchCart = useCallback(async (refreshExpired = false) => {
     try {
@@ -364,10 +380,14 @@ export default function CartPage() {
           const refreshed = await apiCart({ action: "refreshOffers" });
           setCart(refreshed);
           if ((refreshed.verificationFailedCount ?? 0) > 0) {
-            setVerificationError("Не все позиции удалось проверить. Повторим проверку перед оформлением.");
+            setVerificationError(
+              "Не все позиции удалось проверить. Повторим проверку перед оформлением."
+            );
           }
         } catch {
-          setVerificationError("Не удалось проверить условия. Повторим проверку перед оформлением.");
+          setVerificationError(
+            "Не удалось проверить условия. Повторим проверку перед оформлением."
+          );
         } finally {
           setVerifying(false);
         }
@@ -481,7 +501,9 @@ export default function CartPage() {
     // В заказ уйдут только ОТМЕЧЕННЫЕ позиции — сохраняем их для /checkout.
     const all = cart?.items ?? [];
     const set = selected ?? new Set(all.map((i) => i.id));
-    const ids = all.filter((it) => isSelectable(it) && set.has(it.id)).map((it) => it.id);
+    const ids = all
+      .filter((it) => isSelectable(it) && set.has(it.id))
+      .map((it) => it.id);
     if (ids.length === 0) return;
     try {
       sessionStorage.setItem("checkout_item_ids", JSON.stringify(ids));
@@ -508,15 +530,21 @@ export default function CartPage() {
   // Выбор и суммы по отмеченным позициям (итог платит только за них).
   const selectedSet = selected ?? new Set(items.map((i) => i.id));
   const selectableItems = items.filter(isSelectable);
-  const selectedItems = items.filter((it) => isSelectable(it) && selectedSet.has(it.id));
+  const selectedItems = items.filter(
+    (it) => isSelectable(it) && selectedSet.has(it.id)
+  );
   const allChecked =
-    selectableItems.length > 0 && selectedItems.length === selectableItems.length;
+    selectableItems.length > 0 &&
+    selectedItems.length === selectableItems.length;
   const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
   const selSubtotal = round2(
     selectedItems.reduce((s, it) => s + round2(it.price * it.qty), 0)
   );
   const selDiscount = cart?.promo
-    ? Math.min(round2((selSubtotal * cart.promo.discountPct) / 100), selSubtotal)
+    ? Math.min(
+        round2((selSubtotal * cart.promo.discountPct) / 100),
+        selSubtotal
+      )
     : 0;
   const selTotal = round2(selSubtotal - selDiscount);
 
@@ -732,7 +760,12 @@ export default function CartPage() {
                     className="w-full gap-2"
                     size="lg"
                     onClick={handleCheckout}
-                    disabled={checkingOut || mutating || verifying || selectedItems.length === 0}
+                    disabled={
+                      checkingOut ||
+                      mutating ||
+                      verifying ||
+                      selectedItems.length === 0
+                    }
                   >
                     {checkingOut ? (
                       <>

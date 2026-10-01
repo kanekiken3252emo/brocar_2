@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ShoppingCart,
   Package,
-  Clock,
+  Truck,
   MapPin,
   ChevronDown,
 } from "lucide-react";
@@ -14,7 +14,7 @@ import { addSupplierItemToCart } from "@/lib/cart/client";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import { getVegaName } from "@/lib/vega-names";
-import { formatDeliveryDays } from "@/lib/utils";
+import { formatDeliveryLabel } from "@/lib/utils";
 import ProductImage from "@/components/Items/ProductImage";
 
 interface Props {
@@ -99,8 +99,8 @@ function OfferRow({
       </td>
       <td className="px-4 py-3 text-neutral-300 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-neutral-500" />
-          {formatDeliveryDays(offer.deliveryDays)}
+          <Truck className="w-3.5 h-3.5 text-orange-500" />
+          {formatDeliveryLabel(offer.deliveryDays)}
         </span>
       </td>
       <td className="px-4 py-3 text-right text-white font-semibold whitespace-nowrap">
@@ -146,8 +146,8 @@ function OfferMobileCard({
           {offer.stock} шт.
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-neutral-500" />
-          {formatDeliveryDays(offer.deliveryDays)}
+          <Truck className="w-3.5 h-3.5 text-orange-500" />
+          {formatDeliveryLabel(offer.deliveryDays)}
         </span>
       </div>
       <button

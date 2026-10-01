@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart, Package, Clock, Truck } from "lucide-react";
+import { ShoppingCart, Package, Truck } from "lucide-react";
 import type { SupplierGroup } from "@/lib/suppliers/adapter";
 import { isValidPrice } from "@/lib/suppliers/adapter";
 import { addSupplierItemToCart } from "@/lib/cart/client";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
 import { flyToCart } from "@/lib/cart/fly-to-cart";
 import ProductImage from "@/components/Items/ProductImage";
-import { formatDeliveryDays } from "@/lib/utils";
+import { formatDeliveryLabel } from "@/lib/utils";
 
 interface SupplierItemCardProps {
   group: SupplierGroup;
@@ -116,8 +116,8 @@ export default function SupplierItemCard({
             </div>
             {primaryOffer?.deliveryDays != null && (
               <div className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{formatDeliveryDays(primaryOffer.deliveryDays)}</span>
+                <Truck className="w-3.5 h-3.5 text-orange-500" />
+                <span>{formatDeliveryLabel(primaryOffer.deliveryDays)}</span>
               </div>
             )}
             <div className="flex items-center gap-1">

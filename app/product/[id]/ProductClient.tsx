@@ -4,7 +4,11 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProductImage from "@/components/Items/ProductImage";
-import { formatDeliveryDays } from "@/lib/utils";
+import {
+  formatDeliveryDays,
+  formatDeliveryLabel,
+  isYekaterinburgStock,
+} from "@/lib/utils";
 import {
   ArrowLeft,
   Clock,
@@ -46,7 +50,7 @@ const SORT_OPTIONS: {
 const PILOT_SORT_OPTIONS: typeof SORT_OPTIONS = [
   { key: "price", label: "Цена", defaultDir: "asc" },
   { key: "delivery", label: "Доставка", defaultDir: "asc" },
-  { key: "quantity", label: "В наличии", defaultDir: "desc" },
+  { key: "quantity", label: "Количество", defaultDir: "desc" },
   {
     key: "reliability",
     label: "Надёжность поставки",
@@ -440,12 +444,7 @@ export default function ProductClient({
     if (loading || !liveOffersVerified) return;
     manualOfferSelection.current = true;
     setSelectedOffer(offer);
-    addToCart(
-      offer,
-      e.currentTarget as HTMLElement,
-      offerQty(offer),
-      "fixed"
-    );
+    addToCart(offer, e.currentTarget as HTMLElement, offerQty(offer), "fixed");
   };
 
   // Товара нет совсем (и сервер не дал шелл, и живой опрос не нашёл) — страница
@@ -723,7 +722,11 @@ export default function ProductClient({
               <div className="flex items-center gap-4">
                 {!product && loading ? (
                   <div className="h-10 w-44 bg-neutral-800 border border-neutral-700 rounded-xl animate-pulse" />
-                ) : selectedOffer && selectedStock > 0 ? (
+                ) : selectedOffer &&
+                  isYekaterinburgStock(
+                    selectedStock,
+                    selectedOffer.average_period
+                  ) ? (
                   <div
                     className={`flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-xl transition-opacity duration-300 ${
                       loading && product ? "opacity-60" : "opacity-100"
@@ -735,12 +738,12 @@ export default function ProductClient({
                       {selectedOffer.available_more ? "+" : ""} шт.
                     </span>
                   </div>
-                ) : (
+                ) : selectedOffer && selectedStock <= 0 ? (
                   <div className="flex items-center gap-2 text-neutral-400 bg-neutral-800 border border-neutral-700 px-4 py-2 rounded-xl">
                     <Clock className="w-5 h-5" />
                     <span className="font-semibold">Под заказ</span>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Features */}
@@ -752,13 +755,9 @@ export default function ProductClient({
                 <div className="flex items-center gap-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl p-3">
                   <Truck className="w-5 h-5 text-orange-500 shrink-0" />
                   <span className="text-sm text-neutral-400">
-                    Доставка
-                    {selectedOffer && (
-                      <span className="text-white font-medium">
-                        {" · "}
-                        {formatDeliveryDays(selectedOffer.average_period)}
-                      </span>
-                    )}
+                    {selectedOffer
+                      ? formatDeliveryLabel(selectedOffer.average_period)
+                      : "Доставка уточняется"}
                   </span>
                 </div>
               </div>
@@ -865,7 +864,10 @@ export default function ProductClient({
                       </div>
                       <div className="flex items-center gap-4 text-xs text-neutral-400 mb-3">
                         <span>{offer.quantity} шт.</span>
-                        <span>{formatDeliveryDays(offer.average_period)}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Truck className="h-3.5 w-3.5 text-orange-500" />
+                          {formatDeliveryLabel(offer.average_period)}
+                        </span>
                         <span className="inline-flex items-center gap-1">
                           <span
                             className={`w-2 h-2 rounded-full ${
@@ -936,7 +938,7 @@ export default function ProductClient({
                             onClick={() => toggleSort("quantity", "desc")}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 uppercase tracking-wider hover:text-white transition-colors"
                           >
-                            {offerTablePilot ? "В наличии" : "Количество"}
+                            Количество
                             {sortIcon("quantity")}
                           </button>
                         </th>
@@ -1033,7 +1035,10 @@ export default function ProductClient({
                             {offer.price.toLocaleString("ru-RU")} ₽
                           </td>
                           <td className="px-6 py-4 text-sm text-neutral-300">
-                            {formatDeliveryDays(offer.average_period)}
+                            <span className="inline-flex items-center gap-1.5">
+                              <Truck className="h-3.5 w-3.5 text-orange-500" />
+                              {formatDeliveryLabel(offer.average_period)}
+                            </span>
                             {offer.is_transit && (
                               <span className="ml-2 text-xs text-orange-400">
                                 (в пути)

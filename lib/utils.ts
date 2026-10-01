@@ -57,16 +57,45 @@ export function getEffectiveDeliveryDays(
 }
 
 /**
- * Срок доставки в днях → человекочитаемая строка.
+ * Срок доставки в днях → человекочитаемая строка без служебных сокращений.
  * 0 → «сегодня» (до 12:00 ЕКБ) / «завтра» (после), 1 → «завтра»,
- * иначе «N дн.», null → «уточн.».
+ * иначе «N день/дня/дней», null → «уточняется».
  */
 export function formatDeliveryDays(days: number | null | undefined): string {
   const effectiveDays = getEffectiveDeliveryDays(days);
-  if (effectiveDays == null) return "уточн.";
+  if (effectiveDays == null) return "уточняется";
   if (effectiveDays === 0) return "сегодня";
   if (effectiveDays === 1) return "завтра";
-  return `${effectiveDays} дн.`;
+
+  const mod10 = effectiveDays % 10;
+  const mod100 = effectiveDays % 100;
+  const unit =
+    mod10 === 1 && mod100 !== 11
+      ? "день"
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+        ? "дня"
+        : "дней";
+
+  return `${effectiveDays} ${unit}`;
+}
+
+/** Полная подпись срока для каталога, карточки товара и корзины. */
+export function formatDeliveryLabel(days: number | null | undefined): string {
+  return `Доставка ${formatDeliveryDays(days)}`;
+}
+
+/**
+ * В текущем контракте поставщиков нулевой исходный срок означает складской
+ * остаток в Екатеринбурге. Проверяем именно исходный срок: после дневной
+ * отсечки доставка станет «завтра», но товар физически останется на местном
+ * складе. Положительный остаток с любым другим сроком - это товар поставщика,
+ * а не основание для зелёной метки «В наличии».
+ */
+export function isYekaterinburgStock(
+  stock: number | null | undefined,
+  deliveryDays: number | null | undefined
+): boolean {
+  return (stock ?? 0) > 0 && deliveryDays === 0;
 }
 
 /**

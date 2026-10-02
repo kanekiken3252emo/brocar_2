@@ -68,15 +68,17 @@ function sortCandidates(left, right) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const currentWave = args.wave7
-  ? 8
-  : args.wave6
-    ? 7
-    : args.wave5
-      ? 6
-      : args.wave4
-        ? 5
-        : 4;
+const currentWave = args.wave8
+  ? 9
+  : args.wave7
+    ? 8
+    : args.wave6
+      ? 7
+      : args.wave5
+        ? 6
+        : args.wave4
+          ? 5
+          : 4;
 for (const required of [
   "feed",
   "demand",
@@ -138,6 +140,9 @@ const wave6Payload = args.wave6
 const wave7Payload = args.wave7
   ? JSON.parse(await readFile(args.wave7, "utf8"))
   : { products: [] };
+const wave8Payload = args.wave8
+  ? JSON.parse(await readFile(args.wave8, "utf8"))
+  : { products: [] };
 const wave1Products = Array.isArray(wave1Payload.products)
   ? wave1Payload.products
   : [];
@@ -159,6 +164,9 @@ const wave6Products = Array.isArray(wave6Payload.products)
 const wave7Products = Array.isArray(wave7Payload.products)
   ? wave7Payload.products
   : [];
+const wave8Products = Array.isArray(wave8Payload.products)
+  ? wave8Payload.products
+  : [];
 const priorProducts = [
   ...wave1Products,
   ...wave2Products,
@@ -167,6 +175,7 @@ const priorProducts = [
   ...wave5Products,
   ...wave6Products,
   ...wave7Products,
+  ...wave8Products,
 ];
 const priorKeys = new Set(
   priorProducts.map((row) => identity(row.article, row.brand))
@@ -322,9 +331,21 @@ for (const categoryId of categoryOrder) {
   if (selected.length >= TARGET_SIZE) break;
 }
 
+// Category and brand caps keep the main body of every wave diverse. If the
+// fresh feed becomes narrower, fill only the small remainder from the same
+// qualified pool (picture + category + represented brand), without lowering
+// the product-quality rules or allowing duplicate identities.
+if (selected.length < TARGET_SIZE) {
+  for (const row of [...qualityPool].sort(sortCandidates)) {
+    if (selected.length >= TARGET_SIZE) break;
+    add(row, "fresh_categorized_inventory_cap_relaxed", false);
+  }
+}
+
 if (selected.length !== TARGET_SIZE) {
   throw new Error(
-    `Could not fill wave ${currentWave}: selected ${selected.length} of ${TARGET_SIZE}`
+    `Could not fill wave ${currentWave}: selected ${selected.length} of ${TARGET_SIZE}; ` +
+      `eligiblePool=${pool.length}; directDemandPool=${directDemand.length}; qualityPool=${qualityPool.length}`
   );
 }
 
@@ -351,7 +372,7 @@ const manifest = {
   wave: currentWave,
   generatedAt: feedGeneratedAt.slice(0, 10),
   targetSize: TARGET_SIZE,
-  selectionRule: `current stock and positive price; first remaining direct external article demand, then products with image, defined category and a brand represented in prior waves; category and brand caps; no overlap with waves 1-${currentWave - 1}; max 3 brands per article`,
+  selectionRule: `current stock and positive price; first remaining direct external article demand, then products with image, defined category and a brand represented in prior waves; soft category and brand caps with a remainder filled from the same qualified pool; no overlap with waves 1-${currentWave - 1}; max 3 brands per article`,
   productCount: selectedProducts.length,
   products: selectedProducts,
 };
@@ -372,6 +393,7 @@ const audit = {
     wave5: args.wave5 || null,
     wave6: args.wave6 || null,
     wave7: args.wave7 || null,
+    wave8: args.wave8 || null,
   },
   rules: {
     targetSize: TARGET_SIZE,

@@ -25,15 +25,15 @@ const maxAgeHours = Math.max(1, Number(arg("max-age-hours", "168")) || 168);
 const waveArg = String(arg("wave", "all"));
 const waves =
   waveArg === "all"
-    ? [8, 7, 6, 5, 4, 3, 2, 1]
+    ? [9, 8, 7, 6, 5, 4, 3, 2, 1]
     : waveArg
         .split(",")
         .map(Number)
-        .filter((value) => Number.isInteger(value) && value >= 1 && value <= 8);
+        .filter((value) => Number.isInteger(value) && value >= 1 && value <= 9);
 
 const dbUrl = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
 if (!dbUrl) throw new Error("Нет DATABASE_POOLER_URL / DATABASE_URL");
-if (!waves.length) throw new Error("Некорректный --wave: укажи all или 1..8");
+if (!waves.length) throw new Error("Некорректный --wave: укажи all или 1..9");
 
 const manifests = await Promise.all(
   waves.map(async (wave) => {

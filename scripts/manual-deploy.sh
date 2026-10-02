@@ -20,6 +20,8 @@ set -euo pipefail
 REPO_DIR="${BROCAR_DIR:-/var/www/brocar}"
 LOCK="/var/lock/brocar.lock"
 MIN_FREE_MB="${BROCAR_MIN_FREE_MB:-1500}"  # минимум свободной RAM для сборки
+LEGACY_STATIC_DIR="$REPO_DIR/legacy-next-static"
+STATIC_ARCHIVE_DAYS="${BROCAR_STATIC_ARCHIVE_DAYS:-60}"
 
 cd "$REPO_DIR"
 
@@ -43,6 +45,30 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   git status --short
   echo "Ctrl-C в течение 10 секунд, чтобы прервать."
   sleep 10
+fi
+
+# Сохраняем Next.js-ассеты текущего контейнера ДО git reset и сборки.
+# Имена содержат хеш контента, поэтому файлы безопасно объединять без
+# перезаписи. Архив игнорируется git, переживает reset --hard и попадает в
+# новый Docker-образ. Файлы старше заданного срока удаляем, чтобы архив не рос.
+echo "== Архив Next.js static из текущего контейнера =="
+RUNNING_CONTAINER="$(docker compose ps -q brocar 2>/dev/null || true)"
+if [ -n "$RUNNING_CONTAINER" ] && [ "$(docker inspect -f '{{.State.Running}}' "$RUNNING_CONTAINER" 2>/dev/null || true)" = "true" ]; then
+  ARCHIVE_TMP="$(mktemp -d)"
+  trap 'rm -rf "$ARCHIVE_TMP"' EXIT
+  if docker cp "${RUNNING_CONTAINER}:/app/.next/static/." "$ARCHIVE_TMP/"; then
+    mkdir -p "$LEGACY_STATIC_DIR"
+    cp -a -n "$ARCHIVE_TMP/." "$LEGACY_STATIC_DIR/"
+    find "$LEGACY_STATIC_DIR" -type f -mtime "+${STATIC_ARCHIVE_DAYS}" -delete
+    find "$LEGACY_STATIC_DIR" -depth -type d -empty -delete
+    echo "OK: ассеты предыдущих сборок сохранены в $LEGACY_STATIC_DIR."
+  else
+    echo "ВНИМАНИЕ: не удалось скопировать .next/static из $RUNNING_CONTAINER."
+  fi
+  rm -rf "$ARCHIVE_TMP"
+  trap - EXIT
+else
+  echo "ВНИМАНИЕ: запущенный сервис brocar не найден; деплой продолжается без архива."
 fi
 
 # 1) GIT-SYNC — обязателен. Кормит путь `docker cp /var/www/brocar/{scripts,lib}`

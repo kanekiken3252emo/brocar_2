@@ -65,3 +65,11 @@ scripts/probe-output/
 
 # YML-фиды генерируются кроном, в git не попадают
 /public/feeds/
+
+# Архив хешированных Next.js-ассетов между деплоями. Основной архив
+# создаётся на VPS и не хранится в git. Один CSS из кэша Яндекса
+# фиксируем в репозитории, чтобы первый деплой сразу вернул его.
+/legacy-next-static/*
+!/legacy-next-static/css/
+/legacy-next-static/css/*
+!/legacy-next-static/css/7dd2c23c5e12a848.css

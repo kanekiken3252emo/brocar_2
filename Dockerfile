@@ -47,6 +47,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Возвращаем хешированные ассеты предыдущих сборок. Старые HTML-копии в
+# кэше поисковиков и браузеров ссылаются на прежние имена файлов; без этого
+# после деплоя они получают 404 и страница выглядит без стилей.
+COPY --chown=nextjs:nodejs legacy-next-static/ ./.next/static/
+
 # Каталог кэша оптимизатора next/image. Наружу маплен named-volume
 # (docker-compose) — кэш ПЕРЕЖИВАЕТ пересоздание контейнера. Раньше каждый
 # деплой стирал кэш, и утренний трафик заново пересчитывал все варианты

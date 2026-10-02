@@ -8,6 +8,7 @@ import wave5Manifest from "@/data/seo-product-wave-5.json";
 import wave6Manifest from "@/data/seo-product-wave-6.json";
 import wave7Manifest from "@/data/seo-product-wave-7.json";
 import wave8Manifest from "@/data/seo-product-wave-8.json";
+import wave9Manifest from "@/data/seo-product-wave-9.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { sameBrandFamily } from "@/lib/brands/families.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
@@ -54,6 +55,7 @@ const wave5Items = waveSnapshotItems(wave5Manifest.products as WaveSeoItem[]);
 const wave6Items = waveSnapshotItems(wave6Manifest.products as WaveSeoItem[]);
 const wave7Items = waveSnapshotItems(wave7Manifest.products as WaveSeoItem[]);
 const wave8Items = waveSnapshotItems(wave8Manifest.products as WaveSeoItem[]);
+const wave9Items = waveSnapshotItems(wave9Manifest.products as WaveSeoItem[]);
 
 const items = [
   ...(snapshot.products as ProductSeoSnapshotItem[]),
@@ -65,6 +67,7 @@ const items = [
   ...wave6Items,
   ...wave7Items,
   ...wave8Items,
+  ...wave9Items,
 ]
   .map((item) => ({ ...item, name: repairSupplierName(item.name) }))
   .filter((item) => isUsableProductName(item.name, item.article, item.brand));

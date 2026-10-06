@@ -166,25 +166,42 @@ export class PartKomAdapter implements SupplierAdapter {
 }
 
 /**
- * Срок поставки «От» в днях. ПартКом отдаёт его в трёх видах в порядке
- * предпочтения: дни → часы → конкретная дата. 0 дней = «сегодня»
- * (UI это поддерживает через formatDeliveryDays).
+ * Ожидаемый срок поставки «От» в полных календарных днях.
+ *
+ * По документации ПартКома expectedHours / expectedDate - точный срок, а
+ * expectedDays - запасное поле для предложений без точного срока. Поэтому
+ * сначала используем часы и округляем неполные сутки вверх: 61 час - это
+ * 3 дня, а не 2. Гарантированный срок «До» используем только если ожидаемый
+ * срок отсутствует полностью.
  */
 function resolveDeliveryDays(row: PartKomOffer): number | null {
-  const days = toInt(row.expectedDays);
-  if (days > 0) return days;
+  const expectedHours = toInt(row.expectedHours);
+  if (expectedHours > 0) return Math.ceil(expectedHours / 24);
 
-  const hours = toInt(row.expectedHours);
-  if (hours > 0) return Math.floor(hours / 24);
-
-  const date = parseDate(row.expectedDate);
-  if (date) {
-    const diff = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+  const expectedDate = parseDate(row.expectedDate);
+  if (expectedDate) {
+    const diff = Math.ceil(
+      (expectedDate.getTime() - Date.now()) / 86_400_000
+    );
     return Math.max(0, diff);
   }
 
-  const gDays = toInt(row.guaranteedDays);
-  if (gDays > 0) return gDays;
+  const expectedDays = toInt(row.expectedDays);
+  if (expectedDays > 0) return expectedDays;
+
+  const guaranteedHours = toInt(row.guaranteedHours);
+  if (guaranteedHours > 0) return Math.ceil(guaranteedHours / 24);
+
+  const guaranteedDate = parseDate(row.guaranteedDate);
+  if (guaranteedDate) {
+    const diff = Math.ceil(
+      (guaranteedDate.getTime() - Date.now()) / 86_400_000
+    );
+    return Math.max(0, diff);
+  }
+
+  const guaranteedDays = toInt(row.guaranteedDays);
+  if (guaranteedDays > 0) return guaranteedDays;
 
   return null;
 }

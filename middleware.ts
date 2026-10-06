@@ -76,6 +76,9 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.searchParams.delete("brand");
       url.searchParams.delete("category");
+      if (url.searchParams.get("page") === "1") {
+        url.searchParams.delete("page");
+      }
       const slug = normalizeSlug(brand ?? category!);
       if (slug) {
         url.pathname = brand
@@ -104,10 +107,13 @@ export async function middleware(request: NextRequest) {
       url.search = "";
       return NextResponse.redirect(url, 301);
     }
-    if (slug !== parts[3]) {
-      // Регистр/кодировка/русское имя → канонический вид (query сохраняем).
+    const hasRedundantFirstPage = searchParams.get("page") === "1";
+    if (slug !== parts[3] || hasRedundantFirstPage) {
+      // Регистр/кодировка/русское имя → канонический вид. page=1 убираем,
+      // потому что первая страница живёт по чистому URL без параметра.
       const url = request.nextUrl.clone();
       url.pathname = `/${parts[1]}/${parts[2]}/${slug}`;
+      if (hasRedundantFirstPage) url.searchParams.delete("page");
       return NextResponse.redirect(url, 301);
     }
   }

@@ -17,7 +17,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { getGuideForCategory } from "@/lib/guides";
-import { categoryCatalogUrl } from "@/lib/catalog/urls";
+import { brandCatalogUrl, categoryCatalogUrl } from "@/lib/catalog/urls";
 import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
@@ -147,10 +147,12 @@ function parseQuery(query: string): {
 
 function CatalogContent({
   initialData,
+  initialPage,
   brandParam,
   categoryParam,
 }: {
   initialData?: InitialData;
+  initialPage: number;
   brandParam?: string;
   categoryParam?: string;
 }) {
@@ -173,7 +175,7 @@ function CatalogContent({
   // этого бренда поднимаем в начало выдачи (искал для Тойоты → Тойота первая).
   const fromBrand = searchParams?.get("fromBrand");
 
-  // Серверный засев первого показа: страница пришла server-rendered с готовыми
+  // Серверный засев текущей страницы: ответ пришёл с готовыми
   // данными категории ИЛИ марки (initialData) и URL — «чистый» заход в ту же
   // категорию/марку (без поиска/VIN/модели). Тогда стартуем сразу с товарами и
   // НЕ делаем повторный запрос. Любое изменение (фильтр/сортировка/страница)
@@ -241,7 +243,7 @@ function CatalogContent({
     });
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const itemsPerPage = 20;
 
   // Серверная пагинация: для category/car-brand веток `groups` приходит уже
@@ -267,12 +269,30 @@ function CatalogContent({
   // loadProducts: товары уже в состоянии. Все последующие изменения параметров
   // грузятся как обычно.
   const skipFirstLoad = useRef(seedable);
+  const skipInitialPageReset = useRef(true);
 
   // Сбрасываем номер страницы на 1 при смене параметров, которые меняют
   // саму выборку (другая категория, бренд, фильтр, сортировка). Используем
   // функциональный setState чтобы не перезапускать loadProducts если
   // currentPage уже был 1.
   useEffect(() => {
+    if (skipInitialPageReset.current) {
+      skipInitialPageReset.current = false;
+      return;
+    }
+
+    // Фильтр или сортировка начинают новую выборку с первой страницы.
+    // Убираем page из адреса без перезагрузки, чтобы URL не обещал страницу 2,
+    // когда интерфейс уже показывает первую страницу отфильтрованной выдачи.
+    if (currentPage > 1 && useServerPagination) {
+      const cleanUrl = category
+        ? categoryCatalogUrl(category)
+        : brand
+          ? brandCatalogUrl(brand)
+          : null;
+      if (cleanUrl) window.history.replaceState(window.history.state, "", cleanUrl);
+    }
+
     setCurrentPage((p) => (p === 1 ? p : 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vin, article, brand, model, category, brandFilter, sortBy, attrFilters]);
@@ -280,7 +300,9 @@ function CatalogContent({
   // Смена категории/поиска сбрасывает выбранные характеристики — иначе фильтр
   // «вязкость 5W-40» утёк бы из масел в чужую категорию.
   useEffect(() => {
-    setAttrFilters({});
+    setAttrFilters((current) =>
+      Object.keys(current).length === 0 ? current : {}
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vin, article, brand, model, category]);
 
@@ -551,6 +573,11 @@ function CatalogContent({
 
   const totalCount = useServerPagination ? serverTotalCount : filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  const serverPageHref = (targetPage: number) => {
+    if (category) return categoryCatalogUrl(category, targetPage);
+    if (brand && !model && !article) return brandCatalogUrl(brand, targetPage);
+    return null;
+  };
   // На серверной пагинации `boosted` уже = 20 нужных товаров текущей страницы.
   const paginated = useServerPagination
     ? boosted
@@ -564,9 +591,11 @@ function CatalogContent({
   const categoryGuide = category ? getGuideForCategory(category) : undefined;
 
   const getSearchSummary = () => {
-    // Лендинги категорий/марок: коммерческий H1 в связке с meta-title
-    // («Масла моторные — купить в Екатеринбурге»).
-    if (categoryTitle) return `${categoryTitle} — купить в Екатеринбурге`;
+    // Лендинги категорий/марок: единый H1, а со второй страницы — номер страницы.
+    if (categoryTitle)
+      return `${categoryTitle} в Екатеринбурге${
+        currentPage > 1 ? ` - страница ${currentPage}` : ""
+      }`;
     if (vin) return `Поиск по VIN: ${vin}`;
     if (article)
       return isFreeText(article)
@@ -904,13 +933,23 @@ function CatalogContent({
 
             {totalPages > 1 && (
               <div className="mt-12 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Назад
-                </button>
+                {useServerPagination && currentPage > 1 ? (
+                  <Link
+                    href={serverPageHref(currentPage - 1)!}
+                    prefetch={false}
+                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 transition-colors"
+                  >
+                    Назад
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Назад
+                  </button>
+                )}
 
                 <div className="flex gap-2">
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -931,15 +970,36 @@ function CatalogContent({
                           </span>
                         );
                       }
-                      return (
+                      if (currentPage === page) {
+                        return (
+                          <span
+                            key={page}
+                            aria-current="page"
+                            className="px-4 py-2.5 rounded-xl font-medium bg-orange-500 text-white"
+                          >
+                            {page}
+                          </span>
+                        );
+                      }
+
+                      const href = useServerPagination
+                        ? serverPageHref(page)
+                        : null;
+
+                      return href ? (
+                        <Link
+                          key={page}
+                          href={href}
+                          prefetch={false}
+                          className="px-4 py-2.5 rounded-xl font-medium transition-colors bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
+                        >
+                          {page}
+                        </Link>
+                      ) : (
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`px-4 py-2.5 rounded-xl font-medium transition-colors ${
-                            currentPage === page
-                              ? "bg-orange-500 text-white"
-                              : "bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
-                          }`}
+                          className="px-4 py-2.5 rounded-xl font-medium transition-colors bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
                         >
                           {page}
                         </button>
@@ -947,15 +1007,25 @@ function CatalogContent({
                     })}
                 </div>
 
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Вперед
-                </button>
+                {useServerPagination && currentPage < totalPages ? (
+                  <Link
+                    href={serverPageHref(currentPage + 1)!}
+                    prefetch={false}
+                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 transition-colors"
+                  >
+                    Вперед
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Вперед
+                  </button>
+                )}
               </div>
             )}
           </>
@@ -1010,10 +1080,12 @@ function bergResourcesToGroups(resources: BergResource[]): SupplierGroup[] {
 
 export default function CatalogClient({
   initialData,
+  initialPage,
   brandParam,
   categoryParam,
 }: {
   initialData?: InitialData;
+  initialPage: number;
   brandParam?: string;
   categoryParam?: string;
 }) {
@@ -1027,6 +1099,7 @@ export default function CatalogClient({
     >
       <CatalogContent
         initialData={initialData}
+        initialPage={initialPage}
         brandParam={brandParam}
         categoryParam={categoryParam}
       />

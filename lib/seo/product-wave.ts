@@ -8,6 +8,7 @@ import wave6Manifest from "@/data/seo-product-wave-6.json";
 import wave7Manifest from "@/data/seo-product-wave-7.json";
 import wave8Manifest from "@/data/seo-product-wave-8.json";
 import wave9Manifest from "@/data/seo-product-wave-9.json";
+import wave10Manifest from "@/data/seo-product-wave-10.json";
 import { brandKey, canonicalBrand } from "@/lib/brands/canonical.mjs";
 import { normalizeArticle } from "@/lib/suppliers/adapter";
 
@@ -30,6 +31,7 @@ export const PRODUCT_WAVE_6 = wave6Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_7 = wave7Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_8 = wave8Manifest.products as ProductWaveItem[];
 export const PRODUCT_WAVE_9 = wave9Manifest.products as ProductWaveItem[];
+export const PRODUCT_WAVE_10 = wave10Manifest.products as ProductWaveItem[];
 export const PRODUCT_SEO_WAVE_BATCHES = [
   PRODUCT_WAVE_1,
   PRODUCT_WAVE_2,
@@ -40,6 +42,7 @@ export const PRODUCT_SEO_WAVE_BATCHES = [
   PRODUCT_WAVE_7,
   PRODUCT_WAVE_8,
   PRODUCT_WAVE_9,
+  PRODUCT_WAVE_10,
 ];
 export const PRODUCT_SEO_WAVES = [
   ...PRODUCT_WAVE_1,
@@ -51,6 +54,7 @@ export const PRODUCT_SEO_WAVES = [
   ...PRODUCT_WAVE_7,
   ...PRODUCT_WAVE_8,
   ...PRODUCT_WAVE_9,
+  ...PRODUCT_WAVE_10,
 ];
 
 const waveKeys = new Set(
@@ -67,6 +71,7 @@ const enhancedOfferTableKeys = new Set(
     ...PRODUCT_WAVE_7,
     ...PRODUCT_WAVE_8,
     ...PRODUCT_WAVE_9,
+    ...PRODUCT_WAVE_10,
   ].map(
     (item) =>
       `${normalizeArticle(item.article)}|${brandKey(canonicalBrand(item.brand))}`

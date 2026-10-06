@@ -24,12 +24,30 @@ const BRAND_NAME_SLUGS: Record<string, string> = {
   "land rover": "land-rover",
 };
 
-export function brandCatalogUrl(nameOrSlug: string): string {
-  const key = nameOrSlug.toLowerCase();
-  const slug = BRAND_NAME_SLUGS[key] ?? key;
-  return `/catalog/brand/${encodeURIComponent(slug)}`;
+function withCatalogPage(pathname: string, page = 1): string {
+  return Number.isSafeInteger(page) && page > 1
+    ? `${pathname}?page=${page}`
+    : pathname;
 }
 
-export function categoryCatalogUrl(slug: string): string {
-  return `/catalog/category/${encodeURIComponent(slug.toLowerCase())}`;
+export function parseCatalogPageParam(
+  value: string | string[] | null | undefined
+): number | null {
+  if (value == null || value === "") return 1;
+  if (Array.isArray(value) || !/^[1-9]\d*$/.test(value)) return null;
+  const page = Number(value);
+  return Number.isSafeInteger(page) ? page : null;
+}
+
+export function brandCatalogUrl(nameOrSlug: string, page = 1): string {
+  const key = nameOrSlug.toLowerCase();
+  const slug = BRAND_NAME_SLUGS[key] ?? key;
+  return withCatalogPage(`/catalog/brand/${encodeURIComponent(slug)}`, page);
+}
+
+export function categoryCatalogUrl(slug: string, page = 1): string {
+  return withCatalogPage(
+    `/catalog/category/${encodeURIComponent(slug.toLowerCase())}`,
+    page
+  );
 }

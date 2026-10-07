@@ -1,6 +1,6 @@
 import { cache } from "react";
 import type { Metadata } from "next";
-import { permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { enrichGroupsWithImages } from "@/lib/product-images";
 import { findDbProductGroup } from "@/lib/suppliers/db-group";
 import ProductClient, { type ProductShell } from "./ProductClient";
@@ -25,6 +25,7 @@ import {
   isUsableProductName,
 } from "@/lib/suppliers/mojibake";
 import {
+  getProductExistenceVerification,
   getProductSupplierSeed,
   pickMainProductGroup,
 } from "@/lib/product-supplier-seed";
@@ -45,8 +46,12 @@ import {
 // Один lookup на запрос, общий для generateMetadata и самой страницы.
 const SEO_SHELL_DB_TIMEOUT_MS = 500;
 
+type ResolvedProductShell = ProductShell & {
+  existence: "confirmed" | "missing" | "unavailable";
+};
+
 const getShell = cache(
-  async (rawArticle: string, brand: string): Promise<ProductShell> => {
+  async (rawArticle: string, brand: string): Promise<ResolvedProductShell> => {
     const article = decodeURIComponent(rawArticle);
     try {
       const isPriorityProduct = isProductInSeoWave(article, brand);
@@ -59,11 +64,13 @@ const getShell = cache(
         () => null
       );
       const localGroupPromise = offerSnapshot
-        ? Promise.resolve(null)
+        ? Promise.resolve({ group: null, available: true })
         : findDbProductGroup(article, brand, {
             aggregateFreshOffers: isPriorityProduct,
             aggregateNames: true,
-          }).catch(() => null);
+          })
+            .then((group) => ({ group, available: true }))
+            .catch(() => ({ group: null, available: false }));
       const liveGroupPromise =
         !offerSnapshot && hasEnhancedOfferTable
           ? getProductSupplierSeed(article, brand)
@@ -75,17 +82,36 @@ const getShell = cache(
       // Для индексируемой карточки имя и минимальная цена уже есть в локальном
       // SEO-снимке. Если удалённая БД каталога отвечает медленно, не держим из-за
       // неё первый HTML: свежие предложения всё равно загрузит API на клиенте.
-      const localGroup = offerSnapshot
-        ? null
+      const localResult = offerSnapshot
+        ? { group: null, available: true }
         : seoSnapshot && !hasEnhancedOfferTable
           ? await Promise.race([
               localGroupPromise,
-              new Promise<null>((resolve) =>
-                setTimeout(() => resolve(null), SEO_SHELL_DB_TIMEOUT_MS)
+              new Promise<{ group: null; available: true }>((resolve) =>
+                setTimeout(
+                  () => resolve({ group: null, available: true }),
+                  SEO_SHELL_DB_TIMEOUT_MS
+                )
               ),
             ])
           : await localGroupPromise;
-      const liveGroup = await liveGroupPromise;
+      let liveGroup = await liveGroupPromise;
+
+      let unresolvedExistence: "missing" | "unavailable" = "unavailable";
+      if (!offerSnapshot && !seoSnapshot && !localResult.group && !liveGroup) {
+        const verification = await getProductExistenceVerification(
+          article,
+          brand
+        );
+        if (verification.status === "found") {
+          liveGroup = verification.group;
+        } else if (
+          verification.status === "missing" &&
+          localResult.available
+        ) {
+          unresolvedExistence = "missing";
+        }
+      }
       // Серверный HTML использует только локальные данные. Живой опрос семи
       // поставщиков выполняет клиентский /api/product/[article]; запускать его
       // ещё раз из generateMetadata/RSC нельзя, иначе открытие карточки ждёт
@@ -94,7 +120,7 @@ const getShell = cache(
         ? offerSnapshot
         : liveGroup
           ? toPublicSupplierGroup(liveGroup)
-          : localGroup;
+          : localResult.group;
       const resolvedGroup = seoSnapshot
         ? {
             ...(sourceGroup ?? {
@@ -121,6 +147,7 @@ const getShell = cache(
           group: null,
           seoResolved: false,
           seoMinimumPrice: null,
+          existence: unresolvedExistence,
         };
       }
 
@@ -147,6 +174,7 @@ const getShell = cache(
         group,
         seoResolved: Boolean(seoSnapshot),
         seoMinimumPrice: seoSnapshot?.minPrice ?? null,
+        existence: "confirmed",
       };
     } catch {
       return {
@@ -157,6 +185,7 @@ const getShell = cache(
         group: null,
         seoResolved: false,
         seoMinimumPrice: null,
+        existence: "unavailable",
       };
     }
   }
@@ -188,6 +217,8 @@ export async function generateMetadata({
   // getShell мемоизирован и используется также самой страницей: метатеги и H1
   // получают одну и ту же серверную идентичность товара.
   const shell = await getShell(id, brand);
+
+  if (shell.existence === "missing") notFound();
 
   // Суффикс « | BroCar» добавляет шаблон title в layout — здесь бренд НЕ дописываем
   // (раньше дублировался: «… | Brocar | BroCar»).
@@ -222,14 +253,12 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical },
-    // A supplier-only article with an explicit brand must remain indexable:
-    // some real products are confirmed only by the live supplier lookup. An
-    // unconfirmed brandless URL is still usable, but must not create an
-    // indexable page for an arbitrary article.
-    robots:
-      shell.group || brand.trim()
-        ? { index: true, follow: true }
-        : { index: false, follow: true },
+    // Индексируем только серверно подтверждённый товар. Если интеграции временно
+    // недоступны, страница остаётся рабочей для клиентского опроса, но получает
+    // noindex вместо ложной индексируемой карточки.
+    robots: shell.group
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     openGraph: {
       title,
       description,
@@ -251,6 +280,8 @@ export default async function ProductPage({
   const sp = await searchParams;
   const brand = typeof sp.brand === "string" ? sp.brand : "";
   const shell = await getShell(id, brand);
+
+  if (shell.existence === "missing") notFound();
 
   let canonicalArticle = decodeURIComponent(id);
   let canonicalBrandName = brand;

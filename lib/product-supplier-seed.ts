@@ -5,6 +5,7 @@ import {
   mergeFamilyGroups,
   normalizeArticle,
   searchAllSuppliers,
+  type SupplierAdapter,
   type SupplierGroup,
   type SupplierItem,
 } from "@/lib/suppliers/adapter";
@@ -24,6 +25,11 @@ export interface ProductSupplierSeed {
   shateArticleId: number | null;
 }
 
+export type ProductExistenceVerification =
+  | { status: "found"; group: SupplierGroup }
+  | { status: "missing"; group: null }
+  | { status: "unavailable"; group: null };
+
 /**
  * Двухминутный снимок живого поиска только для серверного SEO-шелла. Клиентский
  * API использует отдельный свежий опрос ниже: коммерческие данные на экране не
@@ -38,6 +44,78 @@ const adapters = [
   autotradeAdapter,
   partKomAdapter,
 ];
+
+const PRODUCT_EXISTENCE_TIMEOUT_MS = 9_000;
+
+async function searchAdapterForExistence(
+  adapter: SupplierAdapter,
+  article: string,
+  brand: string
+): Promise<{ available: boolean; items: SupplierItem[] }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error("Supplier existence check timeout")),
+        PRODUCT_EXISTENCE_TIMEOUT_MS
+      );
+    });
+    const items = await Promise.race([
+      adapter.search({
+        article,
+        preferredBrand: brand,
+        withCrosses: false,
+      }),
+      timeout,
+    ]);
+    return { available: true, items };
+  } catch {
+    return { available: false, items: [] };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Консервативная серверная проверка неизвестной карточки. Положительного ответа
+ * одного поставщика достаточно, чтобы сохранить реальный supplier-only товар.
+ * Отсутствие считаем подтверждённым только когда ответили все интеграции: при
+ * таймауте или внешнем сбое возвращаем unavailable, чтобы не создать ложную 404.
+ */
+async function verifyFreshProductExistence(
+  article: string,
+  brand: string
+): Promise<ProductExistenceVerification> {
+  const results = await Promise.all(
+    adapters.map((adapter) =>
+      searchAdapterForExistence(adapter, article, brand)
+    )
+  );
+  const items = results.flatMap((result) => result.items);
+  const groups = mergeFamilyGroups(
+    groupOffers(items, (base, ctx) => applyPricingSync(base, ctx))
+  );
+  const group = pickMainProductGroup(groups, article, brand);
+
+  if (group) return { status: "found", group };
+  if (results.every((result) => result.available)) {
+    return { status: "missing", group: null };
+  }
+  return { status: "unavailable", group: null };
+}
+
+const loadProductExistenceVerification = unstable_cache(
+  verifyFreshProductExistence,
+  ["product-existence-verification-v1"],
+  { revalidate: 120 }
+);
+
+export async function getProductExistenceVerification(
+  article: string,
+  brand: string
+): Promise<ProductExistenceVerification> {
+  return loadProductExistenceVerification(article, brand);
+}
 
 /**
  * Свежий опрос поставщиков для клиентской карточки. В отличие от SEO-снимка

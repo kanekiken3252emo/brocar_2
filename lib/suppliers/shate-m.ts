@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import type { SupplierAdapter, SearchParams, SupplierItem } from "./adapter";
+import { getYekaterinburgDateKey } from "@/lib/utils";
 
 /**
  * ShATE-M REST API adapter.
@@ -537,14 +538,16 @@ export class ShateMAdapter implements SupplierAdapter {
           offer.price?.value ?? offer.price?.valueWithMargin ?? 0;
 
         const deliveryDate = offer.deliveryDateTimes?.[0]?.deliveryDateTime;
-        const deliveryDays = deliveryDate
-          ? Math.max(
-              0,
-              Math.ceil(
-                (new Date(deliveryDate).getTime() - Date.now()) / 86_400_000
-              )
-            )
-          : null;
+        const deliveryAt = deliveryDate ? new Date(deliveryDate) : null;
+        const deliveryDays =
+          deliveryAt && Number.isFinite(deliveryAt.getTime())
+            ? getYekaterinburgDateKey(deliveryAt) === getYekaterinburgDateKey()
+              ? 0
+              : Math.max(
+                  1,
+                  Math.ceil((deliveryAt.getTime() - Date.now()) / 86_400_000)
+                )
+            : null;
 
         results.push({
           article: p.article?.code || fallbacks.fallbackArticle || "",

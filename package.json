@@ -27,6 +27,7 @@
     "db:warm-offer-snapshots": "node --env-file=.env.local scripts/warm-product-offer-snapshots.mjs",
     "db:reclaim-bloat": "node --env-file=.env.local scripts/reclaim-index-bloat.mjs",
     "format": "prettier --write .",
+    "test:same-day-delivery": "node scripts/test-same-day-delivery.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

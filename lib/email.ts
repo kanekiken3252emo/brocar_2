@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { formatEffectiveDeliveryDays } from "@/lib/utils";
 
 /**
  * Отправка почты через SMTP (почта домена на Beget).
@@ -16,6 +17,7 @@ export interface OrderEmailItem {
   price: string; // цена за единицу
   supplier?: string | null; // реальный поставщик/склад (только письмо магазину)
   deliveryDays?: number | null; // срок доставки, дней
+  effectiveDeliveryDays?: number | null; // обещание, зафиксированное при заказе
 }
 
 export interface OrderEmailData {
@@ -98,7 +100,7 @@ export async function sendOrderNotification(
         <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.brand ?? "—")}</td>
         <td style="padding:8px;border-bottom:1px solid #eee">${esc(i.supplier ?? "—")}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.qty}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.deliveryDays != null ? esc(String(i.deliveryDays)) + " дн." : "—"}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.effectiveDeliveryDays != null ? esc(formatEffectiveDeliveryDays(i.effectiveDeliveryDays)) : "—"}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatRub(parseFloat(i.price))}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatRub(parseFloat(i.price) * i.qty)}</td>
       </tr>`
@@ -278,8 +280,7 @@ export async function sendReturnRequestNotification(
   ]
     .filter(([, v]) => v)
     .map(
-      ([k, v]) =>
-        `<p style="margin:4px 0"><b>${k}:</b> ${esc(String(v))}</p>`
+      ([k, v]) => `<p style="margin:4px 0"><b>${k}:</b> ${esc(String(v))}</p>`
     )
     .join("");
 
@@ -601,7 +602,8 @@ export async function sendOrderReadyToCustomer(
   const html = customerEmailShell({
     headingColor: "#16a34a",
     heading: `Заказ №${data.orderId} готов к получению`,
-    intro: "Ваш заказ собран и ждёт вас. Свяжитесь с нами или приезжайте, чтобы забрать.",
+    intro:
+      "Ваш заказ собран и ждёт вас. Свяжитесь с нами или приезжайте, чтобы забрать.",
     items: data.items,
     total: data.total,
   });

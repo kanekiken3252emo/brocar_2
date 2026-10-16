@@ -117,7 +117,9 @@ export default function SupplierItemCard({
             {primaryOffer?.deliveryDays != null && (
               <div className="flex items-center gap-1">
                 <Truck className="w-3.5 h-3.5 text-orange-500" />
-                <span>{formatDeliveryLabel(primaryOffer.deliveryDays)}</span>
+                <span>
+                  {formatDeliveryLabel(primaryOffer.deliveryDays, primaryOffer)}
+                </span>
               </div>
             )}
             <div className="flex items-center gap-1">

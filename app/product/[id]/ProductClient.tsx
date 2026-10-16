@@ -7,6 +7,7 @@ import ProductImage from "@/components/Items/ProductImage";
 import {
   formatDeliveryDays,
   formatDeliveryLabel,
+  getEffectiveDeliveryDays,
   isYekaterinburgStock,
 } from "@/lib/utils";
 import {
@@ -63,6 +64,15 @@ function warehouseNumber(name: string): string {
   return match?.[1] ?? name;
 }
 
+function offerEffectiveDays(offer: BergOffer): number {
+  return (
+    getEffectiveDeliveryDays(offer.average_period, {
+      supplierCode: offer.supplierCode,
+      supplier: offer.supplier,
+    }) ?? Number.POSITIVE_INFINITY
+  );
+}
+
 function sortOffers(
   offers: BergOffer[],
   key: SortField | null,
@@ -73,7 +83,7 @@ function sortOffers(
     key === "price"
       ? o.price
       : key === "delivery"
-        ? o.average_period
+        ? offerEffectiveDays(o)
         : key === "quantity"
           ? o.quantity
           : o.reliability;
@@ -656,15 +666,19 @@ export default function ProductClient({
                         </span>
                         {/* Честный компромисс: дешёвый оффер обычно едет дольше —
                             показываем на сколько дней и какой будет срок. */}
-                        {cheapestOffer.average_period >
-                          selectedOffer.average_period && (
+                        {offerEffectiveDays(cheapestOffer) >
+                          offerEffectiveDays(selectedOffer) && (
                           <span className="inline-flex items-center gap-1 text-xs text-amber-400/90">
                             <Clock className="w-3 h-3 shrink-0" />
                             но доставка дольше на{" "}
-                            {cheapestOffer.average_period -
-                              selectedOffer.average_period}{" "}
+                            {offerEffectiveDays(cheapestOffer) -
+                              offerEffectiveDays(selectedOffer)}{" "}
                             дн. (
-                            {formatDeliveryDays(cheapestOffer.average_period)})
+                            {formatDeliveryDays(
+                              cheapestOffer.average_period,
+                              cheapestOffer
+                            )}
+                            )
                           </span>
                         )}
                       </button>
@@ -689,7 +703,10 @@ export default function ProductClient({
                         <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
                         вернуть как было —{" "}
                         {prevOffer.price.toLocaleString("ru-RU")} ₽,{" "}
-                        {formatDeliveryDays(prevOffer.average_period)}
+                        {formatDeliveryDays(
+                          prevOffer.average_period,
+                          prevOffer
+                        )}
                       </button>
                     )}
                 </div>
@@ -756,7 +773,10 @@ export default function ProductClient({
                   <Truck className="w-5 h-5 text-orange-500 shrink-0" />
                   <span className="text-sm text-neutral-400">
                     {selectedOffer
-                      ? formatDeliveryLabel(selectedOffer.average_period)
+                      ? formatDeliveryLabel(
+                          selectedOffer.average_period,
+                          selectedOffer
+                        )
                       : "Доставка уточняется"}
                   </span>
                 </div>
@@ -866,7 +886,7 @@ export default function ProductClient({
                         <span>{offer.quantity} шт.</span>
                         <span className="inline-flex items-center gap-1">
                           <Truck className="h-3.5 w-3.5 text-orange-500" />
-                          {formatDeliveryLabel(offer.average_period)}
+                          {formatDeliveryLabel(offer.average_period, offer)}
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <span
@@ -1037,7 +1057,7 @@ export default function ProductClient({
                           <td className="px-6 py-4 text-sm text-neutral-300">
                             <span className="inline-flex items-center gap-1.5">
                               <Truck className="h-3.5 w-3.5 text-orange-500" />
-                              {formatDeliveryLabel(offer.average_period)}
+                              {formatDeliveryLabel(offer.average_period, offer)}
                             </span>
                             {offer.is_transit && (
                               <span className="ml-2 text-xs text-orange-400">

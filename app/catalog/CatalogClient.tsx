@@ -22,9 +22,14 @@ import { bergClient } from "@/lib/bergClient";
 import SupplierItemCard from "@/components/Items/SupplierItemCard";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import SupplierGroupTable from "@/components/Items/SupplierGroupTable";
-import CategoryFacets, { type Facet } from "@/components/catalog/CategoryFacets";
+import CategoryFacets, {
+  type Facet,
+} from "@/components/catalog/CategoryFacets";
 import { Button } from "@/components/ui/button";
-import type { SupplierGroup } from "@/lib/suppliers/adapter";
+import {
+  getGroupEffectiveMinDeliveryDays,
+  type SupplierGroup,
+} from "@/lib/suppliers/adapter";
 import type { BergResource } from "@/types/berg-api";
 import { seedProductImageCache } from "@/lib/hooks/useProductImage";
 import { sameBrandFamily } from "@/lib/brands/families.mjs";
@@ -188,9 +193,7 @@ function CatalogContent({
     ((initialData.mode === "category" &&
       initialData.key === category &&
       !brand) ||
-      (initialData.mode === "brand" &&
-        initialData.key === brand &&
-        !category));
+      (initialData.mode === "brand" && initialData.key === brand && !category));
 
   const [groups, setGroups] = useState<SupplierGroup[]>(() => {
     if (seedable) {
@@ -290,7 +293,8 @@ function CatalogContent({
         : brand
           ? brandCatalogUrl(brand)
           : null;
-      if (cleanUrl) window.history.replaceState(window.history.state, "", cleanUrl);
+      if (cleanUrl)
+        window.history.replaceState(window.history.state, "", cleanUrl);
     }
 
     setCurrentPage((p) => (p === 1 ? p : 1));
@@ -313,7 +317,17 @@ function CatalogContent({
     }
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vin, article, brand, model, category, currentPage, brandFilter, sortBy, attrFilters]);
+  }, [
+    vin,
+    article,
+    brand,
+    model,
+    category,
+    currentPage,
+    brandFilter,
+    sortBy,
+    attrFilters,
+  ]);
 
   const loadProducts = async () => {
     // Отменяем предыдущий запрос если он ещё в полёте — иначе его поздний
@@ -338,9 +352,7 @@ function CatalogContent({
       // пределах текущей страницы из 20, но при выборе сортировки по
       // delivery это компромисс.
       const apiSort =
-        sortBy === "price-asc" ||
-        sortBy === "price-desc" ||
-        sortBy === "name"
+        sortBy === "price-asc" || sortBy === "price-desc" || sortBy === "name"
           ? sortBy
           : "price-asc";
 
@@ -449,8 +461,8 @@ function CatalogContent({
               ...(brand
                 ? { brand }
                 : parsed.brand
-                ? { brand: parsed.brand }
-                : {}),
+                  ? { brand: parsed.brand }
+                  : {}),
             }),
             signal,
           });
@@ -537,27 +549,31 @@ function CatalogContent({
       sortBy === "delivery"
       ? [...filtered].sort(
           (a, b) =>
-            (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999)
+            (getGroupEffectiveMinDeliveryDays(a) ?? 999) -
+            (getGroupEffectiveMinDeliveryDays(b) ?? 999)
         )
       : filtered
     : preserveServerOrder && sortBy === "name"
-    ? // «Сначала подходящие»: сохраняем порядок от сервера (релевантность /
-      // оригинал первым).
-      filtered
-    : [...filtered].sort((a, b) => {
-        switch (sortBy) {
-          case "price-asc":
-            return a.minPrice - b.minPrice;
-          case "price-desc":
-            return b.minPrice - a.minPrice;
-          case "name":
-            return a.name.localeCompare(b.name);
-          case "delivery":
-            return (a.minDeliveryDays ?? 999) - (b.minDeliveryDays ?? 999);
-          default:
-            return 0;
-        }
-      });
+      ? // «Сначала подходящие»: сохраняем порядок от сервера (релевантность /
+        // оригинал первым).
+        filtered
+      : [...filtered].sort((a, b) => {
+          switch (sortBy) {
+            case "price-asc":
+              return a.minPrice - b.minPrice;
+            case "price-desc":
+              return b.minPrice - a.minPrice;
+            case "name":
+              return a.name.localeCompare(b.name);
+            case "delivery":
+              return (
+                (getGroupEffectiveMinDeliveryDays(a) ?? 999) -
+                (getGroupEffectiveMinDeliveryDays(b) ?? 999)
+              );
+            default:
+              return 0;
+          }
+        });
 
   // Переход из VIN-каталога (известна машина): по алгоритму владельца —
   // «одна картинка»: если в выдаче есть оригинал семейства этой машины
@@ -581,7 +597,10 @@ function CatalogContent({
   // На серверной пагинации `boosted` уже = 20 нужных товаров текущей страницы.
   const paginated = useServerPagination
     ? boosted
-    : boosted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    : boosted.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      );
 
   // Сайдбар характеристик показываем только в режиме категории и только если
   // у неё есть фасеты (сервер их вернул). Для поиска по артикулу/VIN — нет.
@@ -611,7 +630,9 @@ function CatalogContent({
       <div className="container mx-auto px-4 py-5 md:py-6">
         <div className="mb-5">
           <Link
-            href={fromVin ? `/catalog-vin?vin=${encodeURIComponent(fromVin)}` : "/"}
+            href={
+              fromVin ? `/catalog-vin?vin=${encodeURIComponent(fromVin)}` : "/"
+            }
             className="inline-flex items-center text-orange-500 hover:text-orange-400 mb-3 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -625,15 +646,13 @@ function CatalogContent({
               {totalCount > 0 && (
                 <p className="text-neutral-400">
                   Найдено товаров:{" "}
-                  <span className="text-white font-semibold">
-                    {totalCount}
-                  </span>
+                  <span className="text-white font-semibold">{totalCount}</span>
                 </p>
               )}
               {article && isFreeText(article) && totalCount > 0 && (
                 <p className="text-neutral-500 text-xs mt-1.5 max-w-xl">
-                  Не нашли нужное? Введите артикул — поиск по артикулу шире
-                  (все поставщики в реальном времени, включая оригинальные позиции).
+                  Не нашли нужное? Введите артикул — поиск по артикулу шире (все
+                  поставщики в реальном времени, включая оригинальные позиции).
                 </p>
               )}
             </div>
@@ -691,345 +710,361 @@ function CatalogContent({
             </aside>
           )}
           <div className="flex-1 min-w-0 w-full">
-        {groups.length > 0 && searchMode !== "exact" && (
-          <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
-            <Search className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-neutral-200">
-              {searchMode === "fuzzy" ? (
-                <>
-                  Точных совпадений нет. Возможно, вы искали что-то из
-                  показанного ниже — мы подобрали похожее по написанию.
-                </>
-              ) : (
-                <>
-                  Точных совпадений по запросу не нашлось — показываем похожие
-                  товары. Уточните запрос или проверьте раскладку.
-                </>
-              )}
-            </p>
-          </div>
-        )}
-
-        {groups.length > 0 && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6">
-            <div className="flex flex-wrap items-end gap-4">
-              {/* Поиск по результату — мгновенный фильтр выдачи (как у Армтека) */}
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  Поиск по результату
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                  <input
-                    value={resultFilter}
-                    onChange={(e) => setResultFilter(e.target.value)}
-                    placeholder="Бренд, артикул или название…"
-                    className="w-full pl-10 pr-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder:text-neutral-600 focus:border-orange-500 focus:outline-none transition-colors"
-                  />
-                </div>
+            {groups.length > 0 && searchMode !== "exact" && (
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
+                <Search className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-neutral-200">
+                  {searchMode === "fuzzy" ? (
+                    <>
+                      Точных совпадений нет. Возможно, вы искали что-то из
+                      показанного ниже — мы подобрали похожее по написанию.
+                    </>
+                  ) : (
+                    <>
+                      Точных совпадений по запросу не нашлось — показываем
+                      похожие товары. Уточните запрос или проверьте раскладку.
+                    </>
+                  )}
+                </p>
               </div>
+            )}
 
-              {availableBrands.length > 1 && !showFacetSidebar && (
-                <div className="flex-1 min-w-[200px]">
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                    Производитель
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={brandFilter}
-                      onChange={(e) => setBrandFilter(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
-                    >
-                      <option value="">Все производители</option>
-                      {availableBrands.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
+            {groups.length > 0 && (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6">
+                <div className="flex flex-wrap items-end gap-4">
+                  {/* Поиск по результату — мгновенный фильтр выдачи (как у Армтека) */}
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                      Поиск по результату
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                      <input
+                        value={resultFilter}
+                        onChange={(e) => setResultFilter(e.target.value)}
+                        placeholder="Бренд, артикул или название…"
+                        className="w-full pl-10 pr-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder:text-neutral-600 focus:border-orange-500 focus:outline-none transition-colors"
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
 
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-neutral-400 mb-2">
-                  Сортировка
-                </label>
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
-                  >
-                    {/* В режиме поиска дефолт — «Сначала подходящие» (тот же
+                  {availableBrands.length > 1 && !showFacetSidebar && (
+                    <div className="flex-1 min-w-[200px]">
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">
+                        Производитель
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={brandFilter}
+                          onChange={(e) => setBrandFilter(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
+                        >
+                          <option value="">Все производители</option>
+                          {availableBrands.map((b) => (
+                            <option key={b} value={b}>
+                              {b}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-neutral-400 mb-2">
+                      Сортировка
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white appearance-none focus:border-orange-500 focus:outline-none transition-colors"
+                      >
+                        {/* В режиме поиска дефолт — «Сначала подходящие» (тот же
                         sort=name, но клиент сохраняет порядок релевантности от
                         сервера). В каталоге/по марке — обычная сортировка по имени. */}
-                    {preserveServerOrder && (
-                      <option value="name">Сначала подходящие</option>
-                    )}
-                    <option value="price-asc">Цена: по возрастанию</option>
-                    <option value="price-desc">Цена: по убыванию</option>
-                    <option value="delivery">По сроку доставки</option>
-                    {!preserveServerOrder && (
-                      <option value="name">По названию</option>
-                    )}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
+                        {preserveServerOrder && (
+                          <option value="name">Сначала подходящие</option>
+                        )}
+                        <option value="price-asc">Цена: по возрастанию</option>
+                        <option value="price-desc">Цена: по убыванию</option>
+                        <option value="delivery">По сроку доставки</option>
+                        {!preserveServerOrder && (
+                          <option value="name">По названию</option>
+                        )}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        viewMode === "grid"
+                          ? "bg-orange-500 text-white"
+                          : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
+                      }`}
+                      title="Сетка"
+                    >
+                      <Grid3x3 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        viewMode === "list"
+                          ? "bg-orange-500 text-white"
+                          : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
+                      }`}
+                      title="Список"
+                    >
+                      <List className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("table")}
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        viewMode === "table"
+                          ? "bg-orange-500 text-white"
+                          : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
+                      }`}
+                      title="Таблица (все предложения)"
+                    >
+                      <Rows3 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-2.5 rounded-xl transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-orange-500 text-white"
-                      : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
-                  }`}
-                  title="Сетка"
-                >
-                  <Grid3x3 className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-2.5 rounded-xl transition-colors ${
-                    viewMode === "list"
-                      ? "bg-orange-500 text-white"
-                      : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
-                  }`}
-                  title="Список"
-                >
-                  <List className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setViewMode("table")}
-                  className={`p-2.5 rounded-xl transition-colors ${
-                    viewMode === "table"
-                      ? "bg-orange-500 text-white"
-                      : "bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-700"
-                  }`}
-                  title="Таблица (все предложения)"
-                >
-                  <Rows3 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-12 h-12 animate-spin text-orange-500 mb-4" />
-            <span className="text-lg text-neutral-400">Загрузка товаров...</span>
-          </div>
-        )}
-
-        {error && !loading && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-8 text-center">
-            <p className="text-red-400 mb-4">{error}</p>
-            <Button onClick={loadProducts} variant="destructive">
-              Попробовать снова
-            </Button>
-          </div>
-        )}
-
-        {!loading && !error && groups.length === 0 && categoryHub && categoryHub.length > 0 && (
-          <div>
-            <div className="mb-6">
-              <p className="text-neutral-400">
-                Выберите категорию запчастей
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {categoryHub.map((c) => (
-                <Link
-                  key={c.slug}
-                  href={categoryCatalogUrl(c.slug)}
-                  className="group bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
-                >
-                  <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
-                    <Package className="w-6 h-6 text-orange-500" />
-                  </div>
-                  <div className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">
-                    {c.title}
-                  </div>
-                  <div className="text-xs text-neutral-500 mt-1">
-                    {c.count.toLocaleString("ru-RU")} товаров
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && groups.length === 0 && (!categoryHub || categoryHub.length === 0) && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-12 text-center">
-            <div className="w-20 h-20 bg-neutral-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Search className="w-10 h-10 text-neutral-600" />
-            </div>
-            <h3 className="text-2xl font-semibold text-white mb-3">
-              Товары не найдены
-            </h3>
-            <p className="text-neutral-400 mb-4 max-w-md mx-auto">
-              Проверьте раскладку клавиатуры и написание, попробуйте другое
-              название — либо подберите деталь по VIN.
-            </p>
-            {article && isFreeText(article) && (
-              <p className="text-neutral-300 text-sm mb-8 max-w-lg mx-auto bg-neutral-800/50 border border-neutral-700 rounded-xl px-4 py-3">
-                💡 Знаете <span className="text-white font-medium">артикул</span>?
-                Введите его — поиск по артикулу охватывает всех поставщиков в
-                реальном времени, включая оригинальные и заказные позиции,
-                которых нет в поиске по названию.
-              </p>
-            )}
-            <Link
-              href={
-                fromVin ? `/catalog-vin?vin=${encodeURIComponent(fromVin)}` : "/"
-              }
-            >
-              <Button size="lg">
-                {fromVin ? "Назад в каталог по VIN" : "Вернуться на главную"}
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {!loading && paginated.length > 0 && (
-          <>
-            {viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {paginated.map((group, index) => (
-                  <SupplierItemCard
-                    key={`${group.article}-${group.brand}`}
-                    group={group}
-                    // В каталоге кнопку «в корзину» с карточки убрали — клик по
-                    // карточке всегда ведёт на страницу товара (там и покупка).
-                    showAddToCart={false}
-                    // Первые 8 карточек — это первый экран (xl:grid-cols-4 ×
-                    // 2 ряда). priority даёт next/image preload-подсказку,
-                    // что ускоряет LCP — Lighthouse как раз выбирает одну из
-                    // верхних карточек как LCP-элемент.
-                    priority={index < 8}
-                  />
-                ))}
-              </div>
-            ) : viewMode === "table" ? (
-              <SupplierGroupTable
-                groups={paginated}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-              />
-            ) : (
-              <div className="space-y-4">
-                {paginated.map((group) => (
-                  <SupplierGroupListItem
-                    key={`${group.article}-${group.brand}`}
-                    group={group}
-                  />
-                ))}
               </div>
             )}
 
-            {totalPages > 1 && (
-              <div className="mt-12 flex items-center justify-center gap-2">
-                {useServerPagination && currentPage > 1 ? (
-                  <Link
-                    href={serverPageHref(currentPage - 1)!}
-                    prefetch={false}
-                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 transition-colors"
-                  >
-                    Назад
-                  </Link>
-                ) : (
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Назад
-                  </button>
-                )}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-12 h-12 animate-spin text-orange-500 mb-4" />
+                <span className="text-lg text-neutral-400">
+                  Загрузка товаров...
+                </span>
+              </div>
+            )}
 
-                <div className="flex gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(
-                      (page) =>
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 2 && page <= currentPage + 2)
-                    )
-                    .map((page, index, array) => {
-                      if (index > 0 && page - array[index - 1] > 1) {
-                        return (
-                          <span
-                            key={`ellipsis-${page}`}
-                            className="px-3 py-2.5 text-neutral-500"
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-                      if (currentPage === page) {
-                        return (
-                          <span
-                            key={page}
-                            aria-current="page"
-                            className="px-4 py-2.5 rounded-xl font-medium bg-orange-500 text-white"
-                          >
-                            {page}
-                          </span>
-                        );
-                      }
+            {error && !loading && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-8 text-center">
+                <p className="text-red-400 mb-4">{error}</p>
+                <Button onClick={loadProducts} variant="destructive">
+                  Попробовать снова
+                </Button>
+              </div>
+            )}
 
-                      const href = useServerPagination
-                        ? serverPageHref(page)
-                        : null;
-
-                      return href ? (
-                        <Link
-                          key={page}
-                          href={href}
-                          prefetch={false}
-                          className="px-4 py-2.5 rounded-xl font-medium transition-colors bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
-                        >
-                          {page}
-                        </Link>
-                      ) : (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className="px-4 py-2.5 rounded-xl font-medium transition-colors bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
-                        >
-                          {page}
-                        </button>
-                      );
-                    })}
+            {!loading &&
+              !error &&
+              groups.length === 0 &&
+              categoryHub &&
+              categoryHub.length > 0 && (
+                <div>
+                  <div className="mb-6">
+                    <p className="text-neutral-400">
+                      Выберите категорию запчастей
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {categoryHub.map((c) => (
+                      <Link
+                        key={c.slug}
+                        href={categoryCatalogUrl(c.slug)}
+                        className="group bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
+                      >
+                        <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500/20 transition-colors">
+                          <Package className="w-6 h-6 text-orange-500" />
+                        </div>
+                        <div className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">
+                          {c.title}
+                        </div>
+                        <div className="text-xs text-neutral-500 mt-1">
+                          {c.count.toLocaleString("ru-RU")} товаров
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
+              )}
 
-                {useServerPagination && currentPage < totalPages ? (
+            {!loading &&
+              !error &&
+              groups.length === 0 &&
+              (!categoryHub || categoryHub.length === 0) && (
+                <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-12 text-center">
+                  <div className="w-20 h-20 bg-neutral-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Search className="w-10 h-10 text-neutral-600" />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-white mb-3">
+                    Товары не найдены
+                  </h3>
+                  <p className="text-neutral-400 mb-4 max-w-md mx-auto">
+                    Проверьте раскладку клавиатуры и написание, попробуйте
+                    другое название — либо подберите деталь по VIN.
+                  </p>
+                  {article && isFreeText(article) && (
+                    <p className="text-neutral-300 text-sm mb-8 max-w-lg mx-auto bg-neutral-800/50 border border-neutral-700 rounded-xl px-4 py-3">
+                      💡 Знаете{" "}
+                      <span className="text-white font-medium">артикул</span>?
+                      Введите его — поиск по артикулу охватывает всех
+                      поставщиков в реальном времени, включая оригинальные и
+                      заказные позиции, которых нет в поиске по названию.
+                    </p>
+                  )}
                   <Link
-                    href={serverPageHref(currentPage + 1)!}
-                    prefetch={false}
-                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 transition-colors"
-                  >
-                    Вперед
-                  </Link>
-                ) : (
-                  <button
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    href={
+                      fromVin
+                        ? `/catalog-vin?vin=${encodeURIComponent(fromVin)}`
+                        : "/"
                     }
-                    disabled={currentPage === totalPages}
-                    className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Вперед
-                  </button>
+                    <Button size="lg">
+                      {fromVin
+                        ? "Назад в каталог по VIN"
+                        : "Вернуться на главную"}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+            {!loading && paginated.length > 0 && (
+              <>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {paginated.map((group, index) => (
+                      <SupplierItemCard
+                        key={`${group.article}-${group.brand}`}
+                        group={group}
+                        // В каталоге кнопку «в корзину» с карточки убрали — клик по
+                        // карточке всегда ведёт на страницу товара (там и покупка).
+                        showAddToCart={false}
+                        // Первые 8 карточек — это первый экран (xl:grid-cols-4 ×
+                        // 2 ряда). priority даёт next/image preload-подсказку,
+                        // что ускоряет LCP — Lighthouse как раз выбирает одну из
+                        // верхних карточек как LCP-элемент.
+                        priority={index < 8}
+                      />
+                    ))}
+                  </div>
+                ) : viewMode === "table" ? (
+                  <SupplierGroupTable
+                    groups={paginated}
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {paginated.map((group) => (
+                      <SupplierGroupListItem
+                        key={`${group.article}-${group.brand}`}
+                        group={group}
+                      />
+                    ))}
+                  </div>
                 )}
-              </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-12 flex items-center justify-center gap-2">
+                    {useServerPagination && currentPage > 1 ? (
+                      <Link
+                        href={serverPageHref(currentPage - 1)!}
+                        prefetch={false}
+                        className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 transition-colors"
+                      >
+                        Назад
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          setCurrentPage((p) => Math.max(1, p - 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Назад
+                      </button>
+                    )}
+
+                    <div className="flex gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(
+                          (page) =>
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentPage - 2 && page <= currentPage + 2)
+                        )
+                        .map((page, index, array) => {
+                          if (index > 0 && page - array[index - 1] > 1) {
+                            return (
+                              <span
+                                key={`ellipsis-${page}`}
+                                className="px-3 py-2.5 text-neutral-500"
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+                          if (currentPage === page) {
+                            return (
+                              <span
+                                key={page}
+                                aria-current="page"
+                                className="px-4 py-2.5 rounded-xl font-medium bg-orange-500 text-white"
+                              >
+                                {page}
+                              </span>
+                            );
+                          }
+
+                          const href = useServerPagination
+                            ? serverPageHref(page)
+                            : null;
+
+                          return href ? (
+                            <Link
+                              key={page}
+                              href={href}
+                              prefetch={false}
+                              className="px-4 py-2.5 rounded-xl font-medium transition-colors bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
+                            >
+                              {page}
+                            </Link>
+                          ) : (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className="px-4 py-2.5 rounded-xl font-medium transition-colors bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-orange-500/50"
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                    </div>
+
+                    {useServerPagination && currentPage < totalPages ? (
+                      <Link
+                        href={serverPageHref(currentPage + 1)!}
+                        prefetch={false}
+                        className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 transition-colors"
+                      >
+                        Вперед
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          setCurrentPage((p) => Math.min(totalPages, p + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                        className="px-5 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-300 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Вперед
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
           </div>
         </div>
       </div>

@@ -18,51 +18,209 @@ export function formatPrice(price: number | string): string {
   }).format(numPrice);
 }
 
-/**
- * Граница приёма заказов «на сегодня», час по екатеринбургскому времени
- * (ЕКБ = МСК+2). Заказ до 12:00 ЕКБ ещё успевает «сегодня», после —
- * переносится на «завтра».
- */
 export const SAME_DAY_CUTOFF_HOUR = 12;
+const YEKATERINBURG_TIME_ZONE = "Asia/Yekaterinburg";
+
+export interface DeliveryPromiseContext {
+  supplierCode?: string | null;
+  /** Реальное внутреннее имя склада. Покупателю оно не показывается. */
+  supplier?: string | null;
+  /** Безопасный публичный идентификатор графика без имени физического склада. */
+  sameDaySchedule?: SameDayScheduleId | null;
+}
+
+export type SameDayScheduleId =
+  | "berg-ekb"
+  | "armtek-ekb"
+  | "rossko-main-ekb"
+  | "rossko-yasnaya-ekb"
+  | "shate-ekb"
+  | "forum-ekt"
+  | "partkom-7965";
+
+interface YekaterinburgClock {
+  dateKey: string;
+  weekday: number;
+  minutes: number;
+}
+
+const WEEKDAY_NUMBER: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function yekaterinburgClock(now: Date): YekaterinburgClock {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: YEKATERINBURG_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value || "";
+  const hour = Number(get("hour")) % 24;
+  const minute = Number(get("minute"));
+  return {
+    dateKey: [get("year"), get("month"), get("day")].join("-"),
+    weekday: WEEKDAY_NUMBER[get("weekday")] ?? 0,
+    minutes: hour * 60 + minute,
+  };
+}
+
+export function getYekaterinburgDateKey(now = new Date()): string {
+  return yekaterinburgClock(now).dateKey;
+}
+
+function normalizedWarehouse(value: string | null | undefined): string {
+  return (value || "").trim().toLocaleLowerCase("ru-RU");
+}
 
 /**
- * Текущий час по Екатеринбургу (0–23). Часовой пояс фиксирован, поэтому
- * значение одинаково на сервере и на клиенте — без рассинхрона при гидрации.
+ * Сопоставляет только подтверждённые локальные склады. Для известных
+ * поставщиков любой другой склад считается удалённым и не получает обещание
+ * «сегодня», даже если внешний API временно вернул нулевой срок.
  */
-function localHour(): number {
-  // % 24 — на части ICU-версий полночь форматируется как «24», а не «0».
-  return (
-    Number(
-      new Intl.DateTimeFormat("ru-RU", {
-        hour: "numeric",
-        hour12: false,
-        timeZone: "Asia/Yekaterinburg",
-      }).format(new Date())
-    ) % 24
-  );
+export function getSameDayScheduleId(
+  context: DeliveryPromiseContext
+): SameDayScheduleId | null {
+  const code = (context.supplierCode || "").toLowerCase();
+  const warehouse = normalizedWarehouse(context.supplier);
+
+  if (code === "berg") {
+    return /berg ekb/.test(warehouse) || /^vega\s*1$/.test(warehouse)
+      ? "berg-ekb"
+      : null;
+  }
+  if (code === "armtek") return "armtek-ekb";
+  if (code === "rossko") {
+    if (/ясн/.test(warehouse)) return "rossko-yasnaya-ekb";
+    return /екатеринбург/.test(warehouse) || /^vega\s*3$/.test(warehouse)
+      ? "rossko-main-ekb"
+      : null;
+  }
+  if (code === "shate-m") {
+    return /shate-e01|\(e01\)|екатеринбург/.test(warehouse) ||
+      /^vega\s*4$/.test(warehouse)
+      ? "shate-ekb"
+      : null;
+  }
+  if (code === "forum-auto") {
+    return /\(ekt\)|екатеринбург/.test(warehouse) ||
+      /^vega\s*5$/.test(warehouse)
+      ? "forum-ekt"
+      : null;
+  }
+  if (code === "partkom") {
+    return /екатеринбург|7965/.test(warehouse) || /^vega\s*7$/.test(warehouse)
+      ? "partkom-7965"
+      : null;
+  }
+  return null;
+}
+
+const SCHEDULED_SUPPLIERS = new Set([
+  "berg",
+  "armtek",
+  "rossko",
+  "shate-m",
+  "forum-auto",
+  "partkom",
+]);
+
+/** Последняя минута приёма заказа «на сегодня» по дню недели ЕКБ. */
+function sameDayCutoffMinutes(
+  schedule: SameDayScheduleId,
+  weekday: number
+): number | null {
+  if (weekday === 0) return null; // BroCar по воскресеньям закрыт.
+  if (schedule === "berg-ekb") return weekday === 6 ? 12 * 60 : 15 * 60 + 30;
+  if (schedule === "armtek-ekb") return 17 * 60;
+  if (schedule === "rossko-main-ekb") return 16 * 60 + 10;
+  if (schedule === "rossko-yasnaya-ekb") {
+    // Последняя поставка, которая укладывается в часы работы BroCar.
+    return weekday === 6 ? 14 * 60 + 10 : 18 * 60 + 10;
+  }
+  if (schedule === "shate-ekb") return weekday === 6 ? null : 12 * 60 + 30;
+  if (schedule === "forum-ekt") return 13 * 60;
+  if (schedule === "partkom-7965")
+    return weekday === 6 ? 13 * 60 : 16 * 60 + 30;
+  return null;
 }
 
 /**
  * Фактический срок, который видит покупатель с учётом границы приёма заказов.
- * После 12:00 ЕКБ предложение «сегодня» становится предложением «завтра» и
- * должно сравниваться по цене наравне с исходным сроком в один день.
+ * После отсечки конкретного локального склада предложение «сегодня» становится
+ * предложением «завтра» и сравнивается наравне с исходным сроком в один день.
  */
 export function getEffectiveDeliveryDays(
   days: number | null | undefined,
-  hour = localHour()
+  context: DeliveryPromiseContext = {},
+  now = new Date()
 ): number | null {
   if (days == null) return null;
-  if (days === 0 && hour >= SAME_DAY_CUTOFF_HOUR) return 1;
+  if (days !== 0) return days;
+
+  const clock = yekaterinburgClock(now);
+  const schedule =
+    context.sameDaySchedule !== undefined
+      ? context.sameDaySchedule
+      : getSameDayScheduleId(context);
+  if (!schedule) {
+    const code = (context.supplierCode || "").toLowerCase();
+    // Известный поставщик, но не подтверждённый локальный склад.
+    if (SCHEDULED_SUPPLIERS.has(code)) return 1;
+    // Обратная совместимость для старых/неразмеченных источников.
+    return clock.minutes < SAME_DAY_CUTOFF_HOUR * 60 ? 0 : 1;
+  }
+
+  const cutoff = sameDayCutoffMinutes(schedule, clock.weekday);
+  if (cutoff == null || clock.minutes >= cutoff) return 1;
   return days;
+}
+
+/** Изменилась ли обещанная дата между двумя моментами (ночь или отсечка). */
+export function didDeliveryPromiseChange(
+  days: number | null | undefined,
+  context: DeliveryPromiseContext,
+  from: Date,
+  to: Date
+): boolean {
+  if (getYekaterinburgDateKey(from) !== getYekaterinburgDateKey(to))
+    return true;
+  return (
+    getEffectiveDeliveryDays(days, context, from) !==
+    getEffectiveDeliveryDays(days, context, to)
+  );
 }
 
 /**
  * Срок доставки в днях → человекочитаемая строка без служебных сокращений.
- * 0 → «сегодня» (до 12:00 ЕКБ) / «завтра» (после), 1 → «завтра»,
+ * 0 → «сегодня» до отсечки локального склада / «завтра» после неё,
+ * 1 → «завтра»,
  * иначе «N день/дня/дней», null → «уточняется».
  */
-export function formatDeliveryDays(days: number | null | undefined): string {
-  const effectiveDays = getEffectiveDeliveryDays(days);
+export function formatDeliveryDays(
+  days: number | null | undefined,
+  context: DeliveryPromiseContext = {},
+  now = new Date()
+): string {
+  const effectiveDays = getEffectiveDeliveryDays(days, context, now);
+  return formatEffectiveDeliveryDays(effectiveDays);
+}
+
+/** Форматирует уже зафиксированный эффективный срок без повторного пересчёта. */
+export function formatEffectiveDeliveryDays(
+  effectiveDays: number | null | undefined
+): string {
   if (effectiveDays == null) return "уточняется";
   if (effectiveDays === 0) return "сегодня";
   if (effectiveDays === 1) return "завтра";
@@ -80,8 +238,12 @@ export function formatDeliveryDays(days: number | null | undefined): string {
 }
 
 /** Полная подпись срока для каталога, карточки товара и корзины. */
-export function formatDeliveryLabel(days: number | null | undefined): string {
-  return `Доставка ${formatDeliveryDays(days)}`;
+export function formatDeliveryLabel(
+  days: number | null | undefined,
+  context: DeliveryPromiseContext = {},
+  now = new Date()
+): string {
+  return "Доставка " + formatDeliveryDays(days, context, now);
 }
 
 /**

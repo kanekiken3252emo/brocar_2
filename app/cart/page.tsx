@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import {
   formatDeliveryDays,
-  formatDeliveryLabel,
+  formatEffectiveDeliveryDays,
   isYekaterinburgStock,
 } from "@/lib/utils";
 
@@ -45,6 +45,7 @@ interface CartItem {
   /** Снимок цены оффера этой строки (та, что в сумме и в заказе). */
   price: number;
   deliveryDays?: number | null;
+  effectiveDeliveryDays?: number | null;
   availableStock?: number | null;
   verificationStatus?:
     | "pending"
@@ -54,6 +55,8 @@ interface CartItem {
   conditionChange?: {
     previousPrice: number;
     previousDeliveryDays: number | null;
+    previousEffectiveDeliveryDays?: number | null;
+    currentEffectiveDeliveryDays?: number | null;
     priceIncreased: boolean;
     deliveryWorsened: boolean;
   } | null;
@@ -258,7 +261,8 @@ function CartItemRow({
             {item.deliveryDays != null && (
               <span className="text-xs text-neutral-300 bg-neutral-800 rounded-md px-2 py-0.5 inline-flex items-center gap-1">
                 <Truck className="h-3 w-3 text-orange-500" />
-                {formatDeliveryLabel(item.deliveryDays)}
+                Доставка{" "}
+                {formatEffectiveDeliveryDays(item.effectiveDeliveryDays)}
               </span>
             )}
           </div>
@@ -286,10 +290,21 @@ function CartItemRow({
               {item.conditionChange.deliveryWorsened && (
                 <>
                   срок был{" "}
-                  {formatDeliveryDays(
-                    item.conditionChange.previousDeliveryDays
-                  )}
-                  , стал {formatDeliveryDays(item.deliveryDays)}
+                  {item.conditionChange.previousEffectiveDeliveryDays !==
+                  undefined
+                    ? formatEffectiveDeliveryDays(
+                        item.conditionChange.previousEffectiveDeliveryDays
+                      )
+                    : formatDeliveryDays(
+                        item.conditionChange.previousDeliveryDays
+                      )}
+                  , стал{" "}
+                  {item.conditionChange.currentEffectiveDeliveryDays !==
+                  undefined
+                    ? formatEffectiveDeliveryDays(
+                        item.conditionChange.currentEffectiveDeliveryDays
+                      )
+                    : formatEffectiveDeliveryDays(item.effectiveDeliveryDays)}
                 </>
               )}
               . Позиция сохранена в корзине.

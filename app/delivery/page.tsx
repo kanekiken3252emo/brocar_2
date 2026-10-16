@@ -128,7 +128,8 @@ export default function DeliveryPage() {
               Доставка автозапчастей
             </h1>
             <p className="text-lg text-neutral-400">
-              Самовывоз в Екатеринбурге или доставка транспортной компанией в любой город России
+              Самовывоз в Екатеринбурге или доставка транспортной компанией в
+              любой город России
             </p>
           </div>
         </div>
@@ -136,7 +137,6 @@ export default function DeliveryPage() {
 
       <div className="container mx-auto px-4 pb-20">
         <div className="max-w-5xl mx-auto space-y-10">
-
           {/* Екатеринбург */}
           <section>
             <div className="flex items-center gap-3 mb-5">
@@ -148,7 +148,10 @@ export default function DeliveryPage() {
 
             <div className="grid md:grid-cols-2 gap-4">
               {EKATERINBURG_OPTIONS.map((opt) => (
-                <Card key={opt.title} className="border-neutral-800 bg-neutral-900 hover:border-orange-500/40 transition-colors">
+                <Card
+                  key={opt.title}
+                  className="border-neutral-800 bg-neutral-900 hover:border-orange-500/40 transition-colors"
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
                       <div className="w-11 h-11 bg-orange-500/15 rounded-xl flex items-center justify-center shrink-0">
@@ -156,12 +159,18 @@ export default function DeliveryPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <p className="font-semibold text-white">{opt.title}</p>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${opt.badgeColor}`}>
+                          <p className="font-semibold text-white">
+                            {opt.title}
+                          </p>
+                          <span
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full ${opt.badgeColor}`}
+                          >
                             {opt.badge}
                           </span>
                         </div>
-                        <p className="text-neutral-400 text-sm mb-1">{opt.desc}</p>
+                        <p className="text-neutral-400 text-sm mb-1">
+                          {opt.desc}
+                        </p>
                         <p className="text-neutral-500 text-xs flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5 shrink-0" />
                           {opt.detail}
@@ -172,6 +181,30 @@ export default function DeliveryPage() {
                 </Card>
               ))}
             </div>
+
+            <Card className="border-orange-500/30 bg-orange-500/5 mt-4">
+              <CardContent className="p-5 md:p-6">
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-white mb-2">
+                      Что означает «Доставка сегодня»
+                    </h3>
+                    <p className="text-sm text-neutral-300 leading-relaxed mb-3">
+                      Такая надпись показывается для товара на локальном складе
+                      поставщика, который ещё может поступить в BroCar в день
+                      заказа. Точное время получения или выдачи подтвердит
+                      менеджер после проверки заказа.
+                    </p>
+                    <p className="text-xs text-neutral-500 leading-relaxed">
+                      Срок зависит от дня недели и времени заказа. Если открыть
+                      сохранённую корзину позже, сайт заново проверит цену,
+                      остаток и срок каждой позиции.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </section>
 
           {/* Вся Россия */}
@@ -184,8 +217,9 @@ export default function DeliveryPage() {
             </div>
 
             <p className="text-neutral-400 mb-5">
-              Отправляем запчасти по всей России через проверенные транспортные компании.
-              Выбор перевозчика зависит от вашего региона, веса и габаритов заказа.
+              Отправляем запчасти по всей России через проверенные транспортные
+              компании. Выбор перевозчика зависит от вашего региона, веса и
+              габаритов заказа.
             </p>
 
             <div className="grid sm:grid-cols-2 gap-4">
@@ -208,7 +242,9 @@ export default function DeliveryPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-neutral-400 text-xs leading-relaxed mb-2">{tc.desc}</p>
+                        <p className="text-neutral-400 text-xs leading-relaxed mb-2">
+                          {tc.desc}
+                        </p>
                         <p className="text-orange-500 text-xs font-medium flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {tc.time}
@@ -223,9 +259,10 @@ export default function DeliveryPage() {
             <Card className="border-orange-500/20 bg-orange-500/5 mt-4">
               <CardContent className="p-5">
                 <p className="text-sm text-neutral-300 leading-relaxed">
-                  <span className="font-semibold text-orange-400">Важно:</span> стоимость и сроки доставки
-                  рассчитываются индивидуально после подтверждения заказа — зависят от веса, габаритов
-                  и вашего региона. Уточняйте у менеджера.
+                  <span className="font-semibold text-orange-400">Важно:</span>{" "}
+                  стоимость и сроки доставки рассчитываются индивидуально после
+                  подтверждения заказа — зависят от веса, габаритов и вашего
+                  региона. Уточняйте у менеджера.
                 </p>
               </CardContent>
             </Card>
@@ -233,14 +270,22 @@ export default function DeliveryPage() {
 
           {/* Как это работает */}
           <section>
-            <h2 className="text-2xl font-bold text-white mb-5">Как оформить доставку</h2>
+            <h2 className="text-2xl font-bold text-white mb-5">
+              Как оформить доставку
+            </h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {HOW_IT_WORKS.map((step, i) => (
                 <div key={step.n} className="relative">
                   <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 h-full hover:border-orange-500/40 transition-colors">
-                    <div className="text-4xl font-bold text-orange-500/20 mb-3">{step.n}</div>
-                    <p className="font-semibold text-white text-sm mb-1.5">{step.title}</p>
-                    <p className="text-neutral-400 text-xs leading-relaxed">{step.desc}</p>
+                    <div className="text-4xl font-bold text-orange-500/20 mb-3">
+                      {step.n}
+                    </div>
+                    <p className="font-semibold text-white text-sm mb-1.5">
+                      {step.title}
+                    </p>
+                    <p className="text-neutral-400 text-xs leading-relaxed">
+                      {step.desc}
+                    </p>
                   </div>
                   {i < HOW_IT_WORKS.length - 1 && (
                     <div className="hidden lg:flex absolute top-1/2 -right-2 z-10">
@@ -254,12 +299,17 @@ export default function DeliveryPage() {
 
           {/* Важная информация */}
           <section>
-            <h2 className="text-2xl font-bold text-white mb-5">Упаковка и отправка</h2>
+            <h2 className="text-2xl font-bold text-white mb-5">
+              Упаковка и отправка
+            </h2>
             <Card className="border-neutral-800 bg-neutral-900">
               <CardContent className="p-6">
                 <ul className="space-y-3">
                   {IMPORTANT.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm text-neutral-300">
+                    <li
+                      key={item}
+                      className="flex items-start gap-3 text-sm text-neutral-300"
+                    >
                       <CheckCircle2 className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
                       {item}
                     </li>
@@ -279,7 +329,8 @@ export default function DeliveryPage() {
                   "Самовывоз из офиса на ул. Заводская, 16 в Екатеринбурге — бесплатно. Стоимость курьерской доставки по городу и отправки транспортной компанией рассчитывается индивидуально — она зависит от веса, габаритов и вашего региона.",
               },
               {
-                question: "Какими транспортными компаниями вы отправляете заказы?",
+                question:
+                  "Какими транспортными компаниями вы отправляете заказы?",
                 answer:
                   "СДЭК, ПЭК, Деловые Линии и Почта России. Перевозчика подбираем под ваш регион, вес и габариты заказа: например, СДЭК доставляет за 1–5 дней до пункта выдачи или курьером до двери.",
               },
@@ -287,6 +338,11 @@ export default function DeliveryPage() {
                 question: "Когда можно забрать заказ самовывозом?",
                 answer:
                   "Пн–Пт с 10:00 до 19:00, в субботу с 10:00 до 15:00 по адресу: Екатеринбург, ул. Заводская, 16 (1 этаж, район ВИЗ).",
+              },
+              {
+                question: "Что означает «Доставка сегодня» в карточке товара?",
+                answer:
+                  "Товар находится на локальном складе поставщика и по текущему графику может поступить в BroCar в день заказа. После оформления менеджер подтвердит точное время получения или выдачи.",
               },
             ]}
           />
@@ -296,9 +352,12 @@ export default function DeliveryPage() {
             <CardContent className="p-8 md:p-10">
               <div className="flex flex-col md:flex-row md:items-center gap-6">
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">Остались вопросы по доставке?</h3>
+                  <h3 className="text-2xl font-bold text-white mb-2">
+                    Остались вопросы по доставке?
+                  </h3>
                   <p className="text-neutral-400">
-                    Позвоните нам — уточним сроки, стоимость и выберем удобный способ доставки для вашего заказа
+                    Позвоните нам — уточним сроки, стоимость и выберем удобный
+                    способ доставки для вашего заказа
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 shrink-0">
@@ -309,7 +368,11 @@ export default function DeliveryPage() {
                     </Button>
                   </a>
                   <Link href="/contacts">
-                    <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="gap-2 w-full sm:w-auto"
+                    >
                       Все контакты
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -318,7 +381,6 @@ export default function DeliveryPage() {
               </div>
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>

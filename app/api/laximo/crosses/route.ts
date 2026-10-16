@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findCrosses } from "@/lib/laximo/catalog";
+import { findCrosses, LaximoDailyBudgetError } from "@/lib/laximo/catalog";
 import { CACHE_PRODUCT } from "@/lib/http-cache";
 
 export const runtime = "nodejs";
@@ -24,6 +24,13 @@ export async function GET(request: NextRequest) {
       { headers: { "Cache-Control": CACHE_PRODUCT } }
     );
   } catch (error) {
+    if (error instanceof LaximoDailyBudgetError) {
+      return NextResponse.json(
+        { crosses: [], limited: true },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     console.error("Laximo crosses error:", error);
     return NextResponse.json(
       { error: "Не удалось получить аналоги" },

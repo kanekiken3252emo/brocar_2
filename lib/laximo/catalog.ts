@@ -727,6 +727,14 @@ async function findByWizard(
 // ── Кроссы/аналоги по OEM (Laximo.DOC / Aftermarket) ────────────────────────
 export type LaximoCross = { brand: string; number: string; name: string };
 
+/** Штатная остановка платных FindOEM после достижения дневного бюджета. */
+export class LaximoDailyBudgetError extends LaximoError {
+  constructor() {
+    super("Дневной бюджет каталога аналогов исчерпан");
+    this.name = "LaximoDailyBudgetError";
+  }
+}
+
 /** Аналоги-заменители по оригинальному номеру (FindOEM в сервисе DOC/am).
  *  Возвращает список деталей других брендов, подходящих вместо оригинала.
  *  Кэш 24ч (тарификация, как у CAT). */
@@ -751,7 +759,7 @@ export async function findCrosses(
       // LAXIMO_FINDOEM_DAILY (10000/мес ≈ 300/день с запасом).
       const daily = parseInt(process.env.LAXIMO_FINDOEM_DAILY || "150", 10);
       if (!(await laximoDailyBudget("findoem", daily))) {
-        throw new LaximoError("Дневной бюджет каталога аналогов исчерпан");
+        throw new LaximoDailyBudgetError();
       }
       try {
         const resp = await laximoQuery(

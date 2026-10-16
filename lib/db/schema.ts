@@ -253,6 +253,8 @@ export const cartItems = pgTable("cart_items", {
   conditionChange: jsonb("condition_change").$type<{
     previousPrice: number;
     previousDeliveryDays: number | null;
+    previousEffectiveDeliveryDays?: number | null;
+    currentEffectiveDeliveryDays?: number | null;
     priceIncreased: boolean;
     deliveryWorsened: boolean;
   }>(),

@@ -125,7 +125,7 @@ export function isValidPrice(n: number): boolean {
 /**
  * Сортировка предложений внутри товара: «в наличии → быстрее → дешевле».
  *   1) сначала то, что в наличии (остаток > 0);
- *   2) затем по фактическому сроку доставки с учётом границы 12:00 ЕКБ
+ *   2) затем по фактическому сроку с учётом графика локального склада
  *      (быстрее — выше; «уточн.»/null — в конец);
  *   3) при равном сроке — по возрастанию цены.
  * Используется и в карточке товара, и в карточках поиска, чтобы порядок
@@ -136,11 +136,32 @@ export function compareOffers(a: SupplierOffer, b: SupplierOffer): number {
   const bInStock = b.stock > 0 ? 1 : 0;
   if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
 
-  const aDays = getEffectiveDeliveryDays(a.deliveryDays) ?? Infinity;
-  const bDays = getEffectiveDeliveryDays(b.deliveryDays) ?? Infinity;
+  const aDays = getOfferEffectiveDeliveryDays(a) ?? Infinity;
+  const bDays = getOfferEffectiveDeliveryDays(b) ?? Infinity;
   if (aDays !== bDays) return aDays - bDays; // быстрее — выше
 
   return a.ourPrice - b.ourPrice; // при равном сроке дешевле — выше
+}
+
+export function getOfferEffectiveDeliveryDays(
+  offer: Pick<SupplierOffer, "deliveryDays" | "supplierCode" | "supplier">,
+  now = new Date()
+): number | null {
+  return getEffectiveDeliveryDays(
+    offer.deliveryDays,
+    { supplierCode: offer.supplierCode, supplier: offer.supplier },
+    now
+  );
+}
+
+export function getGroupEffectiveMinDeliveryDays(
+  group: Pick<SupplierGroup, "offers">,
+  now = new Date()
+): number | null {
+  const deliveryDays = group.offers
+    .map((offer) => getOfferEffectiveDeliveryDays(offer, now))
+    .filter((days): days is number => days != null);
+  return deliveryDays.length ? Math.min(...deliveryDays) : null;
 }
 
 /**
@@ -199,8 +220,8 @@ export function selectProductGroupOffers(
       if (aInStock !== bInStock) return bInStock - aInStock;
       if (a.ourPrice !== b.ourPrice) return a.ourPrice - b.ourPrice;
 
-      const aDays = a.deliveryDays ?? Infinity;
-      const bDays = b.deliveryDays ?? Infinity;
+      const aDays = getOfferEffectiveDeliveryDays(a) ?? Infinity;
+      const bDays = getOfferEffectiveDeliveryDays(b) ?? Infinity;
       if (aDays !== bDays) return aDays - bDays;
       if (a.stock !== b.stock) return b.stock - a.stock;
       return a.supplier.localeCompare(b.supplier, "ru");
@@ -320,8 +341,8 @@ export function compareGroupsByDelivery(
   const bInStock = b.totalStock > 0 ? 1 : 0;
   if (aInStock !== bInStock) return bInStock - aInStock; // в наличии — выше
 
-  const aDays = a.minDeliveryDays ?? Infinity;
-  const bDays = b.minDeliveryDays ?? Infinity;
+  const aDays = getGroupEffectiveMinDeliveryDays(a) ?? Infinity;
+  const bDays = getGroupEffectiveMinDeliveryDays(b) ?? Infinity;
   if (aDays !== bDays) return aDays - bDays; // быстрее — выше
 
   return a.minPrice - b.minPrice; // потом дешевле

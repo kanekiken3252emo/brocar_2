@@ -192,7 +192,7 @@ export default function SupplierGroupTable({
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-300">
                       <span className="inline-flex items-center gap-1.5">
                         <Truck className="h-3.5 w-3.5 text-orange-500" />
-                        {formatDeliveryLabel(offer.deliveryDays)}
+                        {formatDeliveryLabel(offer.deliveryDays, offer)}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-white">

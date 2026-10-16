@@ -100,7 +100,7 @@ function OfferRow({
       <td className="px-4 py-3 text-neutral-300 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
           <Truck className="w-3.5 h-3.5 text-orange-500" />
-          {formatDeliveryLabel(offer.deliveryDays)}
+          {formatDeliveryLabel(offer.deliveryDays, offer)}
         </span>
       </td>
       <td className="px-4 py-3 text-right text-white font-semibold whitespace-nowrap">
@@ -147,7 +147,7 @@ function OfferMobileCard({
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Truck className="w-3.5 h-3.5 text-orange-500" />
-          {formatDeliveryLabel(offer.deliveryDays)}
+          {formatDeliveryLabel(offer.deliveryDays, offer)}
         </span>
       </div>
       <button

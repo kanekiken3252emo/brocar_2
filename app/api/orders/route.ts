@@ -81,14 +81,19 @@ export async function POST(request: Request) {
         with: { items: { with: { product: true } } },
       });
       if (!cart) {
-        return NextResponse.json({ error: "Корзина не найдена" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Корзина не найдена" },
+          { status: 400 }
+        );
       }
       selectedItems = wantedIds
         ? cart.items.filter((it) => wantedIds.has(it.id))
         : cart.items;
     }
 
-    if (selectedItems.some((item) => item.verificationStatus === "unavailable")) {
+    if (
+      selectedItems.some((item) => item.verificationStatus === "unavailable")
+    ) {
       return NextResponse.json(
         {
           error:
@@ -102,7 +107,7 @@ export async function POST(request: Request) {
         (item) =>
           item.verificationStatus === "insufficient_stock" ||
           (item.availableStock != null && item.qty > item.availableStock) ||
-          !isCartItemVerificationFresh(item.verifiedAt)
+          !isCartItemVerificationFresh(item.verifiedAt, new Date(), item)
       )
     ) {
       return NextResponse.json(

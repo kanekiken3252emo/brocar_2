@@ -110,12 +110,15 @@ export class ForumAutoAdapter implements SupplierAdapter {
 
         const dDeliv = toInt(row.d_deliv);
         const hDeliv = toInt(row.h_deliv);
+        const isEktWarehouse = String(row.whse || "").toUpperCase() === "EKT";
         const deliveryDays =
-          dDeliv > 0
-            ? dDeliv
-            : hDeliv > 0
-              ? Math.max(1, Math.ceil(hDeliv / 24))
-              : null;
+          isEktWarehouse && dDeliv === 0 && hDeliv < 24
+            ? 0
+            : dDeliv > 0
+              ? dDeliv
+              : hDeliv > 0
+                ? Math.max(1, Math.ceil(hDeliv / 24))
+                : null;
 
         items.push({
           article: String(row.art || params.article),

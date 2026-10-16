@@ -1,9 +1,27 @@
 import { db } from "@/lib/db";
-import { orders, orderItems, carts, cartItems, profiles } from "@/lib/db/schema";
+import {
+  orders,
+  orderItems,
+  carts,
+  cartItems,
+  profiles,
+} from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getPayment } from "@/lib/yookassa";
 import { STATUS_AFTER_PAYMENT } from "@/lib/order-status";
 import { sendOrderNotification, sendOrderPlacedToCustomer } from "@/lib/email";
+import { getEffectiveDeliveryDays } from "@/lib/utils";
+
+function supplierCodeFromSnapshot(supplier: string | null): string | null {
+  const value = (supplier || "").toLowerCase();
+  if (value.includes("berg")) return "berg";
+  if (value.includes("armtek")) return "armtek";
+  if (value.includes("rossko")) return "rossko";
+  if (value.includes("shate-m")) return "shate-m";
+  if (value.includes("forum-auto")) return "forum-auto";
+  if (value.includes("партком")) return "partkom";
+  return null;
+}
 
 /**
  * Статусы, из которых заказ ещё можно перевести оплатой. Защита от того, чтобы
@@ -31,7 +49,9 @@ export interface SettleResult {
  * Возвращает итоговый статус заказа (или null, если ЮKassa ещё держит платёж в
  * pending — например, юзер ушёл со страницы оплаты, не заплатив).
  */
-export async function settleByPaymentId(paymentId: string): Promise<SettleResult> {
+export async function settleByPaymentId(
+  paymentId: string
+): Promise<SettleResult> {
   const payment = await getPayment(paymentId);
   const orderId = payment.metadata?.order_id
     ? parseInt(payment.metadata.order_id, 10)
@@ -47,7 +67,10 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
       .update(orders)
       .set({ status: STATUS_AFTER_PAYMENT, paymentId: payment.id })
       .where(
-        and(eq(orders.id, orderId), inArray(orders.status, PRE_PAYMENT_STATUSES))
+        and(
+          eq(orders.id, orderId),
+          inArray(orders.status, PRE_PAYMENT_STATUSES)
+        )
       )
       .returning();
 
@@ -117,6 +140,14 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
           ...customerItems[i],
           supplier: it.supplier,
           deliveryDays: it.deliveryDays,
+          effectiveDeliveryDays: getEffectiveDeliveryDays(
+            it.deliveryDays,
+            {
+              supplierCode: supplierCodeFromSnapshot(it.supplier),
+              supplier: it.supplier,
+            },
+            full.createdAt
+          ),
         }));
 
         // Письмо магазину «ОПЛАЧЕН». Сбой почты не должен ломать приёмку оплаты.
@@ -162,7 +193,11 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
       }
     }
 
-    return { orderId, status: STATUS_AFTER_PAYMENT, paymentStatus: payment.status };
+    return {
+      orderId,
+      status: STATUS_AFTER_PAYMENT,
+      paymentStatus: payment.status,
+    };
   }
 
   // Платёж отменён → отменяем заказ (только если он ещё ждал оплату).
@@ -171,7 +206,10 @@ export async function settleByPaymentId(paymentId: string): Promise<SettleResult
       .update(orders)
       .set({ status: "canceled" })
       .where(
-        and(eq(orders.id, orderId), inArray(orders.status, PRE_PAYMENT_STATUSES))
+        and(
+          eq(orders.id, orderId),
+          inArray(orders.status, PRE_PAYMENT_STATUSES)
+        )
       );
     return { orderId, status: "canceled", paymentStatus: payment.status };
   }

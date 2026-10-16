@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { carts, cartItems, products } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
-import { generateSessionId } from "@/lib/utils";
+import { generateSessionId, getEffectiveDeliveryDays } from "@/lib/utils";
 import { validatePromo, discountAmount } from "@/lib/promo";
 import { isReturnableSupplier } from "@/lib/suppliers/returns";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
@@ -264,6 +264,10 @@ async function getCartWithItems(cartId: number) {
       qty: item.qty,
       price: linePrice,
       deliveryDays: item.deliveryDays,
+      effectiveDeliveryDays: getEffectiveDeliveryDays(item.deliveryDays, {
+        supplierCode: item.supplierCode,
+        supplier: item.offerSupplier,
+      }),
       availableStock: item.availableStock,
       verifiedAt: item.verifiedAt?.toISOString() ?? null,
       verificationStatus: item.verificationStatus ?? "pending",

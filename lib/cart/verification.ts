@@ -17,7 +17,11 @@ import {
   saveProductOfferSnapshot,
 } from "@/lib/product-offer-snapshot";
 import { buildSupplierAllocation } from "@/lib/cart/fulfillment";
-import { getEffectiveDeliveryDays } from "@/lib/utils";
+import {
+  didDeliveryPromiseChange,
+  getEffectiveDeliveryDays,
+  type DeliveryPromiseContext,
+} from "@/lib/utils";
 import { getProductSeoSnapshot } from "@/lib/seo/product-snapshot";
 import {
   getSafeProductName,
@@ -28,11 +32,31 @@ export const CART_VERIFICATION_TTL_MS = 60 * 60 * 1000;
 
 export function isCartItemVerificationFresh(
   verifiedAt: Date | null | undefined,
-  now = new Date()
+  now = new Date(),
+  delivery?: {
+    deliveryDays: number | null | undefined;
+    supplierCode: string | null | undefined;
+    offerSupplier: string | null | undefined;
+  }
 ): boolean {
   if (!verifiedAt) return false;
   const age = now.getTime() - verifiedAt.getTime();
-  return age >= 0 && age < CART_VERIFICATION_TTL_MS;
+  if (age < 0 || age >= CART_VERIFICATION_TTL_MS) return false;
+  if (
+    delivery &&
+    didDeliveryPromiseChange(
+      delivery.deliveryDays,
+      {
+        supplierCode: delivery.supplierCode,
+        supplier: delivery.offerSupplier,
+      },
+      verifiedAt,
+      now
+    )
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function getCartProductDisplayName(
@@ -54,9 +78,11 @@ export async function isCartItemVerificationNeeded(item: {
   sourceOfferId: string | null;
   supplierCode: string | null;
   offerSupplier: string | null;
+  deliveryDays: number | null;
   product: { article: string; brand: string | null };
 }): Promise<boolean> {
-  if (!isCartItemVerificationFresh(item.verifiedAt)) return true;
+  if (!isCartItemVerificationFresh(item.verifiedAt, new Date(), item))
+    return true;
   const snapshot = await getProductOfferSnapshotState(
     item.product.article,
     item.product.brand || ""
@@ -189,15 +215,35 @@ function findStableOffer(
   return null;
 }
 
-function deliveryWorsened(
+function deliveryChange(
   previous: number | null,
-  current: number | null
-): boolean {
-  const previousEffective = getEffectiveDeliveryDays(previous);
-  const currentEffective = getEffectiveDeliveryDays(current);
-  if (previousEffective == null) return false;
-  if (currentEffective == null) return true;
-  return currentEffective > previousEffective;
+  previousContext: DeliveryPromiseContext,
+  previousAt: Date,
+  current: number | null,
+  currentContext: DeliveryPromiseContext,
+  now: Date
+): {
+  worsened: boolean;
+  previousEffective: number | null;
+  currentEffective: number | null;
+} {
+  const previousEffective = getEffectiveDeliveryDays(
+    previous,
+    previousContext,
+    previousAt
+  );
+  const currentEffective = getEffectiveDeliveryDays(
+    current,
+    currentContext,
+    now
+  );
+  let worsened = false;
+  if (previousEffective == null) {
+    return { worsened: false, previousEffective, currentEffective };
+  }
+  if (currentEffective == null) worsened = true;
+  else worsened = currentEffective > previousEffective;
+  return { worsened, previousEffective, currentEffective };
 }
 
 export interface CartRefreshResult {
@@ -254,7 +300,7 @@ export async function refreshCartOffers(
       );
       const itemsToRefresh = items.filter(
         (item) =>
-          !isCartItemVerificationFresh(item.verifiedAt) ||
+          !isCartItemVerificationFresh(item.verifiedAt, new Date(), item) ||
           Boolean(
             snapshot &&
               item.verifiedAt &&
@@ -266,7 +312,8 @@ export async function refreshCartOffers(
       if (itemsToRefresh.length === 0) continue;
 
       const requiresLive = itemsToRefresh.some(
-        (item) => !isCartItemVerificationFresh(item.verifiedAt)
+        (item) =>
+          !isCartItemVerificationFresh(item.verifiedAt, new Date(), item)
       );
       let group: SupplierGroup | null = snapshot?.group ?? null;
       let verifiedAt = snapshot?.updatedAt ?? new Date();
@@ -347,10 +394,22 @@ export async function refreshCartOffers(
         );
         const previousDeliveryDays = item.deliveryDays ?? null;
         const priceIncreased = offer.ourPrice > previousPrice + 0.005;
-        const becameSlower = deliveryWorsened(
+        const checkedAt = new Date();
+        const delivery = deliveryChange(
           previousDeliveryDays,
-          offer.deliveryDays
+          {
+            supplierCode: item.supplierCode,
+            supplier: item.offerSupplier,
+          },
+          item.verifiedAt ?? checkedAt,
+          offer.deliveryDays,
+          {
+            supplierCode: offer.supplierCode,
+            supplier: offer.supplier,
+          },
+          checkedAt
         );
+        const becameSlower = delivery.worsened;
         const enoughStock = item.qty <= offer.stock;
 
         await db
@@ -364,14 +423,14 @@ export async function refreshCartOffers(
             sourceOfferId: offer.sourceOfferId ?? null,
             availableStock: offer.stock,
             verifiedAt,
-            verificationStatus: enoughStock
-              ? "verified"
-              : "insufficient_stock",
+            verificationStatus: enoughStock ? "verified" : "insufficient_stock",
             conditionChange:
               priceIncreased || becameSlower
                 ? {
                     previousPrice,
                     previousDeliveryDays,
+                    previousEffectiveDeliveryDays: delivery.previousEffective,
+                    currentEffectiveDeliveryDays: delivery.currentEffective,
                     priceIncreased,
                     deliveryWorsened: becameSlower,
                   }

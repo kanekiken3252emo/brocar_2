@@ -18,7 +18,7 @@ export type ComplianceCertificate = {
 
 export type ProductCertificateSummary = Pick<
   ComplianceCertificate,
-  "publicId" | "kind" | "number" | "status" | "validUntilLabel"
+  "publicId" | "number" | "validUntilLabel"
 >;
 
 const certificates: ComplianceCertificate[] = [
@@ -105,9 +105,7 @@ export function getProductCertificateSummary(
 
   return {
     publicId: certificate.publicId,
-    kind: certificate.kind,
     number: certificate.number,
-    status: certificate.status,
     validUntilLabel: certificate.validUntilLabel,
   };
 }

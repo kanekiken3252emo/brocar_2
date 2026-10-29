@@ -1168,7 +1168,7 @@ export default function ProductClient({
               {certificate && (
                 <div className="flex flex-col gap-1 px-6 py-3 sm:flex-row sm:items-start sm:gap-4">
                   <div className="shrink-0 text-sm text-neutral-400 sm:w-60">
-                    {certificate.kind}
+                    Сертификат соответствия
                   </div>
                   <div className="flex flex-col gap-1 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
                     <Link

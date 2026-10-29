@@ -98,6 +98,7 @@ import { getVegaName } from "@/lib/vega-names";
 import SupplierGroupListItem from "@/components/Items/SupplierGroupListItem";
 import { seedProductImageCache } from "@/lib/hooks/useProductImage";
 import { LaximoCrosses } from "@/components/product/LaximoCrosses";
+import type { ProductCertificateSummary } from "@/lib/compliance-certificates";
 
 /** Статичный «шелл» карточки, отрендеренный на сервере (RSC) — попадает в первый HTML. */
 export interface ProductShell {
@@ -169,12 +170,14 @@ export default function ProductClient({
   shell,
   preserveShellName = false,
   offerTablePilot = false,
+  certificate = null,
 }: {
   article: string;
   brand: string;
   shell: ProductShell;
   preserveShellName?: boolean;
   offerTablePilot?: boolean;
+  certificate?: ProductCertificateSummary | null;
 }) {
   const productId = article;
 
@@ -1143,7 +1146,7 @@ export default function ProductClient({
         )}
 
         {/* Характеристики */}
-        {characteristics.length > 0 && (
+        {(characteristics.length > 0 || certificate) && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden mb-8">
             <div className="px-6 py-4 border-b border-neutral-800">
               <h2 className="text-xl font-bold text-white">Характеристики</h2>
@@ -1162,6 +1165,24 @@ export default function ProductClient({
                   </div>
                 </div>
               ))}
+              {certificate && (
+                <div className="flex flex-col gap-1 px-6 py-3 sm:flex-row sm:items-start sm:gap-4">
+                  <div className="shrink-0 text-sm text-neutral-400 sm:w-60">
+                    {certificate.kind}
+                  </div>
+                  <div className="flex flex-col gap-1 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+                    <Link
+                      href={`/certificates/${certificate.publicId}`}
+                      className="font-medium text-orange-400 underline decoration-orange-400/40 underline-offset-4 transition-colors hover:text-orange-300"
+                    >
+                      {certificate.number}
+                    </Link>
+                    <span className="text-neutral-400">
+                      Действует до {certificate.validUntilLabel}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

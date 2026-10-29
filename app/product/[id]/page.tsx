@@ -33,6 +33,7 @@ import {
   getProductOfferSnapshot,
   PRODUCT_OFFER_SNAPSHOT_LIMIT,
 } from "@/lib/product-offer-snapshot";
+import { getProductCertificateSummary } from "@/lib/compliance-certificates";
 
 /**
  * Серверная обёртка карточки товара. Делает БЫСТРЫЙ индексный lookup в каталоге
@@ -333,6 +334,10 @@ export default async function ProductPage({
     canonicalArticle,
     canonicalBrandName
   );
+  const certificate = getProductCertificateSummary(
+    canonicalArticle,
+    canonicalBrandName
+  );
 
   const crumbs = [
     { name: "Главная", href: "/" },
@@ -366,6 +371,7 @@ export default async function ProductPage({
         shell={shell}
         preserveShellName={preserveShellName}
         offerTablePilot={offerTablePilot}
+        certificate={certificate}
       />
     </>
   );

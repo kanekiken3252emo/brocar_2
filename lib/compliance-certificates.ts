@@ -21,6 +21,15 @@ export type ProductCertificateSummary = Pick<
   "publicId" | "number" | "validUntilLabel"
 >;
 
+export interface CertificateProductReference {
+  article: string;
+  brand: string;
+}
+
+interface ProductCertificateBinding extends CertificateProductReference {
+  certificateId: string;
+}
+
 const certificates: ComplianceCertificate[] = [
   {
     publicId: "eaes-ru-s-de-na96-v-03408-23",
@@ -75,12 +84,35 @@ function productKey(article: string, brand: string): string {
   return `${normalizedBrand}:${normalizedArticle}`;
 }
 
-const certificateIdByProduct = new Map<string, string>([
-  [productKey("GDB1550", "TRW"), "eaes-ru-s-de-na96-v-03408-23"],
-  [productKey("330005", "ERA"), "eaes-kg417-026-it-02-19225"],
-  [productKey("550146", "ERA"), "eaes-kg417-026-it-02-19225"],
-  [productKey("330089", "ERA"), "eaes-kg417-026-it-02-19225"],
-]);
+const productCertificateBindings: ProductCertificateBinding[] = [
+  {
+    article: "GDB1550",
+    brand: "TRW",
+    certificateId: "eaes-ru-s-de-na96-v-03408-23",
+  },
+  {
+    article: "330005",
+    brand: "ERA",
+    certificateId: "eaes-kg417-026-it-02-19225",
+  },
+  {
+    article: "550146",
+    brand: "ERA",
+    certificateId: "eaes-kg417-026-it-02-19225",
+  },
+  {
+    article: "330089",
+    brand: "ERA",
+    certificateId: "eaes-kg417-026-it-02-19225",
+  },
+];
+
+const certificateIdByProduct = new Map<string, string>(
+  productCertificateBindings.map(({ article, brand, certificateId }) => [
+    productKey(article, brand),
+    certificateId,
+  ])
+);
 
 export function getComplianceCertificate(
   publicId: string
@@ -108,6 +140,33 @@ export function getProductCertificateSummary(
     number: certificate.number,
     validUntilLabel: certificate.validUntilLabel,
   };
+}
+
+export function getCertificateProductReferences(
+  publicId: string
+): CertificateProductReference[] {
+  return productCertificateBindings
+    .filter(({ certificateId }) => certificateId === publicId)
+    .map(({ article, brand }) => ({ article, brand }));
+}
+
+export function resolveCertificateReturnProduct(
+  publicId: string,
+  article?: string,
+  brand?: string
+): CertificateProductReference | null {
+  const products = getCertificateProductReferences(publicId);
+
+  if (article && brand) {
+    const requestedKey = productKey(article, brand);
+    const matchingProduct = products.find(
+      (product) => productKey(product.article, product.brand) === requestedKey
+    );
+
+    if (matchingProduct) return matchingProduct;
+  }
+
+  return products.length === 1 ? products[0] : null;
 }
 
 export function getCertificateStaticParams(): { id: string }[] {

@@ -1172,7 +1172,10 @@ export default function ProductClient({
                   </div>
                   <div className="flex flex-col gap-1 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
                     <Link
-                      href={`/certificates/${certificate.publicId}`}
+                      href={{
+                        pathname: `/certificates/${certificate.publicId}`,
+                        query: { article, brand },
+                      }}
                       className="font-medium text-orange-400 underline decoration-orange-400/40 underline-offset-4 transition-colors hover:text-orange-300"
                     >
                       {certificate.number}
